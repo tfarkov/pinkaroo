@@ -65,3 +65,72 @@ To test the UI without Redis, Google Maps, MLS, or other external services:
    - CREA/MLS keys, Cloudinary, Sentry, etc.
 
 **Summary:** Run `npm run dev:ui` and open http://localhost:3000. No `.env` is required to browse the UI; add `DATABASE_URL` (and optionally the Maps key) when you want live data.
+
+---
+
+## Run as anonymous vs signed-in user
+
+### 1. Start the app
+
+```bash
+npm run dev:ui
+```
+
+Open **http://localhost:3000** in your browser.
+
+### 2. Use the app as **anonymous** (not signed in)
+
+- Do **not** click “Sign In”. Use the app as a guest.
+- You can: browse the home page, use filters, open listing details, use the map, see “Contact a Realtor”, view MLS Search, Profile (limited), etc.
+- You will **not** see: the **Favourites** sidebar on the home page, **heart (favourite) buttons** on listing thumbnails, Dashboard, Add Listing, Admin, or Broker areas. Favourites and those features are only available when signed in.
+
+### 3. Use the app as a **signed-in user**
+
+1. **Database and seed (required for real sign-in)**  
+   Ensure the app can talk to the database and the seed has been run:
+   - Set **`DATABASE_URL`** in `.env` (e.g. local MySQL or Docker).
+   - Run migrations and seed:
+     ```bash
+     npx prisma migrate dev
+     npx prisma db seed
+     ```
+   - Restart the dev server if it was already running.
+
+2. **Sign in**  
+   - Click **Sign In** in the header (or go to **http://localhost:3000/signin**).
+   - Use one of the seeded accounts:
+
+   | Role    | Email               | Password  |
+   |---------|---------------------|-----------|
+   | Admin   | `admin@example.com` | `password` |
+   | Broker  | `broker@example.com` | `password` |
+   | Realtor | `realtor@example.com` | `password` |
+
+3. **After sign-in**  
+   - **Favourites** sidebar appears on the home page; you can add/remove favourites with the heart on listing cards.
+   - Header shows **Sign out** and role-specific links (Dashboard, Add Listing, Broker, Admin depending on role).
+   - Profile, Favourites page, and role-specific dashboards use your session.
+
+### 4. Emulate signed-in session (local testing, no DB required)
+
+To test the **signed-in UI** (favourites, nav, role-specific links) without setting up the database:
+
+1. Start the app: `npm run dev:ui` and open **http://localhost:3000/signin**.
+2. On the sign-in page, in development you’ll see a **“Local testing: emulate signed-in session”** box.
+3. Click **“Fill emulate credentials”**, then click **“Sign in with email”**. You are signed in as a fake user (no database used).
+4. **Role:** By default the emulated user has role **REALTOR**. To use **ADMIN** or **BROKER**, set in `.env` and restart the dev server:
+   - `EMULATE_SESSION_ROLE=ADMIN` or `EMULATE_SESSION_ROLE=BROKER`
+   - Optional: `EMULATE_SESSION_EMAIL=emulate@local`, `EMULATE_SESSION_PASSWORD=emulate` (these are the defaults).
+
+**Note:** Emulate only works when `NODE_ENV=development`. API calls that need the database (e.g. saving favourites, creating listings) will fail without a database; use the real seed accounts and a real DB for full API testing.
+
+### 5. Quick comparison
+
+| Feature              | Anonymous | Signed in   |
+|----------------------|-----------|------------|
+| Browse home & listings | Yes       | Yes        |
+| Filters, map, Contact a Realtor | Yes | Yes        |
+| Favourites sidebar   | No        | Yes        |
+| Heart (favourite) on cards | No   | Yes        |
+| Dashboard / Add Listing / Admin / Broker | No | Yes (by role) |
+| Profile (with role)  | Limited   | Full       |
