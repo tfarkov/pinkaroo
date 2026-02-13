@@ -1,0 +1,146 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+}
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  role          Role     @default(USER)
+  name          String?
+  bio           String?
+  ratings       Float?   @default(0)
+  listingsCount Int?     @default(0) // Denormalized for metrics
+  avgSalePrice  Float?   @default(0)
+  clientConversionRate Float? @default(0)
+  approvalRate  Float?   @default(0)
+  brokerId      String?
+  broker        User?    @relation("BrokerTeam", fields: [brokerId], references: [id])
+  teamMembers   User[]   @relation("BrokerTeam")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  listings      Listing[]
+  clients       Client[] 
+  interactions  Interaction[]
+  notifications Notification[]
+  favorites     Favorite[]
+}
+enum Role {
+  USER
+  ADMIN
+  REALTOR
+  BROKER
+}
+model Listing {
+  id               String       @id @default(uuid())
+  title            String
+  description      String
+  price            Float
+  location         String
+  province         Province     @default(ONTARIO)
+  postalCode       String?
+  sizeSqm          Float?
+  bedroomsTotal    Int?
+  bathroomsTotal   Int?
+  propertyType     String?
+  latitude         Float?
+  longitude        Float?
+  images           Json?   // array of image URLs
+  mlsId            String?  @unique
+  status           ListingStatus @default(ACTIVE)
+  approvedBy       String?
+  approvedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  userId           String
+  user             User         @relation(fields: [userId], references: [id])
+  favorites        Favorite[]
+  @@index([status])
+  @@index([userId])
+  @@index([latitude, longitude])
+}
+enum ListingStatus {
+  ACTIVE
+  PENDING
+  APPROVED
+  REJECTED
+}
+enum Province {
+  ALBERTA
+  BRITISH_COLUMBIA
+  MANITOBA
+  NEW_BRUNSWICK
+  NEWFOUNDLAND_AND_LABRADOR
+  NOVA_SCOTIA
+  ONTARIO
+  PRINCE_EDWARD_ISLAND
+  QUEBEC
+  SASKATCHEWAN
+  NORTHWEST_TERRITORIES
+  NUNAVUT
+  YUKON
+}
+model Client {
+  id            String       @id @default(uuid())
+  name          String
+  email         String?
+  phone         String?
+  notes         String?
+  status        ClientStatus @default(LEAD) 
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  userId        String       
+  user          User         @relation(fields: [userId], references: [id])
+  interactions  Interaction[]
+  @@index([status])
+  @@index([userId])
+}
+enum ClientStatus {
+  LEAD
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  CLOSED
+}
+model Interaction {
+  id        String   @id @default(uuid())
+  type      String   
+  details   String
+  date      DateTime
+  clientId  String
+  userId    String   
+  client    Client   @relation(fields: [clientId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  type      NotificationType   
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+enum NotificationType {
+  APPROVAL
+  INTERACTION
+  SYSTEM
+}
+model Config {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  value      String?
+  updatedAt  DateTime @updatedAt
+}
+model Favorite {
+  id        String   @id @default(uuid())
+  listingId String
+  userId    String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([userId, listingId])
+}
