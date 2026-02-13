@@ -10,7 +10,9 @@ import Footer from '../../components/Footer';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMutation } from '@tanstack/react-query';
 import BottomNav from '../../components/ui/BottomNav';
-import { API, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI } from '../../lib/constants';
+import { API, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI, SQFT_CONVERSION_FACTOR } from '../../lib/constants';
+import { useUnitToggle } from '../../lib/hooks/useUnitToggle';
+import { getMockListing } from '../../lib/mockData';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(value);
@@ -20,9 +22,18 @@ export default function ListingDetail() {
   const router = useRouter();
   const { id } = router.query;
   const { isAuthenticated } = useAuth();
+  const { isMetric } = useUnitToggle();
   const { data: listing } = useQuery({
     queryKey: ['listing', id],
-    queryFn: () => fetch(`${API.LISTINGS}/${id}`).then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const res = await fetch(`${API.LISTINGS}/${id}`);
+        if (res.ok) return res.json();
+        return getMockListing(id as string);
+      } catch {
+        return getMockListing(id as string);
+      }
+    },
     enabled: !!id,
   });
   const favoriteMutation = useMutation({
@@ -31,8 +42,16 @@ export default function ListingDetail() {
   });
 
   useEffect(() => {
-    let viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
-    viewed = [...new Set([...viewed.filter((v: string) => v !== id), id])].slice(-RECENTLY_VIEWED_LIMIT);
+    if (typeof window === 'undefined' || typeof id !== 'string' || !id.trim()) return;
+    let viewed: string[] = [];
+    try {
+      const raw = localStorage.getItem('recentlyViewed');
+      viewed = Array.isArray(JSON.parse(raw || '[]')) ? JSON.parse(raw || '[]') : [];
+    } catch {
+      viewed = [];
+    }
+    viewed = viewed.filter((v: unknown) => typeof v === 'string' && v.trim());
+    viewed = [...new Set([...viewed.filter((v) => v !== id), id])].slice(-RECENTLY_VIEWED_LIMIT);
     localStorage.setItem('recentlyViewed', JSON.stringify(viewed));
   }, [id]);
 
@@ -77,7 +96,7 @@ export default function ListingDetail() {
                 <dt className="text-slate-500">Bathrooms</dt>
                 <dd className="font-medium text-slate-900">{listing.bathroomsTotal ?? '—'}</dd>
                 <dt className="text-slate-500">Size</dt>
-                <dd className="font-medium text-slate-900">{listing.sizeSqm != null ? `${listing.sizeSqm} m²` : '—'}</dd>
+                <dd className="font-medium text-slate-900">{listing.sizeSqm != null ? (isMetric ? `${listing.sizeSqm} m²` : `${(listing.sizeSqm * SQFT_CONVERSION_FACTOR).toFixed(0)} sq ft`) : '—'}</dd>
                 <dt className="text-slate-500">Type</dt>
                 <dd className="font-medium text-slate-900">{listing.propertyType ?? '—'}</dd>
                 <dt className="text-slate-500">Postal code</dt>
