@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import NotificationsDropdown from './NotificationsDropdown';
 
+function LogoIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
+      <text x="22" y="28" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold" fontFamily="system-ui,sans-serif">P</text>
+    </svg>
+  );
+}
+
 export default function Header() {
   const { isAuthenticated, isRealtor, isBroker, isAdmin } = useAuth();
   const { isMetric, toggleUnit } = useUnitToggle();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const navLinks = [
     { href: '/listings', label: 'Find a Home' },
@@ -24,7 +32,18 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
       <div className="content-width flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white">
-          <Image src="/logo.png" alt="Pinkaroo" width={44} height={44} priority className="rounded" />
+          {logoError ? (
+            <LogoIcon className="w-11 h-11 rounded" />
+          ) : (
+            <img
+              src="/logo.png"
+              alt="Pinkaroo"
+              width={44}
+              height={44}
+              className="rounded w-11 h-11 object-contain bg-transparent"
+              onError={() => setLogoError(true)}
+            />
+          )}
           <span className="font-bold text-lg hidden sm:inline">Pinkaroo</span>
         </Link>
         <nav className="hidden md:flex items-center gap-0">
@@ -40,8 +59,9 @@ export default function Header() {
           <button
             onClick={toggleUnit}
             className="ml-1 px-3 py-1.5 rounded-md text-white/80 hover:bg-white/10 text-sm font-medium"
+            title={isMetric ? 'Switch to Imperial (sq ft)' : 'Switch to Metric (m²)'}
           >
-            {isMetric ? 'm²' : 'sq ft'}
+            {isMetric ? 'Metric' : 'Imperial'}
           </button>
           <div className="ml-1">
             <NotificationsDropdown />
@@ -51,7 +71,7 @@ export default function Header() {
               Sign out
             </Link>
           ) : (
-            <Link href="/api/auth/signin" className="ml-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors">
+            <Link href="/signin" className="ml-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors">
               Sign In
             </Link>
           )}
@@ -90,7 +110,7 @@ export default function Header() {
                 Sign out
               </Link>
             ) : (
-              <Link href="/api/auth/signin" onClick={() => setMobileMenuOpen(false)} className="mt-2 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-md text-center">
+              <Link href="/signin" onClick={() => setMobileMenuOpen(false)} className="mt-2 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-md text-center">
                 Sign In
               </Link>
             )}
