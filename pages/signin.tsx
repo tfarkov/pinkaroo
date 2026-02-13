@@ -116,6 +116,27 @@ export default function SignIn() {
             </form>
           )}
 
+          {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
+            <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-sm font-medium text-amber-900 mb-2">Local testing: emulate signed-in session</p>
+              <p className="text-xs text-amber-800 mb-3">
+                No database required. Role is set by <code className="bg-amber-100 px-1 rounded">EMULATE_SESSION_ROLE</code> (default: REALTOR). Restart dev server after changing.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('emulate@local');
+                  setPassword('emulate');
+                  setError(null);
+                }}
+                className="text-sm font-medium text-amber-800 underline hover:no-underline"
+              >
+                Fill emulate credentials
+              </button>
+              <span className="text-amber-700 text-sm mx-2">then click “Sign in with email”.</span>
+            </div>
+          )}
+
           {oauthProviders.length > 0 && (
             <>
               {providers?.credentials && (

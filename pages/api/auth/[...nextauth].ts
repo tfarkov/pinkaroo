@@ -12,6 +12,13 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 10;
 
+// Local testing: emulate signed-in session without DB (dev only)
+const EMULATE_EMAIL = process.env.EMULATE_SESSION_EMAIL ?? 'emulate@local';
+const EMULATE_PASSWORD = process.env.EMULATE_SESSION_PASSWORD ?? 'emulate';
+const EMULATE_USER_ID = 'emulate-local';
+const EMULATE_ROLE = (process.env.EMULATE_SESSION_ROLE ?? 'REALTOR').toUpperCase();
+const IS_DEV = process.env.NODE_ENV === 'development';
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   pages: { signIn: '/signin' },
@@ -60,6 +67,17 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+        // Development-only: emulate signed-in session without DB
+        if (IS_DEV && credentials.email === EMULATE_EMAIL && credentials.password === EMULATE_PASSWORD) {
+          return {
+            id: EMULATE_USER_ID,
+            email: EMULATE_EMAIL,
+            name: 'Emulate (local)',
+            role: EMULATE_ROLE,
+            brokerId: null,
+            isTeamLead: EMULATE_ROLE === 'REALTOR',
+          };
+        }
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user?.password) return null; // OAuth-only user has no password
         if (await bcrypt.compare(credentials.password, user.password)) {
@@ -83,16 +101,32 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    jwt: ({ token, user }) => {
+    jwt: async ({ token, user }) => {
       if (user) {
-        token.id = (user as { id: string }).id;
-        token.role = (user as { role?: string }).role;
+        const uid = (user as { id: string }).id;
+        token.id = uid;
+        const u = user as { role?: string; brokerId?: string | null; isTeamLead?: boolean };
+        if (uid === EMULATE_USER_ID) {
+          token.role = u.role ?? EMULATE_ROLE;
+          token.brokerId = u.brokerId ?? undefined;
+          token.isTeamLead = u.isTeamLead ?? (EMULATE_ROLE === 'REALTOR');
+        } else {
+          const full = await prisma.user.findUnique({ where: { id: uid }, select: { role: true, brokerId: true, ...({ isTeamLead: true } as Record<string, unknown>) } }) as { role: string; brokerId: string | null; isTeamLead?: boolean | null } | null;
+          if (full) {
+            token.role = full.role;
+            token.brokerId = full.brokerId ?? undefined;
+            token.isTeamLead = full.isTeamLead ?? false;
+          }
+        }
       }
       return token;
     },
     session: ({ session, token }) => {
-      (session.user as { id?: string; role?: string }).id = token.id as string;
-      (session.user as { role?: string }).role = token.role as string;
+      const u = session.user as { id?: string; role?: string; brokerId?: string; isTeamLead?: boolean };
+      u.id = token.id as string;
+      u.role = token.role as string;
+      u.brokerId = token.brokerId as string | undefined;
+      u.isTeamLead = token.isTeamLead as boolean | undefined;
       return session;
     },
   },

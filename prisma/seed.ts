@@ -43,6 +43,21 @@ async function main() {
       brokerId: broker.id,
     },
   });
+  // Emulate user for local testing (no DB required to sign in; seed creates record so APIs work)
+  const emulateRole = (process.env.EMULATE_SESSION_ROLE ?? 'REALTOR').toUpperCase();
+  await prisma.user.upsert({
+    where: { id: 'emulate-local' },
+    update: { role: emulateRole },
+    create: {
+      id: 'emulate-local',
+      email: process.env.EMULATE_SESSION_EMAIL ?? 'emulate@local',
+      password: await bcrypt.hash(process.env.EMULATE_SESSION_PASSWORD ?? 'emulate', 10),
+      role: emulateRole,
+      name: 'Emulate (local)',
+      bio: 'Local testing user',
+      ratings: 0,
+    },
+  });
   // Sample listing
   const listing = await prisma.listing.create({
     data: {
