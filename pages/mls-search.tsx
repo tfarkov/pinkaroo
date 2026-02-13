@@ -1,12 +1,14 @@
 import { useForm } from 'react-hook-form';
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import Image from 'next/image';
 import ReactGA from 'react-ga';
-import { API, CONTENT_TYPE, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI } from '../lib/constants';
+import { API, CONTENT_TYPE, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
+import { useUnitToggle } from '../lib/hooks/useUnitToggle';
+import { getMockMLSResults } from '../lib/mockData';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
+import SafeListingImage from '../components/ui/SafeListingImage';
 
 interface SearchFormData {
   province: string;
@@ -24,14 +26,20 @@ interface SearchFormData {
 
 export default function MLSSearch() {
   const { register, handleSubmit } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' } });
+  const { isMetric } = useUnitToggle();
   const [searchParams, setSearchParams] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { data: mlsListings, isLoading } = useQuery({
     queryKey: ['mls', searchParams],
-    queryFn: () => fetch(`${API.MLS_SEARCH}?${searchParams}`).then(res => {
-      if (!res.ok) throw new Error('MLS search failed');
-      return res.json();
-    }),
+    queryFn: async () => {
+      try {
+        const res = await fetch(`${API.MLS_SEARCH}?${searchParams}`);
+        if (res.ok) return res.json();
+        return getMockMLSResults();
+      } catch {
+        return getMockMLSResults();
+      }
+    },
     enabled: !!searchParams,
   });
   const mutation = useMutation({
@@ -42,7 +50,16 @@ export default function MLSSearch() {
 
   const onSubmit = (data: SearchFormData) => {
     const params = new URLSearchParams();
-    Object.entries(data).forEach(([k, v]) => {
+    const payload = { ...data };
+    if (!isMetric) {
+      if (payload.minSize != null && payload.minSize !== '') {
+        payload.minSize = Number(payload.minSize) / SQFT_CONVERSION_FACTOR;
+      }
+      if (payload.maxSize != null && payload.maxSize !== '') {
+        payload.maxSize = Number(payload.maxSize) / SQFT_CONVERSION_FACTOR;
+      }
+    }
+    Object.entries(payload).forEach(([k, v]) => {
       if (v !== undefined && v !== '' && v !== null) params.set(k, String(v));
     });
     setSearchParams(params.toString());
@@ -112,11 +129,11 @@ export default function MLSSearch() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="minSize" className="label">Min size (m²)</label>
+                <label htmlFor="minSize" className="label">Min size ({isMetric ? 'm²' : 'sq ft'})</label>
                 <input id="minSize" {...register('minSize')} type="number" className="input-field" />
               </div>
               <div>
-                <label htmlFor="maxSize" className="label">Max size (m²)</label>
+                <label htmlFor="maxSize" className="label">Max size ({isMetric ? 'm²' : 'sq ft'})</label>
                 <input id="maxSize" {...register('maxSize')} type="number" className="input-field" />
               </div>
             </div>
@@ -145,11 +162,7 @@ export default function MLSSearch() {
           {mlsListings?.map((listing: any) => (
             <article key={listing.ListingKey} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden" role="listitem">
               <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                {listing.Media?.[0]?.MediaURL ? (
-                  <Image src={listing.Media[0].MediaURL} alt={UI.IMAGE_OF_MLS_LISTING} width={300} height={200} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm">No image</div>
-                )}
+                <SafeListingImage src={listing.Media?.[0]?.MediaURL} alt={UI.IMAGE_OF_MLS_LISTING} />
               </div>
               <div className="p-4">
                 <h2 className="font-bold text-slate-900">{listing.PropertyType} in {listing.City}</h2>

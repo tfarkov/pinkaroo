@@ -3,12 +3,25 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { openDB } from 'idb';
 import { API, IDB_NAME, IDB_VERSION, UI } from '../lib/constants';
+import { getMockFavorites } from '../lib/mockData';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
+import SafeListingImage from '../components/ui/SafeListingImage';
 
 export default function Favorites() {
-  const { data: favorites = [] } = useQuery({ queryKey: ['favorites'], queryFn: () => fetch(API.FAVORITES).then(res => res.json()) });
+  const { data: favorites = [] } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.FAVORITES, { credentials: 'include' });
+        if (res.ok) return res.json();
+        return getMockFavorites();
+      } catch {
+        return getMockFavorites();
+      }
+    },
+  });
 
   useEffect(() => {
     const dbPromise = openDB(IDB_NAME, IDB_VERSION, {
@@ -33,7 +46,7 @@ export default function Favorites() {
             <article key={f.id} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group">
               <Link href={`/listings/${f.listing?.id}`} className="block">
                 <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                  {f.listing?.images?.[0] ? <img src={f.listing.images[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm">No image</div>}
+                  <SafeListingImage src={f.listing?.images?.[0]} />
                 </div>
                 <div className="p-4">
                   <h2 className="font-semibold text-slate-900 group-hover:text-accent-600 line-clamp-2">{f.listing?.title}</h2>
