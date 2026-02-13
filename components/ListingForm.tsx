@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/hooks/useAuth';
 import axios from 'axios';
-import { API, CONTENT_TYPE, DEFAULT_LOCATION, GA, PROVINCES, PROPERTY_TYPES, UI, DEBOUNCE_MS } from '../lib/constants';
+import { API, CONTENT_TYPE, DEFAULT_LOCATION, GA, PROVINCES, PROPERTY_TYPES, UI, DEBOUNCE_MS, SQFT_CONVERSION_FACTOR } from '../lib/constants';
+import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import ReactGA from 'react-ga';
 import { debounce } from 'lodash';
@@ -23,17 +24,25 @@ interface FormData {
 }
 
 export default function ListingForm({ listing }: { listing?: any }) {
-  const { register, handleSubmit } = useForm<FormData>({ defaultValues: listing });
+  const { register, handleSubmit, watch, setValue } = useForm<FormData>({ defaultValues: listing });
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { isMetric } = useUnitToggle();
   const [position, setPosition] = useState({ lat: 0, lng: 0 });
   const [error, setError] = useState(null);
+  const sizeSqm = watch('sizeSqm');
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
       const formData = new FormData();
+      let sizeToStore = data.sizeSqm;
+      if (!isMetric && sizeToStore != null && sizeToStore !== '') {
+        sizeToStore = Number(sizeToStore) / SQFT_CONVERSION_FACTOR;
+      }
       Object.entries(data).forEach(([key, value]) => {
         if (key === 'images') {
           Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
+        } else if (key === 'sizeSqm') {
+          formData.append(key, String(sizeToStore ?? value));
         } else {
           formData.append(key, value as string);
         }
@@ -100,8 +109,21 @@ export default function ListingForm({ listing }: { listing?: any }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="label">{UI.SIZE_SQM}</label>
-            <input {...register('sizeSqm')} type="number" className="input-field" />
+            <label className="label">{isMetric ? 'Size (m²)' : 'Size (sq ft)'}</label>
+            {isMetric ? (
+              <input {...register('sizeSqm')} type="number" className="input-field" />
+            ) : (
+              <input
+                type="number"
+                className="input-field"
+                value={sizeSqm != null && sizeSqm !== '' ? Math.round((Number(sizeSqm) || 0) * SQFT_CONVERSION_FACTOR) : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '') setValue('sizeSqm', 0);
+                  else setValue('sizeSqm', parseFloat(v) / SQFT_CONVERSION_FACTOR);
+                }}
+              />
+            )}
           </div>
           <div>
             <label className="label">{UI.BEDROOMS}</label>

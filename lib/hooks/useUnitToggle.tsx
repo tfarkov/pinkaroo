@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const UnitContext = createContext({ isMetric: true, toggleUnit: () => {} });
+const UnitContext = createContext({ isMetric: false, toggleUnit: () => {} });
 
 export function UnitProvider({ children }: { children: React.ReactNode }) {
-  const [isMetric, setIsMetric] = useState(true);
+  const [isMetric, setIsMetric] = useState(false);
   useEffect(() => {
     const stored = localStorage.getItem('unit');
-    setIsMetric(stored !== 'imperial');
+    setIsMetric(stored === 'metric');
   }, []);
   const toggleUnit = () => {
     const newIsMetric = !isMetric;
