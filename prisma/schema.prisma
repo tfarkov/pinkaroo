@@ -14,12 +14,15 @@ model User {
   role          Role      @default(USER)
   name          String?
   bio           String?
+  phone         String?
+  availableHours String?
   ratings       Float?    @default(0)
   listingsCount Int?      @default(0) // Denormalized for metrics
   avgSalePrice  Float?    @default(0)
   clientConversionRate Float? @default(0)
   approvalRate  Float?    @default(0)
   brokerId      String?
+  isTeamLead    Boolean?  @default(false) // Realtors designated as team leads can edit team profiles
   broker        User?     @relation("BrokerTeam", fields: [brokerId], references: [id])
   teamMembers   User[]    @relation("BrokerTeam")
   createdAt     DateTime  @default(now())

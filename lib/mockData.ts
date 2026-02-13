@@ -6,62 +6,108 @@ const MOCK_IMAGES = {
     'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
     'https://images.unsplash.com/photo-1600573472550-8090b5e0745e?w=800&q=80',
     'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
+    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80',
+    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
   ],
   condo: [
     'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
     'https://images.unsplash.com/photo-1600566753190-9814a1bd0f8f?w=800&q=80',
+    'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?w=800&q=80',
+    'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
+    'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80',
   ],
   townhouse: [
     'https://images.unsplash.com/photo-1600042925851-5c8e4c2d7c2f?w=800&q=80',
     'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
+    'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
   ],
   bungalow: [
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
     'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80',
+    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
+    'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80',
   ],
   waterfront: [
     'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
     'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?w=800&q=80',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
+    'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800&q=80',
   ],
   apartment: [
     'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
     'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80',
+    'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
+    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
   ],
   modern: [
     'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
     'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80',
+    'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
+    'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80',
+    'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80',
   ],
   luxury: [
     'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80',
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
+    'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566753190-9814a1bd0f8f?w=800&q=80',
   ],
   garden: [
     'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80',
     'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80',
+    'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
   ],
   livingRoom: [
     'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
     'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
+    'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
   ],
   kitchen: [
     'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
     'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
+    'https://images.unsplash.com/photo-1600573472550-8090b5e0745e?w=800&q=80',
+    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
   ],
   exterior: [
     'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80',
     'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
+    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80',
+    'https://images.unsplash.com/photo-1600042925851-5c8e4c2d7c2f?w=800&q=80',
+    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
   ],
   cottage: [
     'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800&q=80',
     'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
+    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
+    'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80',
   ],
   loft: [
     'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80',
     'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+    'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
+    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80',
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
   ],
   pool: [
     'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
     'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
+    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
+    'https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?w=800&q=80',
+    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80',
   ],
 };
 
@@ -299,6 +345,35 @@ export function getMockBrokerStats() {
     revenue: [100000, 150000, 120000],
     months: ['Jan', 'Feb', 'Mar'],
   };
+}
+
+/** Unsplash portrait URLs for Pinkaroo team (w=200 for sidebar avatar) */
+const PINKAROO_AVATARS = [
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&q=80',
+];
+
+/** Pinkaroo Real Estate brokerage: broker + realtors (for Contact a Realtor card) */
+const PINKAROO_BROKER_ID = 'mock-pinkaroo-broker';
+export const MOCK_PINKAROO_TEAM = [
+  { id: PINKAROO_BROKER_ID, name: 'Jordan Lee', email: 'jordan.lee@pinkaroo.ca', phone: null, availableHours: null, role: 'BROKER', brokerId: null, broker: null, image: null, bio: null },
+  { id: 'mock-pinkaroo-r1', name: 'Sam Chen', email: 'sam.chen@pinkaroo.ca', phone: '(705) 555-0101', availableHours: 'Mon–Fri 9am–6pm, Sat 10am–4pm', role: 'REALTOR', brokerId: PINKAROO_BROKER_ID, broker: { id: PINKAROO_BROKER_ID, name: 'Pinkaroo Real Estate' }, image: PINKAROO_AVATARS[0], bio: 'Residential specialist. 10+ years helping families find the right home.' },
+  { id: 'mock-pinkaroo-r2', name: 'Alex Rivera', email: 'alex.rivera@pinkaroo.ca', phone: '(705) 555-0102', availableHours: 'Mon–Fri 8am–7pm, Sun by appointment', role: 'REALTOR', brokerId: PINKAROO_BROKER_ID, broker: { id: PINKAROO_BROKER_ID, name: 'Pinkaroo Real Estate' }, image: PINKAROO_AVATARS[1], bio: 'First-time buyers and condos. Bilingual (EN/ES).' },
+  { id: 'mock-pinkaroo-r3', name: 'Morgan Taylor', email: 'morgan.taylor@pinkaroo.ca', phone: '(705) 555-0103', availableHours: 'Tue–Sat 9am–5pm', role: 'REALTOR', brokerId: PINKAROO_BROKER_ID, broker: { id: PINKAROO_BROKER_ID, name: 'Pinkaroo Real Estate' }, image: PINKAROO_AVATARS[2], bio: 'Lakeshore and waterfront. Top producer 2023.' },
+  { id: 'mock-pinkaroo-r4', name: 'Casey Wong', email: 'casey.wong@pinkaroo.ca', phone: '(705) 555-0104', availableHours: 'Mon–Fri 10am–6pm', role: 'REALTOR', brokerId: PINKAROO_BROKER_ID, broker: { id: PINKAROO_BROKER_ID, name: 'Pinkaroo Real Estate' }, image: PINKAROO_AVATARS[3], bio: 'New builds and investment properties. Your local expert.' },
+];
+
+/** Shuffle and return Pinkaroo team (brokers + realtors) for random display. */
+export function getMockPinkarooTeam(): typeof MOCK_PINKAROO_TEAM {
+  const copy = [...MOCK_PINKAROO_TEAM];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 /** Broker pending listings */

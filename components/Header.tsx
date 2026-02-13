@@ -19,7 +19,7 @@ export default function Header() {
   const [logoError, setLogoError] = useState(false);
 
   const navLinks = [
-    { href: '/listings', label: 'Find a Home' },
+    { href: '/', label: 'Find a Home' },
     ...(isAuthenticated ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
     ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
     ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
@@ -31,16 +31,16 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
       <div className="content-width flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white">
+        <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white" aria-label="Pinkaroo home">
           {logoError ? (
-            <LogoIcon className="w-11 h-11 rounded" />
+            <LogoIcon className="w-11 h-11 flex-shrink-0" />
           ) : (
             <img
               src="/logo.png"
               alt="Pinkaroo"
               width={44}
               height={44}
-              className="rounded w-11 h-11 object-contain bg-transparent"
+              className="w-11 h-11 object-contain flex-shrink-0 block"
               onError={() => setLogoError(true)}
             />
           )}

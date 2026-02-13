@@ -16,8 +16,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!user) return res.status(404).json({ error: API_MESSAGES.USER_NOT_FOUND });
     res.json(user);
   } else if (req.method === 'PUT') {
-    if (session.user.id !== id && session.user.role !== 'ADMIN') return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
-    const updated = await prisma.user.update({ where: { id: id as string }, data: req.body });
+    const targetId = id as string;
+    const isSelf = session.user.id === targetId;
+
+    if (isSelf) {
+      const allowedSelf = ['name', 'bio', 'image', 'phone', 'availableHours'] as const;
+      const data: Record<string, unknown> = {};
+      for (const key of allowedSelf) {
+        if (req.body && key in req.body) data[key] = req.body[key];
+      }
+      const updated = await prisma.user.update({ where: { id: targetId }, data });
+      return res.json(updated);
+    }
+
+    const editor = await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true, brokerId: true, isTeamLead: true } });
+    if (!editor) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
+
+    const target = await prisma.user.findUnique({ where: { id: targetId }, select: { brokerId: true } });
+    if (!target) return res.status(404).json({ error: API_MESSAGES.USER_NOT_FOUND });
+
+    let canEdit = false;
+    let allowedKeys: readonly string[] = [];
+
+    if (editor.role === 'ADMIN') {
+      canEdit = true;
+      allowedKeys = ['name', 'email', 'bio', 'image', 'phone', 'availableHours', 'brokerId', 'isTeamLead'];
+    } else if (editor.role === 'BROKER' && target.brokerId === session.user.id) {
+      canEdit = true;
+      allowedKeys = ['name', 'email', 'bio', 'image', 'phone', 'availableHours', 'brokerId'];
+    } else if (editor.role === 'REALTOR' && editor.isTeamLead && target.brokerId === editor.brokerId) {
+      canEdit = true;
+      allowedKeys = ['name', 'bio', 'image', 'phone', 'availableHours'];
+    }
+
+    if (!canEdit) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
+
+    const data: Record<string, unknown> = {};
+    for (const key of allowedKeys) {
+      if (req.body && key in req.body) data[key] = req.body[key];
+    }
+    const updated = await prisma.user.update({ where: { id: targetId }, data });
     res.json(updated);
   }
 }

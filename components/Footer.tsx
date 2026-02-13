@@ -6,8 +6,8 @@ export default function Footer() {
       <div className="content-width py-8">
         <div className="flex flex-wrap gap-6 justify-between items-center">
           <div className="flex flex-wrap gap-6">
-            <Link href="/listings" className="text-white/90 hover:text-white font-medium">
-              Listings
+            <Link href="/" className="text-white/90 hover:text-white font-medium">
+              Find a Home
             </Link>
             <Link href="/mls-search" className="text-white/90 hover:text-white font-medium">
               MLS Search

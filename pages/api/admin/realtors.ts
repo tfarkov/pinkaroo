@@ -7,8 +7,18 @@ const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
-  if (!session || session.user.role !== 'ADMIN') return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
+  if (!session) return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
 
-  const realtors = await prisma.user.findMany({ where: { role: 'REALTOR' }, include: { broker: true } });
+  const role = session.user.role;
+  const isAdmin = role === 'ADMIN';
+  const isBroker = role === 'BROKER';
+  const isTeamLeadRealtor = role === 'REALTOR' && (session.user as { isTeamLead?: boolean }).isTeamLead;
+  if (!isAdmin && !isBroker && !isTeamLeadRealtor) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
+
+  const where: { role: 'REALTOR'; brokerId?: string | null } = { role: 'REALTOR' };
+  if (isBroker) where.brokerId = session.user.id;
+  else if (isTeamLeadRealtor) where.brokerId = (session.user as { brokerId?: string | null }).brokerId ?? undefined;
+
+  const realtors = await prisma.user.findMany({ where, include: { broker: true } });
   res.json(realtors);
 }

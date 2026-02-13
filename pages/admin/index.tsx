@@ -1,50 +1,66 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { API, CONTENT_TYPE, UI } from '../../lib/constants';
 import { getMockRealtors, getMockBrokers } from '../../lib/mockData';
+import { useAuth } from '../../lib/hooks/useAuth';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import BottomNav from '../../components/ui/BottomNav';
 
 export default function AdminPanel() {
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { isAdmin, canEditRealtorProfiles, status } = useAuth();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/api/auth/signin');
+    else if (status === 'authenticated' && !canEditRealtorProfiles) router.replace('/');
+  }, [status, canEditRealtorProfiles, router]);
+
   const { data: realtors = [] } = useQuery({
     queryKey: ['realtors'],
     queryFn: async () => {
       try {
-        const res = await fetch(API.ADMIN_REALTORS);
+        const res = await fetch(API.ADMIN_REALTORS, { credentials: 'include' });
         if (res.ok) return res.json();
         return getMockRealtors();
       } catch {
         return getMockRealtors();
       }
     },
+    enabled: canEditRealtorProfiles,
   });
   const { data: brokers = [] } = useQuery({
     queryKey: ['brokers'],
     queryFn: async () => {
       try {
-        const res = await fetch(API.ADMIN_BROKERS);
+        const res = await fetch(API.ADMIN_BROKERS, { credentials: 'include' });
         if (res.ok) return res.json();
         return getMockBrokers();
       } catch {
         return getMockBrokers();
       }
     },
+    enabled: isAdmin,
   });
   const { register, handleSubmit } = useForm<{ realtorId: string; brokerId: string }>();
 
   const mutation = useMutation({
-    mutationFn: ({ realtorId, brokerId }: { realtorId: string; brokerId: string }) => fetch(API.ADMIN_ASSIGN_BROKER, { method: 'POST', body: JSON.stringify({ realtorId, brokerId }), headers: { 'Content-Type': CONTENT_TYPE.JSON } }),
+    mutationFn: ({ realtorId, brokerId }: { realtorId: string; brokerId: string }) => fetch(API.ADMIN_ASSIGN_BROKER, { method: 'POST', body: JSON.stringify({ realtorId, brokerId }), headers: { 'Content-Type': CONTENT_TYPE.JSON }, credentials: 'include' }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['realtors'] }); queryClient.invalidateQueries({ queryKey: ['brokers'] }); },
   });
+
+  const showAdminOnlySections = isAdmin && status === 'authenticated';
 
   return (
     <div className="page-container">
       <Header />
       <main className="content-width max-w-5xl pb-16 md:pb-8">
         <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.ADMIN_DASHBOARD}</h1>
+        {showAdminOnlySections && (
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">{UI.ASSIGN_REALTOR_TO_BROKER}</h2>
           <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="flex flex-wrap gap-4 items-end">
@@ -63,6 +79,7 @@ export default function AdminPanel() {
             <button type="submit" className="btn-primary">{UI.ASSIGN}</button>
           </form>
         </div>
+        )}
         <h2 className="section-heading">{UI.REALTORS_LIST}</h2>
         <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden">
           <table className="w-full">
@@ -70,6 +87,7 @@ export default function AdminPanel() {
               <tr>
                 <th className="text-left p-3 text-slate-700 font-semibold">Name</th>
                 <th className="text-left p-3 text-slate-700 font-semibold">Broker</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -77,11 +95,18 @@ export default function AdminPanel() {
                 <tr key={r.id} className="border-t border-slate-200">
                   <td className="p-3 text-slate-900">{r.name}</td>
                   <td className="p-3 text-slate-900">{r.broker?.name || 'None'}</td>
+                  <td className="p-3">
+                    <Link href={`/admin/realtors/${r.id}`} className="text-accent-600 hover:underline font-medium text-sm">
+                      Edit profile
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {showAdminOnlySections && (
+        <>
         <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">{UI.BROKERS_LIST}</h2>
         <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden">
           <table className="w-full">
@@ -101,6 +126,8 @@ export default function AdminPanel() {
             </tbody>
           </table>
         </div>
+        </>
+        )}
       </main>
       <Footer />
       <BottomNav />

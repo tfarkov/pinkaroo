@@ -28,6 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const filters = req.query;
     const where: Record<string, unknown> = {};
     if (filters.province && typeof filters.province === 'string') where.province = filters.province;
+    const city = typeof filters.city === 'string' ? filters.city.trim() : undefined;
+    if (city) where.location = { contains: city };
     const minPrice = parseFloat(filters.minPrice as string);
     const maxPrice = parseFloat(filters.maxPrice as string);
     if (!isNaN(minPrice) || !isNaN(maxPrice)) {

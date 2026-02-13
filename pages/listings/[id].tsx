@@ -10,13 +10,10 @@ import Footer from '../../components/Footer';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useMutation } from '@tanstack/react-query';
 import BottomNav from '../../components/ui/BottomNav';
-import { API, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI, SQFT_CONVERSION_FACTOR } from '../../lib/constants';
+import { API, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI } from '../../lib/constants';
+import { formatPrice, formatArea } from '../../lib/format';
 import { useUnitToggle } from '../../lib/hooks/useUnitToggle';
 import { getMockListing } from '../../lib/mockData';
-
-function formatPrice(value: number) {
-  return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(value);
-}
 
 export default function ListingDetail() {
   const router = useRouter();
@@ -96,7 +93,7 @@ export default function ListingDetail() {
                 <dt className="text-slate-500">Bathrooms</dt>
                 <dd className="font-medium text-slate-900">{listing.bathroomsTotal ?? '—'}</dd>
                 <dt className="text-slate-500">Size</dt>
-                <dd className="font-medium text-slate-900">{listing.sizeSqm != null ? (isMetric ? `${listing.sizeSqm} m²` : `${(listing.sizeSqm * SQFT_CONVERSION_FACTOR).toFixed(0)} sq ft`) : '—'}</dd>
+                <dd className="font-medium text-slate-900">{formatArea(listing.sizeSqm, isMetric)}</dd>
                 <dt className="text-slate-500">Type</dt>
                 <dd className="font-medium text-slate-900">{listing.propertyType ?? '—'}</dd>
                 <dt className="text-slate-500">Postal code</dt>
