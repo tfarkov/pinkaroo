@@ -10,6 +10,40 @@ export const PROVINCES = [
 export type Province = typeof PROVINCES[number];
 export const PROPERTY_TYPES = ['House', 'Condo', 'Townhouse', 'Apartment', 'Land'] as const;
 export type PropertyType = typeof PROPERTY_TYPES[number];
+
+/** Filter dropdown options for price (value in cents not used; we use the number) */
+export const FILTER_PRICE_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: '100000', label: '$100k' },
+  { value: '200000', label: '$200k' },
+  { value: '300000', label: '$300k' },
+  { value: '500000', label: '$500k' },
+  { value: '750000', label: '$750k' },
+  { value: '1000000', label: '$1M' },
+  { value: '1500000', label: '$1.5M' },
+  { value: '2000000', label: '$2M' },
+  { value: '2500000', label: '$2.5M' },
+  { value: '3000000', label: '$3M' },
+  { value: '5000000', label: '$5M+' },
+] as const;
+
+export const FILTER_BEDROOM_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: '1', label: '1+' },
+  { value: '2', label: '2+' },
+  { value: '3', label: '3+' },
+  { value: '4', label: '4+' },
+  { value: '5', label: '5+' },
+] as const;
+
+export const FILTER_BATHROOM_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: '1', label: '1+' },
+  { value: '2', label: '2+' },
+  { value: '3', label: '3+' },
+  { value: '4', label: '4+' },
+] as const;
+
 /** CREA DDF StandardStatus values for MLS search (see CREA DDF API docs) */
 export const MLS_STANDARD_STATUSES = ['Active', 'Sold', 'Pending', 'Expired', 'Withdrawn'] as const;
 export type MLSStandardStatus = typeof MLS_STANDARD_STATUSES[number];
@@ -33,6 +67,7 @@ export const API = {
   CLIENTS_INTERACTIONS: '/api/clients/interactions',
   USERS: '/api/users',
   REALTORS: '/api/realtors',
+  REALTORS_PINKAROO: '/api/realtors/pinkaroo',
   MLS_SEARCH: '/api/mls/search',
   ADMIN_REALTORS: '/api/admin/realtors',
   ADMIN_BROKERS: '/api/admin/brokers',
@@ -140,6 +175,7 @@ export const UI = {
   DESCRIPTION: 'Description',
   PRICE: 'Price',
   LOCATION: 'Location',
+  CITY: 'City',
   POSTAL_CODE: 'Postal Code',
   SIZE_SQM: 'Size (sqm)',
   FAVORITE: 'Favorite ❤️',
@@ -147,6 +183,17 @@ export const UI = {
   WELCOME_NOTIFICATION: 'Welcome to Pinkaroo',
   NO_BIO: 'No bio available',
   VIEW: 'View',
+  EDIT_REALTOR_PROFILE: 'Edit Realtor Profile',
+  BACK_TO_ADMIN: 'Back to Admin',
+  EMAIL: 'Email',
+  PHONE: 'Phone',
+  AVAILABLE_HOURS: 'Available hours',
+  BIO: 'Bio',
+  PROFILE_IMAGE_URL: 'Profile image URL',
+  BROKER: 'Broker',
+  SAVE_PROFILE: 'Save profile',
+  PROFILE_SAVED: 'Profile saved.',
+  TEAM_LEAD: 'Team lead',
 } as const;
 
 // ——— Content-Type headers ———

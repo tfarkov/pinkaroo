@@ -3,20 +3,22 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/router';
 import type { ParsedUrlQueryInput } from 'querystring';
 import { debounce } from 'lodash';
-import { DEBOUNCE_MS, PROVINCES, PROPERTY_TYPES, UI } from '../lib/constants';
+import { DEFAULT_PROVINCE, PROVINCES, PROPERTY_TYPES, FILTER_PRICE_OPTIONS, FILTER_BEDROOM_OPTIONS, FILTER_BATHROOM_OPTIONS, UI } from '../lib/constants';
 
 interface FilterData {
   province: string;
-  minPrice: number;
-  maxPrice: number;
-  bedrooms: number;
-  bathrooms: number;
+  city: string;
+  minPrice: string | number;
+  maxPrice: string | number;
+  bedrooms: string | number;
+  bathrooms: string | number;
   propertyType: string;
-  // Expanded filters
 }
 
 export default function AdvancedFilters({ onFilter }: { onFilter: (filters: FilterData) => void }) {
-  const { register, handleSubmit, watch, setValue } = useForm<FilterData>();
+  const { register, handleSubmit, watch, setValue } = useForm<FilterData>({
+    defaultValues: { province: DEFAULT_PROVINCE, city: '', minPrice: '', maxPrice: '', bedrooms: '', bathrooms: '', propertyType: '' },
+  });
   const router = useRouter();
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
@@ -45,24 +47,46 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
               <label className="label">{UI.ANY_PROVINCE}</label>
               <select {...register('province')} className="input-field">
                 <option value="">All</option>
-                {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                {PROVINCES.map(p => (
+                  <option key={p} value={p}>{p.replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase())}</option>
+                ))}
               </select>
             </div>
-            <div className="w-28">
+            <div className="min-w-[140px]">
+              <label className="label">{UI.CITY}</label>
+              <input {...register('city')} type="text" placeholder="e.g. Barrie" className="input-field" />
+            </div>
+            <div className="min-w-[100px]">
               <label className="label">{UI.MIN_PRICE}</label>
-              <input {...register('minPrice')} type="number" placeholder="Min" className="input-field" />
+              <select {...register('minPrice')} className="input-field">
+                {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
+                  <option key={value || 'any'} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
-            <div className="w-28">
+            <div className="min-w-[100px]">
               <label className="label">{UI.MAX_PRICE}</label>
-              <input {...register('maxPrice')} type="number" placeholder="Max" className="input-field" />
+              <select {...register('maxPrice')} className="input-field">
+                {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
+                  <option key={value || 'any'} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
-            <div className="w-24">
+            <div className="min-w-[90px]">
               <label className="label">{UI.BEDROOMS}</label>
-              <input {...register('bedrooms')} type="number" placeholder="—" className="input-field" />
+              <select {...register('bedrooms')} className="input-field">
+                {FILTER_BEDROOM_OPTIONS.map(({ value, label }) => (
+                  <option key={value || 'any'} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
-            <div className="w-24">
+            <div className="min-w-[90px]">
               <label className="label">{UI.BATHROOMS}</label>
-              <input {...register('bathrooms')} type="number" placeholder="—" className="input-field" />
+              <select {...register('bathrooms')} className="input-field">
+                {FILTER_BATHROOM_OPTIONS.map(({ value, label }) => (
+                  <option key={value || 'any'} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
             <div className="min-w-[120px]">
               <label className="label">{UI.ANY_TYPE}</label>
