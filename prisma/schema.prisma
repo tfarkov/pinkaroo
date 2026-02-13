@@ -6,27 +6,61 @@ generator client {
   provider = "prisma-client-js"
 }
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  role          Role     @default(USER)
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String?   // Optional for OAuth (Google, etc.)
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
   name          String?
   bio           String?
-  ratings       Float?   @default(0)
-  listingsCount Int?     @default(0) // Denormalized for metrics
-  avgSalePrice  Float?   @default(0)
+  ratings       Float?    @default(0)
+  listingsCount Int?      @default(0) // Denormalized for metrics
+  avgSalePrice  Float?    @default(0)
   clientConversionRate Float? @default(0)
-  approvalRate  Float?   @default(0)
+  approvalRate  Float?    @default(0)
   brokerId      String?
-  broker        User?    @relation("BrokerTeam", fields: [brokerId], references: [id])
-  teamMembers   User[]   @relation("BrokerTeam")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  broker        User?     @relation("BrokerTeam", fields: [brokerId], references: [id])
+  teamMembers   User[]    @relation("BrokerTeam")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
   listings      Listing[]
-  clients       Client[] 
+  clients       Client[]
   interactions  Interaction[]
   notifications Notification[]
   favorites     Favorite[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token      String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@id([identifier, token])
 }
 enum Role {
   USER

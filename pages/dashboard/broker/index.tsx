@@ -3,11 +3,24 @@ import { Bar, Pie, Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { useMemo } from 'react';
 import { API, UI } from '../../../lib/constants';
+import { getMockBrokerStats } from '../../../lib/mockData';
 import Header from '../../../components/Header';
+import Footer from '../../../components/Footer';
 import BottomNav from '../../../components/ui/BottomNav';
 
 export default function BrokerDashboard() {
-  const { data: teamStats } = useQuery({ queryKey: ['broker-stats'], queryFn: () => fetch(API.BROKER_STATS).then(res => res.json()) });
+  const { data: teamStats } = useQuery({
+    queryKey: ['broker-stats'],
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.BROKER_STATS);
+        if (res.ok) return res.json();
+        return getMockBrokerStats();
+      } catch {
+        return getMockBrokerStats();
+      }
+    },
+  });
 
   const listingsChartData = useMemo(() => ({
     labels: teamStats?.realtors.map(r => r.name),
@@ -37,15 +50,24 @@ export default function BrokerDashboard() {
   }), [teamStats]);
 
   return (
-    <div>
+    <div className="page-container flex flex-col">
       <Header />
-      <main className="p-4 max-w-5xl mx-auto pb-16 md:pb-0">
-        <h1 className="text-3xl mb-4">Broker {UI.DASHBOARD}</h1>
-        <p className="mb-4">Team Count: {teamStats?.teamCount || 0}</p>
-        <Bar data={listingsChartData} options={{ responsive: true }} />
-        <Pie data={approvalChartData} options={{ responsive: true }} />
-        <Line data={revenueChartData} options={{ responsive: true }} />
+      <main className="flex-1 content-width max-w-5xl mx-auto pb-14 md:pb-8">
+        <h1 className="text-3xl font-bold text-slate-900 py-8">Broker {UI.DASHBOARD}</h1>
+        <p className="text-slate-600 mb-6">Team count: {teamStats?.teamCount ?? 0}</p>
+        <div className="space-y-8">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <Bar data={listingsChartData} options={{ responsive: true }} />
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <Pie data={approvalChartData} options={{ responsive: true }} />
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <Line data={revenueChartData} options={{ responsive: true }} />
+          </div>
+        </div>
       </main>
+      <Footer />
       <BottomNav />
     </div>
   );

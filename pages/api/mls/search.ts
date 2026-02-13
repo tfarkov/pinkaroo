@@ -10,7 +10,7 @@ function parseNum(val: string | string[] | undefined): number | undefined {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession(req);
+  const session = await getSession(req, res);
   if (!session) return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
 
   if (req.method === 'GET') {

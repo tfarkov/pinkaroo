@@ -19,7 +19,7 @@ export async function getAccessToken() {
     return response.data.access_token;
   } catch (error) {
     console.error('Token error:', error);
-    await sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_TOKEN_ERROR, (error as Error).message);
+    sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_TOKEN_ERROR, (error as Error).message).catch((e) => console.error('Email failed', e));
     throw error;
   }
 }
@@ -29,10 +29,9 @@ export function buildMLSFilter(params: Record<string, string | number | undefine
   const clauses: string[] = [];
   const esc = (s: string) => `'${String(s).replace(/'/g, "''")}'`;
 
+  /* Only filter by status when explicitly set and not 'Any'; leave unfiltered when unsupplied */
   if (params.standardStatus && params.standardStatus !== 'Any') {
     clauses.push(`StandardStatus eq ${esc(params.standardStatus as string)}`);
-  } else if (params.standardStatus !== 'Any') {
-    clauses.push(`StandardStatus eq 'Active'`);
   }
   if (params.province) clauses.push(`StateOrProvince eq ${esc(params.province as string)}`);
   if (params.city) clauses.push(`City eq ${esc((params.city as string).trim())}`);
@@ -72,7 +71,7 @@ export async function searchMLS(filter: string) {
       throw error; // Retry will handle
     }
     console.error('Search error:', error);
-    await sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_SEARCH_ERROR, (error as Error).message);
+    sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_SEARCH_ERROR, (error as Error).message).catch((e) => console.error('Email failed', e));
     throw error;
   }
 }
@@ -139,7 +138,7 @@ export async function syncMLS() {
     }
     console.log('MLS sync complete');
   } catch (error) {
-    await sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_SYNC_ERROR, (error as Error).message);
+    sendEmail(ADMIN_EMAIL, EMAIL_SUBJECTS.MLS_SYNC_ERROR, (error as Error).message).catch((e) => console.error('Email failed', e));
     throw error;
   }
 }

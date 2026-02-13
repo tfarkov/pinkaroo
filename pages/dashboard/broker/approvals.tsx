@@ -3,7 +3,9 @@ import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { API, CONTENT_TYPE, LISTING_STATUSES, UI } from '../../../lib/constants';
+import { getMockBrokerPendingListings } from '../../../lib/mockData';
 import Header from '../../../components/Header';
+import Footer from '../../../components/Footer';
 import BottomNav from '../../../components/ui/BottomNav';
 
 export default function BrokerApprovals() {
@@ -14,7 +16,15 @@ export default function BrokerApprovals() {
 
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['broker-pending'],
-    queryFn: () => fetch(API.BROKER_PENDING_LISTINGS).then(r => r.json()),
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.BROKER_PENDING_LISTINGS);
+        if (res.ok) return res.json();
+        return getMockBrokerPendingListings();
+      } catch {
+        return getMockBrokerPendingListings();
+      }
+    },
   });
 
   const approveMutation = useMutation({
@@ -27,40 +37,59 @@ export default function BrokerApprovals() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-pending'] }),
   });
 
-  if (!isBroker) return <div>{UI.ACCESS_DENIED}</div>;
+  if (!isBroker) {
+    return (
+      <div className="page-container flex flex-col">
+        <Header />
+        <main className="flex-1 content-width max-w-5xl mx-auto py-10 flex items-center justify-center">
+          <p className="text-slate-600 font-medium">{UI.ACCESS_DENIED}</p>
+        </main>
+        <Footer />
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="page-container flex flex-col">
       <Header />
-      <main className="p-6 max-w-5xl mx-auto pb-16 md:pb-0">
-        <h1 className="text-3xl font-bold mb-8">{UI.PENDING_APPROVALS}</h1>
+      <main className="flex-1 content-width max-w-5xl mx-auto pb-14 md:pb-8">
+        <h1 className="text-3xl font-bold text-slate-900 mb-8">{UI.PENDING_APPROVALS}</h1>
 
         <div className="space-y-6">
           {pendingListings.map((listing: any) => (
-            <div key={listing.id} className="border rounded-3xl p-6">
-              <div className="flex justify-between mb-4">
+            <div key={listing.id} className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+              <div className="flex flex-wrap justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="font-semibold">{listing.title}</h3>
-                  <p className="text-sm text-gray-600">By {listing.user.name}</p>
+                  <h3 className="font-semibold text-slate-900">{listing.title}</h3>
+                  <p className="text-sm text-slate-600">By {listing.user?.name ?? '—'}</p>
                 </div>
-                <div className="space-x-3">
-                  <button onClick={() => approveMutation.mutate(listing.id)} className="bg-green-600 text-white px-4 py-2 rounded">Approve</button>
-                  <button onClick={() => setSelectedListing(listing)} className="bg-red-600 text-white px-4 py-2 rounded">Reject</button>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => approveMutation.mutate(listing.id)} className="btn-primary bg-emerald-600 hover:bg-emerald-700">
+                    Approve
+                  </button>
+                  <button type="button" onClick={() => setSelectedListing(listing)} className="btn-secondary border-red-300 text-red-700 hover:border-red-500 hover:text-red-800">
+                    Reject
+                  </button>
                 </div>
               </div>
-              <p className="text-gray-700">{listing.description}</p>
+              <p className="text-slate-700">{listing.description}</p>
             </div>
           ))}
         </div>
 
         {selectedListing && (
-          <form onSubmit={handleSubmit((data) => rejectMutation.mutate({ id: selectedListing.id, rejectionReason: data.rejectionReason }))}>
-            <textarea {...register('rejectionReason')} placeholder="Rejection reason" className="w-full p-4 border rounded mb-4" required />
-            <button type="submit" className="bg-red-600 text-white px-6 py-3 rounded">Submit Rejection</button>
-            <button type="button" onClick={() => setSelectedListing(null)} className="ml-3 border px-6 py-3 rounded">Cancel</button>
+          <form onSubmit={handleSubmit((data) => rejectMutation.mutate({ id: selectedListing.id, rejectionReason: data.rejectionReason }))} className="mt-8 bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <label className="label">Rejection reason</label>
+            <textarea {...register('rejectionReason')} placeholder="Rejection reason" className="input-field min-h-[100px] mb-4" required />
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="btn-primary bg-red-600 hover:bg-red-700">Submit Rejection</button>
+              <button type="button" onClick={() => setSelectedListing(null)} className="btn-secondary">Cancel</button>
+            </div>
           </form>
         )}
       </main>
+      <Footer />
       <BottomNav />
     </div>
   );

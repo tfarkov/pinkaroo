@@ -1,10 +1,11 @@
-import { getSession as getNextAuthSession } from 'next-auth/react';
-import type { NextApiRequest } from 'next';
+import { getServerSession } from 'next-auth/next';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { authOptions } from '../pages/api/auth/[...nextauth]';
 
 export type SessionUser = { id: string; role?: string; name?: string | null; email?: string | null; image?: string | null };
 
-export async function getSession(req: NextApiRequest) {
-  const session = await getNextAuthSession({ req });
+export async function getSession(req: NextApiRequest, res?: NextApiResponse) {
+  const session = await getServerSession(req, res ?? ({} as NextApiResponse), authOptions);
   const user = session?.user as SessionUser | undefined;
   return session ? { ...session, user } : null;
 }

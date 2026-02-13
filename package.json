@@ -45,6 +45,7 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/bcryptjs": "latest",

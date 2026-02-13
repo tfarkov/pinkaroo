@@ -6,7 +6,7 @@ import { API_MESSAGES, NOTIFICATION_MESSAGES, NOTIFICATION_TYPES } from '../../.
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession(req);
+  const session = await getSession(req, res);
   if (!session || session.user.role !== 'BROKER') return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
 
   if (req.method === 'POST') {

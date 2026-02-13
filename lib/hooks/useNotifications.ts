@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API, CONTENT_TYPE } from '../constants';
+import { getMockNotifications } from '../mockData';
 
 export interface Notification {
   id: string;
@@ -12,7 +13,15 @@ export function useNotifications() {
   const queryClient = useQueryClient();
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['notifications'],
-    queryFn: () => fetch(API.NOTIFICATIONS).then((res) => res.json()),
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.NOTIFICATIONS);
+        if (res.ok) return res.json();
+        return getMockNotifications();
+      } catch {
+        return getMockNotifications();
+      }
+    },
   });
   const markAsReadMutation = useMutation({
     mutationFn: (id: string) =>

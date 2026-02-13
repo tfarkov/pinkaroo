@@ -6,7 +6,7 @@ import { API_MESSAGES } from '../../../../lib/constants';
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession(req);
+  const session = await getSession(req, res);
   if (!session || session.user.role !== 'REALTOR') return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
   const { id } = req.query;
 

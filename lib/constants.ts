@@ -25,6 +25,7 @@ export const REVENUE_MONTHS = 12; // For charts
 // ——— API routes ———
 export const API = {
   LISTINGS: '/api/listings',
+  LISTINGS_PUBLIC: '/api/listings/public',
   LISTINGS_NEARBY: '/api/listings/nearby',
   FAVORITES: '/api/favorites',
   NOTIFICATIONS: '/api/notifications',
@@ -99,6 +100,7 @@ export const UI = {
   WELCOME_TITLE: 'Welcome to Pinkaroo Real Estate Portal',
   NEARBY_LISTINGS_TITLE: 'Nearby Listings (within 50km)',
   LISTINGS_TITLE: 'Listings',
+  FEATURED_LISTINGS_TITLE: 'Browse Listings',
   RECENTLY_VIEWED_TITLE: 'Recently Viewed',
   VIEW_LISTING: 'View Listing',
   VIEW_DETAILS: 'View Details',

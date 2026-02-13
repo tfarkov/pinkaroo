@@ -2,13 +2,37 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { API, CONTENT_TYPE, UI } from '../../lib/constants';
+import { getMockRealtors, getMockBrokers } from '../../lib/mockData';
 import Header from '../../components/Header';
+import Footer from '../../components/Footer';
 import BottomNav from '../../components/ui/BottomNav';
 
 export default function AdminPanel() {
   const queryClient = useQueryClient();
-  const { data: realtors = [] } = useQuery({ queryKey: ['realtors'], queryFn: () => fetch(API.ADMIN_REALTORS).then(res => res.json()) });
-  const { data: brokers = [] } = useQuery({ queryKey: ['brokers'], queryFn: () => fetch(API.ADMIN_BROKERS).then(res => res.json()) });
+  const { data: realtors = [] } = useQuery({
+    queryKey: ['realtors'],
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.ADMIN_REALTORS);
+        if (res.ok) return res.json();
+        return getMockRealtors();
+      } catch {
+        return getMockRealtors();
+      }
+    },
+  });
+  const { data: brokers = [] } = useQuery({
+    queryKey: ['brokers'],
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.ADMIN_BROKERS);
+        if (res.ok) return res.json();
+        return getMockBrokers();
+      } catch {
+        return getMockBrokers();
+      }
+    },
+  });
   const { register, handleSubmit } = useForm<{ realtorId: string; brokerId: string }>();
 
   const mutation = useMutation({
@@ -78,6 +102,7 @@ export default function AdminPanel() {
           </table>
         </div>
       </main>
+      <Footer />
       <BottomNav />
     </div>
   );
