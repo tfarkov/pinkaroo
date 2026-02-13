@@ -26,31 +26,31 @@ export default function MortgageCalculator({ price }: Props) {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-primary-900 mb-4">Mortgage calculator</h2>
+      <h2 className="text-lg font-bold text-slate-900 mb-4">Mortgage calculator</h2>
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-primary-700">Down payment</label>
-            <span className="font-medium text-primary-900">{downPaymentPct}%</span>
+            <label className="text-slate-700">Down payment</label>
+            <span className="font-semibold text-slate-900">{downPaymentPct}%</span>
           </div>
-          <input type="range" min={0} max={50} value={downPaymentPct} onChange={(e) => throttledSetDownPayment(Number(e.target.value))} className="w-full h-2 rounded-full bg-primary-200 appearance-none accent-accent-500" />
+          <input type="range" min={0} max={50} value={downPaymentPct} onChange={(e) => throttledSetDownPayment(Number(e.target.value))} className="w-full h-2 rounded-full bg-slate-200 appearance-none accent-accent-500" />
         </div>
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-primary-700">Interest rate</label>
-            <span className="font-medium text-primary-900">{interestRate}%</span>
+            <label className="text-slate-700">Interest rate</label>
+            <span className="font-semibold text-slate-900">{interestRate}%</span>
           </div>
-          <input type="range" min={1} max={10} step={0.1} value={interestRate} onChange={(e) => throttledSetInterest(Number(e.target.value))} className="w-full h-2 rounded-full bg-primary-200 appearance-none accent-accent-500" />
+          <input type="range" min={1} max={10} step={0.1} value={interestRate} onChange={(e) => throttledSetInterest(Number(e.target.value))} className="w-full h-2 rounded-full bg-slate-200 appearance-none accent-accent-500" />
         </div>
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-primary-700">Term</label>
-            <span className="font-medium text-primary-900">{termYears} years</span>
+            <label className="text-slate-700">Term</label>
+            <span className="font-semibold text-slate-900">{termYears} years</span>
           </div>
-          <input type="range" min={10} max={40} value={termYears} onChange={(e) => throttledSetTerm(Number(e.target.value))} className="w-full h-2 rounded-full bg-primary-200 appearance-none accent-accent-500" />
+          <input type="range" min={10} max={40} value={termYears} onChange={(e) => throttledSetTerm(Number(e.target.value))} className="w-full h-2 rounded-full bg-slate-200 appearance-none accent-accent-500" />
         </div>
       </div>
-      <p className="mt-6 pt-4 border-t border-primary-100 text-lg font-semibold text-primary-900">Estimated monthly payment: {formattedPayment}</p>
+      <p className="mt-6 pt-4 border-t border-slate-200 text-lg font-bold text-slate-900">Estimated monthly payment: {formattedPayment}</p>
     </div>
   );
 }

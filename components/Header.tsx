@@ -11,41 +11,58 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: '/listings', label: 'Listings' },
+    { href: '/listings', label: 'Find a Home' },
     ...(isAuthenticated ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
     ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
     ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
     { href: '/mls-search', label: 'MLS Search' },
-    { href: '/favorites', label: 'Favorites' },
+    { href: '/favorites', label: 'Favourites' },
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-nav border-b border-primary-100">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
       <div className="content-width flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <Image src="/logo.png" alt="Pinkaroo" width={40} height={40} priority className="rounded-lg" />
-          <span className="font-semibold text-primary-900 hidden sm:inline">Pinkaroo</span>
+        <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white">
+          <Image src="/logo.png" alt="Pinkaroo" width={44} height={44} priority className="rounded" />
+          <span className="font-bold text-lg hidden sm:inline">Pinkaroo</span>
         </Link>
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-0">
           {navLinks.map(({ href, label }) => (
-            <Link key={href} href={href} className="px-3 py-2 rounded-lg text-primary-700 hover:bg-primary-50 hover:text-primary-900 text-sm font-medium transition-colors">
+            <Link
+              key={href}
+              href={href}
+              className="px-4 py-2 text-white/95 hover:text-white hover:bg-white/10 rounded-md text-sm font-medium transition-colors"
+            >
               {label}
             </Link>
           ))}
-          <button onClick={toggleUnit} className="ml-2 px-3 py-1.5 rounded-lg bg-primary-100 text-primary-700 text-sm font-medium hover:bg-primary-200">
+          <button
+            onClick={toggleUnit}
+            className="ml-1 px-3 py-1.5 rounded-md text-white/80 hover:bg-white/10 text-sm font-medium"
+          >
             {isMetric ? 'm²' : 'sq ft'}
           </button>
-          <div className="ml-2"><NotificationsDropdown /></div>
+          <div className="ml-1">
+            <NotificationsDropdown />
+          </div>
           {isAuthenticated ? (
-            <Link href="/api/auth/signout" className="ml-2 px-3 py-2 rounded-lg text-primary-600 hover:bg-primary-50 text-sm font-medium">Sign out</Link>
+            <Link href="/api/auth/signout" className="ml-3 px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md text-sm font-medium">
+              Sign out
+            </Link>
           ) : (
-            <Link href="/api/auth/signin" className="ml-2 btn-primary text-sm py-2">Sign in</Link>
+            <Link href="/api/auth/signin" className="ml-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors">
+              Sign In
+            </Link>
           )}
         </nav>
         <div className="flex md:hidden items-center gap-2">
           <NotificationsDropdown />
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 rounded-lg text-primary-600 hover:bg-primary-50" aria-label="Menu">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-md text-white hover:bg-white/10"
+            aria-label="Menu"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
             </svg>
@@ -53,18 +70,29 @@ export default function Header() {
         </div>
       </div>
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-primary-100 bg-white px-4 py-4 shadow-lg">
-          <div className="flex flex-col gap-1">
+        <div className="md:hidden bg-header-light border-t border-white/10 px-4 py-4">
+          <div className="flex flex-col gap-0">
             {navLinks.map(({ href, label }) => (
-              <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg text-primary-700 hover:bg-primary-50 font-medium">
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-3 text-white hover:bg-accent-600 rounded-md font-medium"
+              >
                 {label}
               </Link>
             ))}
-            <button onClick={toggleUnit} className="px-3 py-2.5 rounded-lg text-left text-primary-700 hover:bg-primary-50 font-medium">Units: {isMetric ? 'Metric' : 'Imperial'}</button>
+            <button onClick={toggleUnit} className="px-3 py-3 text-left text-white/90 hover:bg-white/10 rounded-md font-medium">
+              Units: {isMetric ? 'Metric' : 'Imperial'}
+            </button>
             {isAuthenticated ? (
-              <Link href="/api/auth/signout" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg text-primary-600 font-medium">Sign out</Link>
+              <Link href="/api/auth/signout" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 text-white/90 font-medium">
+                Sign out
+              </Link>
             ) : (
-              <Link href="/api/auth/signin" onClick={() => setMobileMenuOpen(false)} className="btn-primary mt-2 text-center">Sign in</Link>
+              <Link href="/api/auth/signin" onClick={() => setMobileMenuOpen(false)} className="mt-2 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-md text-center">
+                Sign In
+              </Link>
             )}
           </div>
         </div>

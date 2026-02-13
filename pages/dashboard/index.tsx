@@ -35,12 +35,12 @@ export default function Dashboard() {
     <div className="page-container">
       <Header />
       <main className="content-width max-w-5xl pb-16 md:pb-8">
-        <h1 className="text-3xl font-bold text-primary-900 py-6">{role} {UI.DASHBOARD}</h1>
-        <div className="card p-6 mb-6">
+        <h1 className="text-3xl font-bold text-slate-900 py-8">{role} {UI.DASHBOARD}</h1>
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
           <Bar data={clientChartData} options={{ responsive: true }} />
         </div>
         {role === 'REALTOR' && (
-          <div className="card p-6">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
             <Line data={interactionChartData} options={{ responsive: true }} />
           </div>
         )}

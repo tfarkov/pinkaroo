@@ -20,9 +20,9 @@ export default function AdminPanel() {
     <div className="page-container">
       <Header />
       <main className="content-width max-w-5xl pb-16 md:pb-8">
-        <h1 className="text-3xl font-bold text-primary-900 py-6">{UI.ADMIN_DASHBOARD}</h1>
-        <div className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-primary-900 mb-4">{UI.ASSIGN_REALTOR_TO_BROKER}</h2>
+        <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.ADMIN_DASHBOARD}</h1>
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">{UI.ASSIGN_REALTOR_TO_BROKER}</h2>
           <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="flex flex-wrap gap-4 items-end">
             <div className="min-w-[200px]">
               <label className="label">Realtor</label>
@@ -40,38 +40,38 @@ export default function AdminPanel() {
           </form>
         </div>
         <h2 className="section-heading">{UI.REALTORS_LIST}</h2>
-        <div className="card overflow-hidden">
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-primary-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="text-left p-3 text-primary-700 font-medium">Name</th>
-                <th className="text-left p-3 text-primary-700 font-medium">Broker</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Name</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Broker</th>
               </tr>
             </thead>
             <tbody>
               {realtors.map(r => (
-                <tr key={r.id} className="border-t border-primary-100">
-                  <td className="p-3">{r.name}</td>
-                  <td className="p-3">{r.broker?.name || 'None'}</td>
+                <tr key={r.id} className="border-t border-slate-200">
+                  <td className="p-3 text-slate-900">{r.name}</td>
+                  <td className="p-3 text-slate-900">{r.broker?.name || 'None'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <h2 className="section-heading mt-8">{UI.BROKERS_LIST}</h2>
-        <div className="card overflow-hidden">
+        <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">{UI.BROKERS_LIST}</h2>
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-primary-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="text-left p-3 text-primary-700 font-medium">Name</th>
-                <th className="text-left p-3 text-primary-700 font-medium">Team Size</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Name</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Team Size</th>
               </tr>
             </thead>
             <tbody>
               {brokers.map(b => (
-                <tr key={b.id} className="border-t border-primary-100">
-                  <td className="p-3">{b.name}</td>
-                  <td className="p-3">{b.teamMembers?.length ?? 0}</td>
+                <tr key={b.id} className="border-t border-slate-200">
+                  <td className="p-3 text-slate-900">{b.name}</td>
+                  <td className="p-3 text-slate-900">{b.teamMembers?.length ?? 0}</td>
                 </tr>
               ))}
             </tbody>

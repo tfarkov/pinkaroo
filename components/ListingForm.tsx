@@ -65,8 +65,8 @@ export default function ListingForm({ listing }: { listing?: any }) {
   }, DEBOUNCE_MS);
 
   return (
-    <div className="card p-6">
-      <h2 className="text-lg font-semibold text-primary-900 mb-4">Add listing</h2>
+    <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+      <h2 className="text-lg font-bold text-slate-900 mb-4">Add listing</h2>
       <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
         <div>
           <label className="label">{UI.TITLE}</label>
@@ -124,14 +124,14 @@ export default function ListingForm({ listing }: { listing?: any }) {
         </div>
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
           <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
-            <div className="rounded-xl overflow-hidden border border-primary-200">
+            <div className="rounded-lg overflow-hidden border border-slate-200">
               <GoogleMap center={position} zoom={10} mapContainerStyle={{ height: '200px' }}>
                 <Marker position={position} />
               </GoogleMap>
             </div>
           </LoadScript>
         ) : (
-          <div className="rounded-xl border border-primary-200 h-[200px] bg-primary-100 flex items-center justify-center text-primary-500 text-sm">Map (set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable)</div>
+          <div className="rounded-lg border border-slate-200 h-[200px] bg-slate-200 flex items-center justify-center text-slate-500 text-sm">Map (set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable)</div>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button type="submit" className="btn-primary">{UI.SUBMIT}</button>

@@ -24,6 +24,39 @@ export async function getAccessToken() {
   }
 }
 
+/** Build OData $filter for CREA DDF Property API (see CREA DDF documentation). */
+export function buildMLSFilter(params: Record<string, string | number | undefined>): string {
+  const clauses: string[] = [];
+  const esc = (s: string) => `'${String(s).replace(/'/g, "''")}'`;
+
+  if (params.standardStatus && params.standardStatus !== 'Any') {
+    clauses.push(`StandardStatus eq ${esc(params.standardStatus as string)}`);
+  } else if (params.standardStatus !== 'Any') {
+    clauses.push(`StandardStatus eq 'Active'`);
+  }
+  if (params.province) clauses.push(`StateOrProvince eq ${esc(params.province as string)}`);
+  if (params.city) clauses.push(`City eq ${esc((params.city as string).trim())}`);
+  if (params.postalCode) {
+    const pc = String(params.postalCode).trim().toUpperCase();
+    if (pc.length >= 3) clauses.push(`startswith(PostalCode,${esc(pc.substring(0, 3))})`);
+  }
+  const minPrice = typeof params.minPrice === 'number' ? params.minPrice : parseInt(String(params.minPrice || ''), 10);
+  if (!isNaN(minPrice) && minPrice > 0) clauses.push(`ListPrice ge ${minPrice}`);
+  const maxPrice = typeof params.maxPrice === 'number' ? params.maxPrice : parseInt(String(params.maxPrice || ''), 10);
+  if (!isNaN(maxPrice) && maxPrice > 0) clauses.push(`ListPrice le ${maxPrice}`);
+  const minSize = typeof params.minSize === 'number' ? params.minSize : parseFloat(String(params.minSize || ''));
+  if (!isNaN(minSize) && minSize > 0) clauses.push(`LivingArea ge ${minSize}`);
+  const maxSize = typeof params.maxSize === 'number' ? params.maxSize : parseFloat(String(params.maxSize || ''));
+  if (!isNaN(maxSize) && maxSize > 0) clauses.push(`LivingArea le ${maxSize}`);
+  const bedrooms = typeof params.bedrooms === 'number' ? params.bedrooms : parseInt(String(params.bedrooms || ''), 10);
+  if (!isNaN(bedrooms) && bedrooms > 0) clauses.push(`BedroomsTotal ge ${bedrooms}`);
+  const bathrooms = typeof params.bathrooms === 'number' ? params.bathrooms : parseInt(String(params.bathrooms || ''), 10);
+  if (!isNaN(bathrooms) && bathrooms > 0) clauses.push(`BathroomsTotalInteger ge ${bathrooms}`);
+  if (params.propertyType) clauses.push(`PropertyType eq ${esc(params.propertyType as string)}`);
+
+  return clauses.join(' and ');
+}
+
 export async function searchMLS(filter: string) {
   const token = await getAccessToken();
   try {

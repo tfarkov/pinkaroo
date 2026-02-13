@@ -39,7 +39,7 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
     <div className="mb-6">
       <button onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="md:hidden btn-primary w-full mb-4">{UI.FILTERS}</button>
       <div className={`${isAccordionOpen ? 'block' : 'hidden'} md:block`}>
-        <form onSubmit={handleSubmit(onFilter)} className="card p-4">
+        <form onSubmit={handleSubmit(onFilter)} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[140px]">
               <label className="label">{UI.ANY_PROVINCE}</label>

@@ -10,6 +10,9 @@ export const PROVINCES = [
 export type Province = typeof PROVINCES[number];
 export const PROPERTY_TYPES = ['House', 'Condo', 'Townhouse', 'Apartment', 'Land'] as const;
 export type PropertyType = typeof PROPERTY_TYPES[number];
+/** CREA DDF StandardStatus values for MLS search (see CREA DDF API docs) */
+export const MLS_STANDARD_STATUSES = ['Active', 'Sold', 'Pending', 'Expired', 'Withdrawn'] as const;
+export type MLSStandardStatus = typeof MLS_STANDARD_STATUSES[number];
 export const SQFT_CONVERSION_FACTOR = 10.7639;
 export const DEFAULT_LOCATION = { lat: 44.3894, lng: -79.6903 }; // Barrie, ON
 export const CLIENT_STATUSES = ['LEAD', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSED'] as const;
