@@ -1,17 +1,35 @@
 import dynamic from 'next/dynamic';
-import { useQuery, useInfiniteQuery, useQueries } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { API, RECENTLY_VIEWED_LIMIT, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, SQFT_CONVERSION_FACTOR } from '../lib/constants';
-import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockFavorites } from '../lib/mockData';
+import { API, CONTENT_TYPE, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE } from '../lib/constants';
+import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockFavorites, getMockPinkarooTeam } from '../lib/mockData';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
+import { useRecentlyViewed } from '../lib/hooks/useRecentlyViewed';
+import { useAuth } from '../lib/hooks/useAuth';
+import { formatPrice } from '../lib/format';
+import type { ListingBasic, ListingWithCoords, FavoriteItem, RealtorTeamMember } from '../lib/types';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
 import SafeListingImage from '../components/ui/SafeListingImage';
+import ListingCard from '../components/ListingCard';
+import ContactRealtorCard from '../components/ContactRealtorCard';
+import AdvancedFilters from '../components/AdvancedFilters';
+
+type FilterParams = Record<string, string | number | undefined>;
+
+function buildQueryParams(filters: FilterParams, extra: Record<string, string> = {}): string {
+  const params = new URLSearchParams();
+  Object.entries({ ...filters, ...extra }).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
+  });
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
 
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
@@ -23,17 +41,44 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
 });
 
 export default function Home() {
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   const position = useGeolocation();
   const { isMetric } = useUnitToggle();
-  const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
+  const recentIds = useRecentlyViewed();
   const [heroImageError, setHeroImageError] = useState(false);
+  const [filters, setFilters] = useState<FilterParams>({ province: DEFAULT_PROVINCE });
   const { ref, inView } = useInView();
 
+  const favoriteMutation = useMutation({
+    mutationFn: async ({ listingId, isFavorited }: { listingId: string; isFavorited: boolean }) => {
+      const res = await fetch(API.FAVORITES, {
+        method: isFavorited ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ listingId }),
+      });
+      if (!res.ok && res.status !== 400) throw new Error('Failed to update favourite');
+      return res;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
+  });
+
+  const handleFavoriteClick = (listingId: string, isFavorited: boolean) => {
+    favoriteMutation.mutate({ listingId, isFavorited });
+  };
+
+  const nearbyParams = buildQueryParams(filters, {
+    lat: String(position?.lat ?? ''),
+    lng: String(position?.lng ?? ''),
+    radius: String(DEFAULT_NEARBY_RADIUS_KM),
+  });
+
   const { data: nearbyListings = [] } = useQuery({
-    queryKey: ['nearby', position],
+    queryKey: ['nearby', position, filters],
     queryFn: async () => {
       try {
-        const res = await fetch(`${API.LISTINGS_NEARBY}?lat=${position?.lat ?? ''}&lng=${position?.lng ?? ''}&radius=${DEFAULT_NEARBY_RADIUS_KM}`);
+        const res = await fetch(`${API.LISTINGS_NEARBY}${nearbyParams}`);
         if (res.ok) return res.json();
         return getMockNearbyListings();
       } catch {
@@ -43,16 +88,18 @@ export default function Home() {
     staleTime: STALE_TIME_5_MIN,
   });
 
+  const listParams = (page: number) => buildQueryParams(filters, { page: String(page) });
+
   const {
     data: listingsData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['listings-public'],
+    queryKey: ['listings-public', filters],
     queryFn: async ({ pageParam }) => {
       try {
-        const res = await fetch(`${API.LISTINGS_PUBLIC}?page=${pageParam}`);
+        const res = await fetch(`${API.LISTINGS_PUBLIC}${listParams(pageParam)}`);
         if (res.ok) return res.json();
         return getMockListingsPage(pageParam);
       } catch {
@@ -64,25 +111,35 @@ export default function Home() {
     staleTime: STALE_TIME_5_MIN,
   });
 
-  const listings = listingsData?.pages.flatMap((p: { listings?: unknown[] }) => p.listings ?? []) ?? [];
+  const listings: ListingBasic[] = listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [];
 
   const { data: favorites = [] } = useQuery({
     queryKey: ['favorites'],
     queryFn: async () => {
+      const res = await fetch(API.FAVORITES, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    staleTime: STALE_TIME_5_MIN,
+    enabled: isAuthenticated,
+  });
+
+  const { data: pinkarooTeam = [], isLoading: pinkarooLoading } = useQuery({
+    queryKey: ['realtors-pinkaroo'],
+    queryFn: async () => {
       try {
-        const res = await fetch(API.FAVORITES, { credentials: 'include' });
+        const res = await fetch(API.REALTORS_PINKAROO);
         if (res.ok) return res.json();
-        return getMockFavorites();
+        return getMockPinkarooTeam();
       } catch {
-        return getMockFavorites();
+        return getMockPinkarooTeam();
       }
     },
     staleTime: STALE_TIME_5_MIN,
   });
 
-  const recentIds = recentlyViewed.filter((id): id is string => typeof id === 'string' && id.length > 0);
   const recentListingsQueries = useQueries({
-    queries: recentIds.map((id) => ({
+    queries: recentIds.map((id: string) => ({
       queryKey: ['listing', id],
       queryFn: async () => {
         try {
@@ -96,18 +153,6 @@ export default function Home() {
       staleTime: STALE_TIME_5_MIN,
     })),
   });
-
-  useEffect(() => {
-    let viewed: string[] = [];
-    try {
-      const raw = localStorage.getItem('recentlyViewed');
-      const parsed = JSON.parse(raw || '[]');
-      viewed = Array.isArray(parsed) ? parsed.filter((v: unknown) => typeof v === 'string' && (v as string).trim()) : [];
-    } catch {
-      viewed = [];
-    }
-    setRecentlyViewed(viewed.slice(-RECENTLY_VIEWED_LIMIT));
-  }, []);
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -141,11 +186,18 @@ export default function Home() {
               Browse listings from trusted REALTORS® and save your favourites.
             </p>
             <Link
-              href="/listings"
+              href="/#listings"
               className="inline-block bg-accent-500 hover:bg-accent-600 text-white font-bold px-8 py-3 rounded-md text-lg transition-colors shadow-hero"
             >
               Find a Home
             </Link>
+          </div>
+        </section>
+
+        {/* Full-width filters under hero */}
+        <section className="w-full border-b border-slate-200 bg-white shadow-sm" aria-label="Search filters">
+          <div className="px-4 py-4 md:px-6 md:py-5">
+            <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
           </div>
         </section>
 
@@ -157,40 +209,24 @@ export default function Home() {
                 {UI.NEARBY_LISTINGS_TITLE}
               </h2>
               <div className="bg-white rounded-lg shadow-card overflow-hidden border border-slate-200">
-                <HomeMap position={position} listings={nearbyListings as { id: string; latitude: number; longitude: number; title: string }[]} />
+                <HomeMap position={position} listings={nearbyListings as ListingWithCoords[]} />
               </div>
             </section>
 
             {/* Browse Listings - infinite scroll */}
-            <section aria-labelledby="listings-title" className="py-10">
+            <section id="listings" aria-labelledby="listings-title" className="py-10">
               <h2 id="listings-title" className="text-2xl font-bold text-slate-900 mb-6">
                 {UI.FEATURED_LISTINGS_TITLE}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {listings.map((listing: { id: string; title: string; price: number; location?: string; images?: string[]; bedroomsTotal?: number; bathroomsTotal?: number; sizeSqm?: number }) => (
-                  <Link
+                {listings.map((listing) => (
+                  <ListingCard
                     key={listing.id}
-                    href={`/listings/${listing.id}`}
-                    className="block bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group"
-                  >
-                    <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                      <SafeListingImage src={listing.images?.[0]} />
-                    </div>
-                    <div className="p-4">
-                      <p className="text-xl font-bold text-accent-600">
-                        {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(listing.price ?? 0)}
-                      </p>
-                      <h3 className="mt-1 font-semibold text-slate-900 group-hover:text-accent-600 transition-colors line-clamp-2">
-                        {listing.title}
-                      </h3>
-                      <p className="mt-2 text-sm text-slate-600">
-                        {listing.bedroomsTotal ?? '—'} bed · {listing.bathroomsTotal ?? '—'} bath
-                        {listing.sizeSqm != null && ` · ${isMetric ? `${listing.sizeSqm} m²` : (listing.sizeSqm * SQFT_CONVERSION_FACTOR).toFixed(0)} sq ft`}
-                      </p>
-                      {listing.location && <p className="mt-1 text-sm text-slate-500">{listing.location}</p>}
-                      <span className="inline-block mt-3 text-accent-600 font-semibold text-sm">{UI.VIEW_LISTING} →</span>
-                    </div>
-                  </Link>
+                    listing={listing}
+                    isMetric={isMetric}
+                    isFavorited={(favorites as FavoriteItem[]).some((f) => f.listing?.id === listing.id)}
+                    onFavoriteClick={isAuthenticated ? (id) => handleFavoriteClick(id, (favorites as FavoriteItem[]).some((f) => f.listing?.id === id)) : undefined}
+                  />
                 ))}
               </div>
               {hasNextPage && (
@@ -211,30 +247,16 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {recentListingsQueries.map((query, i) => {
                   const id = recentIds[i];
-                  const listing = query.data;
+                  const listing = query.data as ListingBasic | undefined;
                   return (
-                    <Link
+                    <ListingCard
                       key={id}
-                      href={`/listings/${encodeURIComponent(id)}`}
-                      className="block bg-white rounded-lg shadow-card border border-slate-200 p-0 overflow-hidden hover:shadow-card-hover transition-shadow group"
-                    >
-                      <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                        <SafeListingImage
-                          src={listing?.images?.[0]}
-                          placeholder={query.isLoading ? UI.LOADING : `Property #${id.slice(0, 8)}`}
-                        />
-                      </div>
-                      <div className="p-4">
-                        {listing?.title && (
-                          <p className="font-semibold text-slate-900 group-hover:text-accent-600 transition-colors line-clamp-2">
-                            {listing.title}
-                          </p>
-                        )}
-                        <span className="text-accent-600 font-semibold group-hover:text-accent-700">
-                          {UI.VIEW_LISTING} →
-                        </span>
-                      </div>
-                    </Link>
+                      listing={listing ?? { id }}
+                      variant="recent"
+                      imagePlaceholder={query.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
+                      isFavorited={(favorites as FavoriteItem[]).some((f) => f.listing?.id === id)}
+                      onFavoriteClick={isAuthenticated ? (listingId) => handleFavoriteClick(listingId, (favorites as FavoriteItem[]).some((f) => f.listing?.id === listingId)) : undefined}
+                    />
                   );
                 })}
               </div>
@@ -246,8 +268,9 @@ export default function Home() {
             </section>
           </div>
 
-          {/* Right sidebar - Favourites */}
-          <aside className="lg:w-80 shrink-0" aria-labelledby="sidebar-favourites-title">
+          {/* Right sidebar - Favourites (signed in only) + Contact a Realtor */}
+          <aside className="lg:w-80 shrink-0" aria-labelledby={isAuthenticated ? 'sidebar-favourites-title' : 'sidebar-realtors-title'}>
+            {isAuthenticated && (
             <div className="lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4">
               <h2 id="sidebar-favourites-title" className="text-xl font-bold text-slate-900 mb-4">
                 Favourites
@@ -256,10 +279,10 @@ export default function Home() {
                 View all →
               </Link>
               <ul className="space-y-3">
-                {(favorites as { id: string; listing?: { id: string; title?: string; price?: number; images?: string[] } }[]).map((f: { id: string; listing?: { id: string; title?: string; price?: number; images?: string[] } }) => (
+                {(favorites as FavoriteItem[]).map((f) => (
                   <li key={f.id}>
                     <Link
-                      href={`/listings/${f.listing?.id ?? '#'}`}
+                      href={'/listings/' + (f.listing?.id ?? '#')}
                       className="flex gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
                       <div className="w-16 h-12 shrink-0 rounded overflow-hidden bg-slate-200">
@@ -270,18 +293,29 @@ export default function Home() {
                           {f.listing?.title ?? 'Listing'}
                         </p>
                         <p className="text-sm font-semibold text-accent-600">
-                          {f.listing?.price != null
-                            ? new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(f.listing.price)
-                            : ''}
+                          {f.listing?.price != null ? formatPrice(f.listing.price) : ''}
                         </p>
                       </div>
                     </Link>
                   </li>
                 ))}
               </ul>
-              {(favorites as unknown[]).length === 0 && (
+              {(favorites as FavoriteItem[]).length === 0 && (
                 <p className="text-slate-500 text-sm py-4">No favourites yet. Save listings to see them here.</p>
               )}
+            </div>
+            )}
+
+            {/* Contact a Realtor */}
+            <div className={`lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4 ${isAuthenticated ? 'mt-6' : ''}`} aria-labelledby="sidebar-realtors-title">
+              <h2 id="sidebar-realtors-title" className="text-xl font-bold text-slate-900 mb-2">
+                Contact a Realtor
+              </h2>
+              <p className="text-slate-600 text-sm mb-4">Pinkaroo Real Estate</p>
+              <ContactRealtorCard
+                realtor={(pinkarooTeam as RealtorTeamMember[]).filter((m) => m.role === 'REALTOR')[0] ?? null}
+                isLoading={pinkarooLoading}
+              />
             </div>
           </aside>
         </div>
