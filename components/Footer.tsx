@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { useAuth } from '../lib/hooks/useAuth';
 
 export default function Footer() {
+  const { isAuthenticated } = useAuth();
   return (
     <footer className="bg-header text-white mt-auto">
       <div className="content-width py-8">
@@ -15,8 +17,13 @@ export default function Footer() {
             <Link href="/favorites" className="text-white/90 hover:text-white font-medium">
               Favourites
             </Link>
-            <Link href="/profile" className="text-white/90 hover:text-white font-medium">
-              Profile
+            {isAuthenticated && (
+              <Link href="/profile" className="text-white/90 hover:text-white font-medium">
+                Profile
+              </Link>
+            )}
+            <Link href="/privacy" className="text-white/90 hover:text-white font-medium">
+              Privacy
             </Link>
           </div>
           <p className="text-white/70 text-sm">© {new Date().getFullYear()} Pinkaroo. All rights reserved.</p>

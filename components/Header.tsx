@@ -24,6 +24,7 @@ export default function Header() {
     ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
     ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
+    ...((isRealtor || isBroker) ? [{ href: '/dashboard/crm', label: 'CRM' }] : []),
     { href: '/mls-search', label: 'MLS Search' },
     { href: '/favorites', label: 'Favourites' },
   ];
