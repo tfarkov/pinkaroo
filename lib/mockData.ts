@@ -241,16 +241,52 @@ export const MOCK_LISTINGS = [
   { id: 'mock-30', title: 'Two-Bedroom Condo', description: 'In-suite laundry.', price: 428000, location: 'Barrie, ON', province: 'ONTARIO', postalCode: 'L4M 3Z6', sizeSqm: 92, bedroomsTotal: 2, bathroomsTotal: 1, propertyType: 'Apartment', latitude: 44.381, longitude: -79.689, images: MOCK_IMAGES.apartment, status: 'ACTIVE' },
 ].map((l) => ({ ...l, latitude: l.latitude ?? DEFAULT_LOCATION.lat, longitude: l.longitude ?? DEFAULT_LOCATION.lng }));
 
-/** Mock response for public/listings API: one page of mock listings */
-export function getMockListingsPage(page: number, pageSize = 20) {
+/** Filter params from AdvancedFilters (province, city, minPrice, maxPrice, bedrooms, bathrooms, propertyType) */
+export type MockListingsFilters = Record<string, string | number | undefined>;
+
+function toNum(v: string | number | undefined): number | undefined {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+/** Apply AdvancedFilters-style params to a list of mock listings */
+function applyMockFilters<T extends typeof MOCK_LISTINGS[number]>(
+  listings: T[],
+  filters: MockListingsFilters | undefined
+): T[] {
+  if (!filters || Object.keys(filters).length === 0) return listings;
+  return listings.filter((l) => {
+    const province = filters.province != null && String(filters.province).trim() !== '';
+    if (province && String(l.province) !== String(filters.province)) return false;
+    const city = filters.city != null && String(filters.city).trim() !== '';
+    if (city && !String(l.location).toLowerCase().includes(String(filters.city).toLowerCase())) return false;
+    const minPrice = toNum(filters.minPrice);
+    if (minPrice != null && (l.price ?? 0) < minPrice) return false;
+    const maxPrice = toNum(filters.maxPrice);
+    if (maxPrice != null && (l.price ?? 0) > maxPrice) return false;
+    const bedrooms = toNum(filters.bedrooms);
+    if (bedrooms != null && (l.bedroomsTotal ?? 0) < bedrooms) return false;
+    const bathrooms = toNum(filters.bathrooms);
+    if (bathrooms != null && (l.bathroomsTotal ?? 0) < bathrooms) return false;
+    const propertyType = filters.propertyType != null && String(filters.propertyType).trim() !== '';
+    if (propertyType && String(l.propertyType) !== String(filters.propertyType)) return false;
+    return true;
+  });
+}
+
+/** Mock response for public/listings API: one page of mock listings, optionally filtered */
+export function getMockListingsPage(page: number, pageSize = 20, filters?: MockListingsFilters) {
+  const filtered = applyMockFilters(MOCK_LISTINGS, filters);
   const start = page * pageSize;
-  const slice = MOCK_LISTINGS.slice(start, start + pageSize);
+  const slice = filtered.slice(start, start + pageSize);
   return { listings: slice, nextPage: slice.length === pageSize ? page + 1 : null };
 }
 
-/** Mock response for nearby API: listings with lat/lng */
-export function getMockNearbyListings() {
-  return MOCK_LISTINGS.filter((l) => l.latitude != null && l.longitude != null);
+/** Mock response for nearby API: listings with lat/lng, optionally filtered */
+export function getMockNearbyListings(filters?: MockListingsFilters) {
+  const withCoords = MOCK_LISTINGS.filter((l) => l.latitude != null && l.longitude != null);
+  return applyMockFilters(withCoords, filters);
 }
 
 /** Single listing for detail page (by id or first mock) */
@@ -273,6 +309,16 @@ export function getMockFavorites() {
 export const MOCK_NOTIFICATIONS = [
   { id: 'mock-n-1', message: 'Welcome to Pinkaroo', type: 'SYSTEM', read: false, createdAt: new Date().toISOString() },
   { id: 'mock-n-2', message: 'Your listing has been approved', type: 'APPROVAL', read: true, createdAt: new Date().toISOString() },
+  {
+    id: 'mock-n-3',
+    message: 'Hi, I have a client interested in the 3BR listing. Can we schedule a viewing?',
+    type: 'MESSAGE',
+    read: false,
+    flagged: false,
+    createdAt: new Date().toISOString(),
+    fromUserId: 'mock-sender-id',
+    fromUser: { id: 'mock-sender-id', name: 'Jane Broker', email: 'jane@broker.example.com' },
+  },
 ];
 export function getMockNotifications() {
   return MOCK_NOTIFICATIONS;
@@ -318,11 +364,20 @@ export function getMockMLSResults() {
 
 /** Admin: realtors list */
 export const MOCK_REALTORS = [
-  { id: 'mock-r-1', email: 'realtor@example.com', name: 'Sample Realtor', role: 'REALTOR', brokerId: null, broker: null },
-  { id: 'mock-r-2', email: 'realtor2@example.com', name: 'Another Realtor', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Sample Broker' } },
+  { id: 'mock-r-1', email: 'realtor@example.com', name: 'Sample Realtor', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Sample Broker' }, teamId: 'mock-team-1', isTeamLead: true },
+  { id: 'mock-r-2', email: 'realtor2@example.com', name: 'Another Realtor', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Sample Broker' }, teamId: null, isTeamLead: false },
 ];
 export function getMockRealtors() {
   return MOCK_REALTORS;
+}
+
+/** Broker teams (mock) */
+export const MOCK_TEAMS = [
+  { id: 'mock-team-1', name: 'Barrie Office', brokerId: 'mock-b-1', members: [] },
+  { id: 'mock-team-2', name: 'Toronto Office', brokerId: 'mock-b-1', members: [] },
+];
+export function getMockTeams() {
+  return MOCK_TEAMS.map((t) => ({ ...t, members: (MOCK_REALTORS as { teamId?: string | null }[]).filter((r) => r.teamId === t.id) }));
 }
 
 /** Admin: brokers list */
@@ -341,7 +396,7 @@ export function getMockBrokerStats() {
     pending: 1,
     approved: 3,
     rejected: 1,
-    realtors: MOCK_REALTORS,
+    realtors: MOCK_REALTORS.map((r, i) => ({ ...r, listingsCount: i + 2 })),
     revenue: [100000, 150000, 120000],
     months: ['Jan', 'Feb', 'Mar'],
   };
