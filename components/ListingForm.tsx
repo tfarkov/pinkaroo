@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/hooks/useAuth';
 import axios from 'axios';
-import { API, CONTENT_TYPE, DEFAULT_LOCATION, GA, PROVINCES, PROPERTY_TYPES, UI, DEBOUNCE_MS, SQFT_CONVERSION_FACTOR } from '../lib/constants';
+import { API, DEFAULT_LOCATION, GA, PROVINCES, PROPERTY_TYPES, UI, DEBOUNCE_MS, SQFT_CONVERSION_FACTOR } from '../lib/constants';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import ReactGA from 'react-ga';
@@ -20,16 +21,43 @@ interface FormData {
   bedroomsTotal: number;
   bathroomsTotal: number;
   propertyType: string;
-  images: FileList;
+  images: FileList | undefined;
+  latitude?: number;
+  longitude?: number;
 }
 
+const defaultNewListing: Partial<FormData> = {
+  province: 'ONTARIO',
+  postalCode: '',
+  sizeSqm: 0,
+  bedroomsTotal: 0,
+  bathroomsTotal: 0,
+  propertyType: 'House',
+  latitude: DEFAULT_LOCATION.lat,
+  longitude: DEFAULT_LOCATION.lng,
+};
+
 export default function ListingForm({ listing }: { listing?: any }) {
-  const { register, handleSubmit, watch, setValue } = useForm<FormData>({ defaultValues: listing });
+  const router = useRouter();
+  const { register, handleSubmit, watch, setValue } = useForm<FormData>({
+    defaultValues: listing ?? defaultNewListing,
+  });
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { isMetric } = useUnitToggle();
-  const [position, setPosition] = useState({ lat: 0, lng: 0 });
-  const [error, setError] = useState(null);
+  const [position, setPosition] = useState(() =>
+    listing?.latitude != null && listing?.longitude != null
+      ? { lat: Number(listing.latitude), lng: Number(listing.longitude) }
+      : { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
+  );
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (listing?.latitude != null && listing?.longitude != null) {
+      setPosition({ lat: Number(listing.latitude), lng: Number(listing.longitude) });
+    } else if (!listing) {
+      setPosition({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
+    }
+  }, [listing?.latitude, listing?.longitude, listing]);
   const sizeSqm = watch('sizeSqm');
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
@@ -39,21 +67,29 @@ export default function ListingForm({ listing }: { listing?: any }) {
         sizeToStore = Number(sizeToStore) / SQFT_CONVERSION_FACTOR;
       }
       Object.entries(data).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
         if (key === 'images') {
-          Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
+          if (value && (value as FileList).length) {
+            Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
+          }
         } else if (key === 'sizeSqm') {
           formData.append(key, String(sizeToStore ?? value));
+        } else if (key === 'latitude' || key === 'longitude') {
+          if (typeof value === 'number' && !Number.isNaN(value)) formData.append(key, String(value));
         } else {
-          formData.append(key, value as string);
+          formData.append(key, String(value));
         }
       });
-      return axios.post(API.LISTINGS, formData, { headers: { 'Content-Type': CONTENT_TYPE.MULTIPART_FORM_DATA } });
+      return axios.post(API.LISTINGS, formData, { withCredentials: true });
     },
-    onSuccess: () => {
+    onSuccess: (response: { data: { id: string } }) => {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       ReactGA.event({ category: GA.LISTING, action: GA.LISTING_CREATED });
+      if (!listing && response?.data?.id) {
+        router.push(`/listings/${response.data.id}`);
+      }
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => setError(err?.message ?? 'Failed to save listing'),
   });
 
   const debouncedGeocode = debounce(async (location: string) => {
@@ -63,9 +99,13 @@ export default function ListingForm({ listing }: { listing?: any }) {
       if (response.data.results?.[0]) {
         const { lat, lng } = response.data.results[0].geometry.location;
         setPosition({ lat, lng });
+        setValue('latitude', lat);
+        setValue('longitude', lng);
         ReactGA.event({ category: GA.GEOCODING, action: GA.GEOCODING_SUCCESS });
       } else {
         setPosition(DEFAULT_LOCATION);
+        setValue('latitude', DEFAULT_LOCATION.lat);
+        setValue('longitude', DEFAULT_LOCATION.lng);
       }
     } catch (err) {
       setError((err as Error).message);
