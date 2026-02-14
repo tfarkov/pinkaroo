@@ -19,6 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (isBroker) where.brokerId = session.user.id;
   else if (isTeamLeadRealtor) where.brokerId = (session.user as { brokerId?: string | null }).brokerId ?? undefined;
 
-  const realtors = await prisma.user.findMany({ where, include: { broker: true } });
+  const realtors = await prisma.user.findMany({
+    where,
+    include: { broker: true, team: { select: { id: true, name: true } } },
+  });
   res.json(realtors);
 }

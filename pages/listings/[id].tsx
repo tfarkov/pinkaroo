@@ -7,19 +7,18 @@ import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { useEffect } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { useAuth } from '../../lib/hooks/useAuth';
-import { useMutation } from '@tanstack/react-query';
 import BottomNav from '../../components/ui/BottomNav';
-import { API, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI } from '../../lib/constants';
+import { API, RECENTLY_VIEWED_LIMIT, UI } from '../../lib/constants';
 import { formatPrice, formatArea } from '../../lib/format';
 import { useUnitToggle } from '../../lib/hooks/useUnitToggle';
+import { useFavorites } from '../../lib/hooks/useFavorites';
 import { getMockListing } from '../../lib/mockData';
 
 export default function ListingDetail() {
   const router = useRouter();
   const { id } = router.query;
-  const { isAuthenticated } = useAuth();
   const { isMetric } = useUnitToggle();
+  const { isFavorited, toggleFavorite } = useFavorites();
   const { data: listing } = useQuery({
     queryKey: ['listing', id],
     queryFn: async () => {
@@ -33,11 +32,6 @@ export default function ListingDetail() {
     },
     enabled: !!id,
   });
-  const favoriteMutation = useMutation({
-    mutationFn: (listingId: string) =>
-      fetch(API.FAVORITES, { method: 'POST', body: JSON.stringify({ listingId }), headers: { 'Content-Type': CONTENT_TYPE.JSON } }),
-  });
-
   useEffect(() => {
     if (typeof window === 'undefined' || typeof id !== 'string' || !id.trim()) return;
     let viewed: string[] = [];
@@ -52,7 +46,10 @@ export default function ListingDetail() {
     localStorage.setItem('recentlyViewed', JSON.stringify(viewed));
   }, [id]);
 
-  const handleFavorite = () => favoriteMutation.mutate(id as string);
+  const handleFavorite = () => {
+    if (typeof id !== 'string' || !listing) return;
+    toggleFavorite(id, { id: listing.id, title: listing.title, price: listing.price, images: listing.images });
+  };
 
   if (!listing) {
     return (
@@ -129,11 +126,9 @@ export default function ListingDetail() {
           <MortgageCalculator price={listing.price ?? 0} />
         </div>
 
-        {isAuthenticated && (
-          <button onClick={handleFavorite} className="btn-primary">
-            {UI.FAVORITE}
-          </button>
-        )}
+        <button onClick={handleFavorite} className="btn-primary">
+          {isFavorited(listing.id) ? 'Remove from favourites' : UI.FAVORITE}
+        </button>
       </main>
       <Footer />
       <BottomNav />

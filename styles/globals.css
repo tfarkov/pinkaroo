@@ -144,6 +144,9 @@ nav.bg-header,
     @apply w-full rounded-md border bg-white px-3 py-2 text-slate-900 placeholder-slate-400;
     border-color: #cbd5e1;
   }
+  select.input-field {
+    @apply py-2.5 pr-9 min-h-[2.75rem];
+  }
   .input-field:focus {
     outline: none;
     border-color: #db2777;

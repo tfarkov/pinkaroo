@@ -4,9 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { API, CONTENT_TYPE, LISTING_STATUSES, UI } from '../../../lib/constants';
 import { getMockBrokerPendingListings } from '../../../lib/mockData';
-import Header from '../../../components/Header';
-import Footer from '../../../components/Footer';
-import BottomNav from '../../../components/ui/BottomNav';
+import DashboardLayout from '../../../components/DashboardLayout';
 
 export default function BrokerApprovals() {
   const { isBroker } = useAuth();
@@ -39,22 +37,17 @@ export default function BrokerApprovals() {
 
   if (!isBroker) {
     return (
-      <div className="page-container flex flex-col">
-        <Header />
-        <main className="flex-1 content-width max-w-5xl mx-auto py-10 flex items-center justify-center">
+      <DashboardLayout>
+        <div className="py-20 flex items-center justify-center">
           <p className="text-slate-600 font-medium">{UI.ACCESS_DENIED}</p>
-        </main>
-        <Footer />
-        <BottomNav />
-      </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="page-container flex flex-col">
-      <Header />
-      <main className="flex-1 content-width max-w-5xl mx-auto pb-14 md:pb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">{UI.PENDING_APPROVALS}</h1>
+    <DashboardLayout>
+      <h1 className="text-3xl font-bold text-slate-900 mb-8">{UI.PENDING_APPROVALS}</h1>
 
         <div className="space-y-6">
           {pendingListings.map((listing: any) => (
@@ -88,9 +81,6 @@ export default function BrokerApprovals() {
             </div>
           </form>
         )}
-      </main>
-      <Footer />
-      <BottomNav />
-    </div>
+    </DashboardLayout>
   );
 }

@@ -6,9 +6,7 @@ import { useForm } from 'react-hook-form';
 import { API, CONTENT_TYPE, UI } from '../../lib/constants';
 import { getMockRealtors, getMockBrokers } from '../../lib/mockData';
 import { useAuth } from '../../lib/hooks/useAuth';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
-import BottomNav from '../../components/ui/BottomNav';
+import DashboardLayout from '../../components/DashboardLayout';
 
 export default function AdminPanel() {
   const router = useRouter();
@@ -56,10 +54,8 @@ export default function AdminPanel() {
   const showAdminOnlySections = isAdmin && status === 'authenticated';
 
   return (
-    <div className="page-container">
-      <Header />
-      <main className="content-width max-w-5xl pb-16 md:pb-8">
-        <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.ADMIN_DASHBOARD}</h1>
+    <DashboardLayout>
+      <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.ADMIN_DASHBOARD}</h1>
         {showAdminOnlySections && (
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">{UI.ASSIGN_REALTOR_TO_BROKER}</h2>
@@ -128,9 +124,6 @@ export default function AdminPanel() {
         </div>
         </>
         )}
-      </main>
-      <Footer />
-      <BottomNav />
-    </div>
+    </DashboardLayout>
   );
 }

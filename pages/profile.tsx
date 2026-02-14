@@ -1,5 +1,6 @@
 import { useAuth } from '../lib/hooks/useAuth';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { UI, RECENTLY_VIEWED_LIMIT } from '../lib/constants';
 import Header from '../components/Header';
@@ -7,9 +8,18 @@ import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated, status } = useAuth();
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   const userWithRole = user as { name?: string; email?: string; image?: string; role?: string } | undefined;
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (!isAuthenticated) {
+      router.replace('/signin?callbackUrl=/profile');
+      return;
+    }
+  }, [status, isAuthenticated, router]);
 
   useEffect(() => {
     let viewed: string[] = [];
@@ -22,6 +32,19 @@ export default function Profile() {
     }
     setRecentlyViewed(viewed.slice(-RECENTLY_VIEWED_LIMIT));
   }, []);
+
+  if (status === 'loading' || !isAuthenticated) {
+    return (
+      <div className="page-container flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 content-width py-12 flex items-center justify-center">
+          <p className="text-slate-500">{status === 'loading' ? UI.LOADING : 'Redirecting…'}</p>
+        </main>
+        <Footer />
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="page-container flex flex-col">

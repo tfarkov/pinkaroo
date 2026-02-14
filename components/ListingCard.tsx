@@ -40,7 +40,7 @@ export default function ListingCard(props: ListingCardProps) {
                 e.stopPropagation();
                 onFavoriteClick(listing.id);
               }}
-              className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center text-slate-700 hover:text-accent-600 transition-colors z-10"
+              className={`absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center transition-colors z-10 ${isFavorited ? 'text-red-500 hover:text-red-600' : 'text-slate-700 hover:text-accent-600'}`}
               aria-label={isFavorited ? 'Remove from favourites' : 'Add to favourites'}
             >
               <HeartIcon filled={isFavorited} />

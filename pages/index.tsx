@@ -1,15 +1,15 @@
 import dynamic from 'next/dynamic';
-import { useQuery, useInfiniteQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueries } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { API, CONTENT_TYPE, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE } from '../lib/constants';
-import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockFavorites, getMockPinkarooTeam } from '../lib/mockData';
+import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE } from '../lib/constants';
+import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockPinkarooTeam } from '../lib/mockData';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { useRecentlyViewed } from '../lib/hooks/useRecentlyViewed';
-import { useAuth } from '../lib/hooks/useAuth';
+import { useFavorites } from '../lib/hooks/useFavorites';
 import { formatPrice } from '../lib/format';
 import type { ListingBasic, ListingWithCoords, FavoriteItem, RealtorTeamMember } from '../lib/types';
 import Header from '../components/Header';
@@ -31,6 +31,15 @@ function buildQueryParams(filters: FilterParams, extra: Record<string, string> =
   return q ? `?${q}` : '';
 }
 
+const SORT_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  { value: 'price-asc', label: 'Price: low to high' },
+  { value: 'price-desc', label: 'Price: high to low' },
+  { value: 'beds-desc', label: 'Beds: most first' },
+  { value: 'baths-desc', label: 'Baths: most first' },
+  { value: 'size-desc', label: 'Size: largest first' },
+] as const;
+
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
   loading: () => (
@@ -41,31 +50,35 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
 });
 
 export default function Home() {
-  const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
   const position = useGeolocation();
   const { isMetric } = useUnitToggle();
   const recentIds = useRecentlyViewed();
+  const { favorites, isFavorited, toggleFavorite } = useFavorites();
   const [heroImageError, setHeroImageError] = useState(false);
   const [filters, setFilters] = useState<FilterParams>({ province: DEFAULT_PROVINCE });
+  const [listingsSort, setListingsSort] = useState<string>('default');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
   const { ref, inView } = useInView();
 
-  const favoriteMutation = useMutation({
-    mutationFn: async ({ listingId, isFavorited }: { listingId: string; isFavorited: boolean }) => {
-      const res = await fetch(API.FAVORITES, {
-        method: isFavorited ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': CONTENT_TYPE.JSON },
-        credentials: 'include',
-        body: JSON.stringify({ listingId }),
-      });
-      if (!res.ok && res.status !== 400) throw new Error('Failed to update favourite');
-      return res;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
-  });
+  useEffect(() => {
+    if (!sortDropdownOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) setSortDropdownOpen(false);
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSortDropdownOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [sortDropdownOpen]);
 
-  const handleFavoriteClick = (listingId: string, isFavorited: boolean) => {
-    favoriteMutation.mutate({ listingId, isFavorited });
+  const handleFavoriteClick = (listingId: string, listing?: ListingBasic) => {
+    toggleFavorite(listingId, listing ? { id: listing.id, title: listing.title, price: listing.price, images: listing.images } : undefined);
   };
 
   const nearbyParams = buildQueryParams(filters, {
@@ -80,9 +93,9 @@ export default function Home() {
       try {
         const res = await fetch(`${API.LISTINGS_NEARBY}${nearbyParams}`);
         if (res.ok) return res.json();
-        return getMockNearbyListings();
+        return getMockNearbyListings(filters);
       } catch {
-        return getMockNearbyListings();
+        return getMockNearbyListings(filters);
       }
     },
     staleTime: STALE_TIME_5_MIN,
@@ -101,9 +114,9 @@ export default function Home() {
       try {
         const res = await fetch(`${API.LISTINGS_PUBLIC}${listParams(pageParam)}`);
         if (res.ok) return res.json();
-        return getMockListingsPage(pageParam);
+        return getMockListingsPage(pageParam, 20, filters);
       } catch {
-        return getMockListingsPage(pageParam);
+        return getMockListingsPage(pageParam, 20, filters);
       }
     },
     initialPageParam: 0,
@@ -113,16 +126,24 @@ export default function Home() {
 
   const listings: ListingBasic[] = listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [];
 
-  const { data: favorites = [] } = useQuery({
-    queryKey: ['favorites'],
-    queryFn: async () => {
-      const res = await fetch(API.FAVORITES, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch');
-      return res.json();
-    },
-    staleTime: STALE_TIME_5_MIN,
-    enabled: isAuthenticated,
-  });
+  const sortedListings = useMemo(() => {
+    if (listingsSort === 'default') return listings;
+    const arr = [...listings];
+    switch (listingsSort) {
+      case 'price-asc':
+        return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      case 'price-desc':
+        return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      case 'beds-desc':
+        return arr.sort((a, b) => (b.bedroomsTotal ?? 0) - (a.bedroomsTotal ?? 0));
+      case 'baths-desc':
+        return arr.sort((a, b) => (b.bathroomsTotal ?? 0) - (a.bathroomsTotal ?? 0));
+      case 'size-desc':
+        return arr.sort((a, b) => (b.sizeSqm ?? 0) - (a.sizeSqm ?? 0));
+      default:
+        return arr;
+    }
+  }, [listings, listingsSort]);
 
   const { data: pinkarooTeam = [], isLoading: pinkarooLoading } = useQuery({
     queryKey: ['realtors-pinkaroo'],
@@ -215,26 +236,80 @@ export default function Home() {
 
             {/* Browse Listings - infinite scroll */}
             <section id="listings" aria-labelledby="listings-title" className="py-10">
-              <h2 id="listings-title" className="text-2xl font-bold text-slate-900 mb-6">
-                {UI.FEATURED_LISTINGS_TITLE}
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <h2 id="listings-title" className="text-2xl font-bold text-slate-900">
+                  {UI.FEATURED_LISTINGS_TITLE}
+                </h2>
+                <div className="flex items-center shrink-0" ref={sortDropdownRef}>
+                  <div className="relative inline-flex">
+                    <button
+                      type="button"
+                      onClick={() => setSortDropdownOpen((open) => !open)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 transition-all"
+                      aria-label="Sort listings"
+                      aria-haspopup="listbox"
+                      aria-expanded={sortDropdownOpen}
+                      aria-controls="listings-sort-listbox"
+                      id="listings-sort-button"
+                      title="Sort listings"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                    {sortDropdownOpen && (
+                      <ul
+                        id="listings-sort-listbox"
+                        role="listbox"
+                        aria-labelledby="listings-sort-button"
+                        className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-xl border border-slate-200 bg-white shadow-lg py-2 z-50"
+                      >
+                        {SORT_OPTIONS.map((opt) => (
+                          <li key={opt.value} role="option" aria-selected={listingsSort === opt.value}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setListingsSort(opt.value);
+                                setSortDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm transition-colors ${listingsSort === opt.value ? 'bg-accent-50 text-accent-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {listings.map((listing) => (
+                {sortedListings.map((listing) => (
                   <ListingCard
                     key={listing.id}
                     listing={listing}
                     isMetric={isMetric}
-                    isFavorited={(favorites as FavoriteItem[]).some((f) => f.listing?.id === listing.id)}
-                    onFavoriteClick={isAuthenticated ? (id) => handleFavoriteClick(id, (favorites as FavoriteItem[]).some((f) => f.listing?.id === id)) : undefined}
+                    isFavorited={isFavorited(listing.id)}
+                    onFavoriteClick={(id) => handleFavoriteClick(id, listing)}
                   />
                 ))}
               </div>
               {hasNextPage && (
-                <div ref={ref} className="text-center py-8 text-slate-500 text-sm">
-                  {isFetchingNextPage ? UI.LOADING_MORE : ''}
+                <div ref={ref} className="flex flex-col items-center justify-center py-12">
+                  {isFetchingNextPage ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative w-10 h-10" aria-hidden>
+                        <div className="absolute inset-0 rounded-full border-2 border-slate-200" />
+                        <div className="absolute inset-0 rounded-full border-2 border-accent-500 border-t-transparent animate-spin" />
+                      </div>
+                      <p className="text-slate-500 text-sm font-medium">{UI.LOADING_MORE}</p>
+                    </div>
+                  ) : (
+                    <span className="h-4" aria-hidden />
+                  )}
                 </div>
               )}
-              {listings.length === 0 && !isFetchingNextPage && (
+              {sortedListings.length === 0 && !isFetchingNextPage && (
                 <p className="text-slate-500 py-10 text-center">No listings yet. Check back soon.</p>
               )}
             </section>
@@ -254,8 +329,8 @@ export default function Home() {
                       listing={listing ?? { id }}
                       variant="recent"
                       imagePlaceholder={query.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
-                      isFavorited={(favorites as FavoriteItem[]).some((f) => f.listing?.id === id)}
-                      onFavoriteClick={isAuthenticated ? (listingId) => handleFavoriteClick(listingId, (favorites as FavoriteItem[]).some((f) => f.listing?.id === listingId)) : undefined}
+                      isFavorited={isFavorited(id)}
+                      onFavoriteClick={(listingId) => handleFavoriteClick(listingId, listing ?? undefined)}
                     />
                   );
                 })}
@@ -268,9 +343,8 @@ export default function Home() {
             </section>
           </div>
 
-          {/* Right sidebar - Favourites (signed in only) + Contact a Realtor */}
-          <aside className="lg:w-80 shrink-0" aria-labelledby={isAuthenticated ? 'sidebar-favourites-title' : 'sidebar-realtors-title'}>
-            {isAuthenticated && (
+          {/* Right sidebar - Favourites + Contact a Realtor */}
+          <aside className="lg:w-80 shrink-0" aria-labelledby="sidebar-favourites-title">
             <div className="lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4">
               <h2 id="sidebar-favourites-title" className="text-xl font-bold text-slate-900 mb-4">
                 Favourites
@@ -279,7 +353,7 @@ export default function Home() {
                 View all →
               </Link>
               <ul className="space-y-3">
-                {(favorites as FavoriteItem[]).map((f) => (
+                {favorites.map((f) => (
                   <li key={f.id}>
                     <Link
                       href={'/listings/' + (f.listing?.id ?? '#')}
@@ -300,14 +374,13 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              {(favorites as FavoriteItem[]).length === 0 && (
+              {favorites.length === 0 && (
                 <p className="text-slate-500 text-sm py-4">No favourites yet. Save listings to see them here.</p>
               )}
             </div>
-            )}
 
             {/* Contact a Realtor */}
-            <div className={`lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4 ${isAuthenticated ? 'mt-6' : ''}`} aria-labelledby="sidebar-realtors-title">
+            <div className="lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4 mt-6" aria-labelledby="sidebar-realtors-title">
               <h2 id="sidebar-realtors-title" className="text-xl font-bold text-slate-900 mb-2">
                 Contact a Realtor
               </h2>

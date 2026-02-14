@@ -6,9 +6,7 @@ import { useForm } from 'react-hook-form';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { getMockBrokers } from '../../../lib/mockData';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import Header from '../../../components/Header';
-import Footer from '../../../components/Footer';
-import BottomNav from '../../../components/ui/BottomNav';
+import DashboardLayout from '../../../components/DashboardLayout';
 
 type RealtorProfileForm = {
   name: string;
@@ -131,21 +129,15 @@ export default function AdminRealtorProfilePage() {
 
   if (!id || status === 'loading' || (isAuthenticated && !canEditRealtorProfiles)) {
     return (
-      <div className="page-container">
-        <Header />
-        <main className="content-width max-w-2xl pb-16 md:pb-8">
-          <p className="text-slate-500 py-8">{UI.LOADING}</p>
-        </main>
-        <Footer />
-        <BottomNav />
-      </div>
+      <DashboardLayout>
+        <p className="text-slate-500 py-8">{UI.LOADING}</p>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="page-container">
-      <Header />
-      <main className="content-width max-w-2xl pb-16 md:pb-8">
+    <DashboardLayout>
+      <div className="max-w-2xl">
         <div className="py-6">
           <Link href="/admin" className="text-accent-600 hover:underline font-medium text-sm">
             ← {UI.BACK_TO_ADMIN}
@@ -210,9 +202,7 @@ export default function AdminRealtorProfilePage() {
             </button>
           </form>
         )}
-      </main>
-      <Footer />
-      <BottomNav />
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

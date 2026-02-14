@@ -4,11 +4,11 @@
 
 ### Public / Guest
 - **Home** – Hero with tagline “find a house. make it a home”, Find a Home CTA, nearby listings map (Google Maps), browse listings with infinite scroll, recently viewed section (from localStorage) with listing images and links.
-- **Find a Home (Listings)** – Public listing search with map, filters (province, price, bedrooms, bathrooms, property type), paginated/infinite list, listing cards with image, price, beds/baths, size (m² or sq ft), link to detail.
+- **Find a Home (Listings)** – Public listing search with map, **advanced filters** (province, city, min/max price, bedrooms, bathrooms, property type) that apply to both API and **mock results** when the API is unavailable; infinite scroll with a styled loading spinner; listing cards with image, price, beds/baths, size (m² or sq ft), link to detail.
 - **Listing detail** – Full listing view: gallery, price, location, description, details (beds, baths, size, type, postal code), agent profile card, mortgage calculator, map, favourite button.
-- **Favourites** – Saved listings (per user when signed in; mock/IndexedDB fallback), grid of favourite cards with image and link to listing.
+- **Favourites** – Saved listings (per user when signed in; mock/IndexedDB fallback), grid of favourite cards with image and link to listing; **heart icon turns red** on listing cards when a listing is in favourites.
 - **MLS Search** – Canadian MLS search by province, city, postal code, status, price/size/beds/baths, property type; results grid with image and “Import to My Listings”; mock results when API unavailable.
-- **Profile** – User name, role, and recently viewed listings (from localStorage).
+- **Profile** – User name, role, and recently viewed listings (from localStorage). **Profile link is shown only when signed in** (footer, bottom nav, hamburger menu).
 - **Unit toggle** – Header toggle for area units: **sq ft** (default) or **m²**; applies to listing cards, listing detail, listing form, and MLS search labels; preference stored in localStorage.
 
 ### Authentication
@@ -32,12 +32,14 @@
 - **Realtor / Broker management** – View and manage realtor–broker assignments.
 
 ### Infrastructure & UX
-- **Layout** – Fixed header (logo, nav, unit toggle, notifications, sign in/out), footer, bottom nav on mobile (Home, Listings, Dashboard, Favourites, Profile).
+- **Layout** – Fixed header (logo, nav, unit toggle, notifications, sign in/out), footer (Find a Home, MLS Search, Favourites, Profile when signed in, **Privacy**), bottom nav on mobile (Home, Find a Home, Dashboard, Favourites, Profile when signed in).
+- **Privacy** – **Privacy Statement** page at `/privacy` (how we collect, use, and protect your information); link in footer.
 - **Notifications** – Notifications dropdown in header (e.g. listing status, system).
 - **Responsive** – Content width and mobile-first layout; bottom nav only on small screens.
 - **Images** – Safe listing images with fallback on error; hero image with gradient fallback; logo with transparent background and SVG fallback.
 - **API** – Listings (CRUD, public, nearby), favorites, notifications, clients & interactions, users, MLS search, admin (realtors, brokers, assign-broker), broker (stats, pending, approve).
-- **Mock data** – Listings, favorites, clients, interactions, MLS results, realtors, brokers, broker stats when API/DB unavailable.
+- **Mock data** – Listings, favorites, clients, interactions, MLS results, realtors, brokers, broker stats when API/DB unavailable; **advanced filters apply to mock listings** (main grid and nearby map) so filtered results stay consistent when using fallback data.
+- **Infinite scroll** – Styled “loading more” state with accent-colour spinner and label when fetching the next page of listings.
 
 ---
 
@@ -82,7 +84,7 @@ Open **http://localhost:3000** in your browser.
 
 - Do **not** click “Sign In”. Use the app as a guest.
 - You can: browse the home page, use filters, open listing details, use the map, see “Contact a Realtor”, view MLS Search, Profile (limited), etc.
-- You will **not** see: the **Favourites** sidebar on the home page, **heart (favourite) buttons** on listing thumbnails, Dashboard, Add Listing, Admin, or Broker areas. Favourites and those features are only available when signed in.
+- You will **not** see: the **Favourites** sidebar on the home page, **heart (favourite) buttons** on listing thumbnails, **Profile** link (footer/bottom nav), Dashboard, Add Listing, Admin, or Broker areas. Favourites, Profile, and those features are only available when signed in.
 
 ### 3. Use the app as a **signed-in user**
 
@@ -107,7 +109,8 @@ Open **http://localhost:3000** in your browser.
    | Realtor | `realtor@example.com` | `password` |
 
 3. **After sign-in**  
-   - **Favourites** sidebar appears on the home page; you can add/remove favourites with the heart on listing cards.
+   - **Favourites** sidebar appears on the home page; you can add/remove favourites with the heart on listing cards (heart turns **red** when a listing is favourited).
+   - **Profile** link appears in the footer and bottom nav.
    - Header shows **Sign out** and role-specific links (Dashboard, Add Listing, Broker, Admin depending on role).
    - Profile, Favourites page, and role-specific dashboards use your session.
 
@@ -133,4 +136,7 @@ To test the **signed-in UI** (favourites, nav, role-specific links) without sett
 | Favourites sidebar   | No        | Yes        |
 | Heart (favourite) on cards | No   | Yes        |
 | Dashboard / Add Listing / Admin / Broker | No | Yes (by role) |
-| Profile (with role)  | Limited   | Full       |
+| Profile link         | No        | Yes        |
+| Profile (with role)   | Limited   | Full       |
+
+_Profile page is still reachable via URL when anonymous; the Profile **link** is hidden until signed in._

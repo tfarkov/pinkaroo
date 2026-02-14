@@ -51,9 +51,11 @@ export const SQFT_CONVERSION_FACTOR = 10.7639;
 export const DEFAULT_LOCATION = { lat: 44.3894, lng: -79.6903 }; // Barrie, ON
 export const CLIENT_STATUSES = ['LEAD', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSED'] as const;
 export type ClientStatus = typeof CLIENT_STATUSES[number];
+export const INTERACTION_TYPES = ['Call', 'Email', 'Meeting', 'Showing', 'Document', 'Other'] as const;
 export const NOTIFICATION_TYPES = ['APPROVAL', 'INTERACTION', 'SYSTEM'] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];
-export const MAX_FAVORITES = 100; // Limit for indexedDB
+export const MAX_FAVORITES = 100; // Limit for indexedDB and anonymous localStorage
+export const ANONYMOUS_FAVORITES_KEY = 'pinkaroo_anonymous_favorites';
 export const REVENUE_MONTHS = 12; // For charts
 
 // ——— API routes ———
@@ -75,6 +77,7 @@ export const API = {
   BROKER_STATS: '/api/broker/stats',
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
+  BROKER_TEAMS: '/api/broker/teams',
 } as const;
 
 // ——— HTTP / API messages ———
@@ -161,6 +164,17 @@ export const UI = {
   PENDING_APPROVALS: 'Pending Listing Approvals',
   CRM_TITLE: 'CRM - Client Management',
   ADD_CLIENT: 'Add Client',
+  EDIT_CLIENT: 'Edit Client',
+  DELETE_CLIENT: 'Delete Client',
+  CLIENT_DETAILS: 'Client details',
+  ADD_INTERACTION: 'Add Interaction',
+  INTERACTION_TYPE: 'Type',
+  INTERACTION_DETAILS: 'Details',
+  INTERACTION_DATE: 'Date',
+  NOTES: 'Notes',
+  CLIENTS_LIST: 'Clients',
+  NO_CLIENTS: 'No clients yet. Add your first client above.',
+  CONFIRM_DELETE_CLIENT: 'Delete this client? This cannot be undone.',
   LISTINGS_PER_REALTOR: 'Listings per Realtor',
   CHART_APPROVED: 'Approved',
   CHART_PENDING: 'Pending',
@@ -194,6 +208,16 @@ export const UI = {
   SAVE_PROFILE: 'Save profile',
   PROFILE_SAVED: 'Profile saved.',
   TEAM_LEAD: 'Team lead',
+  TEAM_MANAGEMENT: 'Team management',
+  BROKER_TEAM_TITLE: 'Team – Realtors',
+  BROKER_TEAM_DESCRIPTION: 'Manage your team and designate team leads. Team leads can edit realtor profiles within your team.',
+  NO_TEAM_MEMBERS: 'No realtors in your team yet. Realtors are assigned to your team by an admin.',
+  ADD_TEAM: 'Add team',
+  TEAM_NAME: 'Team name',
+  SAVE: 'Save',
+  DELETE_TEAM: 'Delete team',
+  ASSIGN_TO_TEAM: 'Assign to team',
+  NO_TEAM: 'No team',
 } as const;
 
 // ——— Content-Type headers ———
