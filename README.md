@@ -43,6 +43,90 @@
 
 ---
 
+## External sign-up & setup
+
+These features require you to sign up for an external service and add credentials to `.env`. Full step-by-step instructions are in **[docs/SETUP-CREDENTIALS.md](docs/SETUP-CREDENTIALS.md)**; below is a quick overview and setup for the most common ones.
+
+### Services that require external sign-up
+
+| Service | Used for | Required? |
+|--------|----------|-----------|
+| **Google Cloud** | Maps + Geocoding, Google Sign-In | Maps: for map/geocode; OAuth: for Google login |
+| **Facebook for Developers** | Facebook Sign-In | Only if you want Facebook login |
+| **GitHub** | GitHub Sign-In | Only if you want GitHub login |
+| **Apple Developer** | Apple Sign-In | Only if you want Apple login |
+| **Database (MySQL)** | Auth, listings, favorites, etc. | Yes for real data and sign-in |
+| **Cloudinary** | Listing image uploads | Yes for Add Listing uploads |
+| **CREA/MLS** | Canadian MLS search | Only for MLS search/sync |
+| **Redis** | Real-time notifications | Optional |
+| **Nodemailer (SMTP)** | MLS error emails | Optional |
+| **Google Analytics** | Analytics | Optional |
+
+---
+
+### 1. Google Maps (map + geocoding on listing pages and Add Listing)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/).
+2. Create or select a project.
+3. **Enable APIs:** **APIs & Services** → **Library** → enable **Maps JavaScript API** and **Geocoding API**.
+4. **Create an API key:** **APIs & Services** → **Credentials** → **Create credentials** → **API key**.
+5. (Recommended) Restrict the key: **HTTP referrers** for your domains (e.g. `http://localhost:3000/*`, `https://your-domain.com/*`), and limit to **Maps JavaScript API** and **Geocoding API**.
+6. Add to `.env` (must be `NEXT_PUBLIC_` so the browser can use it):
+   ```env
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_maps_api_key_here
+   ```
+   Without this key, the app shows a placeholder instead of the map.
+
+---
+
+### 2. Google Sign-In (OAuth)
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) (same project as Maps or a new one), go to **APIs & Services** → **Credentials**.
+2. **Configure OAuth consent screen** (if not done): **OAuth consent screen** → User type **External** → add app name, support email, developer contact → Save.
+3. **Create OAuth client:** **Credentials** → **Create credentials** → **OAuth client ID** → Application type **Web application**.
+4. Under **Authorized redirect URIs** add:
+   - `http://localhost:3000/api/auth/callback/google`
+   - `https://your-domain.com/api/auth/callback/google` (for production).
+5. Copy **Client ID** and **Client secret**.
+6. Add to `.env`:
+   ```env
+   GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=GOCSPX-xxx
+   ```
+   Restart the dev server; the "Sign in with Google" button will appear on the sign-in page.
+
+---
+
+### 3. Facebook Sign-In (OAuth)
+
+1. Go to [Facebook for Developers](https://developers.facebook.com/) and sign in.
+2. **My Apps** → **Create App** → choose **Consumer** or **Business** → enter app name → Create.
+3. In the app dashboard, add the **Facebook Login** product → **Set up** → choose **Web**.
+4. **Facebook Login** → **Settings** (left sidebar). Set **Site URL** to `http://localhost:3000` (or your production URL).
+5. Under **Valid OAuth Redirect URIs** add:
+   - `http://localhost:3000/api/auth/callback/facebook`
+   - `https://your-domain.com/api/auth/callback/facebook` (for production).
+6. **Settings** → **Basic**: copy **App ID** and **App Secret** (click **Show** for the secret).
+7. Add to `.env`:
+   ```env
+   FACEBOOK_CLIENT_ID=your_app_id
+   FACEBOOK_CLIENT_SECRET=your_app_secret
+   ```
+   Restart the dev server; the "Sign in with Facebook" button will appear.
+
+---
+
+### 4. Other services (summary)
+
+- **Database:** Create a MySQL database (e.g. local, PlanetScale, Railway). Set `DATABASE_URL` in `.env`, then run `npx prisma migrate dev` and `npx prisma db seed`.
+- **NextAuth:** Generate a secret (`openssl rand -base64 32`) and set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` (e.g. `http://localhost:3000`). Required for any sign-in.
+- **Cloudinary:** Sign up at [cloudinary.com](https://cloudinary.com/), copy Cloud name / API Key / API Secret from the dashboard, set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Needed for Add Listing image uploads.
+- **GitHub / Apple / CREA / Redis / Nodemailer / Cron / Analytics:** See **[docs/SETUP-CREDENTIALS.md](docs/SETUP-CREDENTIALS.md)** for step-by-step and all env variable names.
+
+Keep `.env` out of version control (it should be in `.gitignore`). For production, set these variables in your host's environment (e.g. Vercel, Railway).
+
+---
+
 ## Run locally for UI testing (no external integrations)
 
 To test the UI without Redis, Google Maps, MLS, or other external services:
@@ -58,9 +142,7 @@ To test the UI without Redis, Google Maps, MLS, or other external services:
    - Home: hero, “recently viewed” (from `localStorage`), map shows a placeholder if no Google key.
    - Listings, Favorites, Profile, MLS Search, Dashboard, Admin: layout and forms render; list/detail pages may show loading or empty data if the database is not set up.
 
-3. **Optional env (no external sign-up required):**
-   - **`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`** – If unset, maps show a placeholder message instead of loading Google Maps.
-   - **`DATABASE_URL`** – If unset, API routes that use the DB (listings, favorites, auth, etc.) will fail when you click through; you’ll still see the UI. To get real data, use a local MySQL (or Docker) and run `npx prisma migrate dev` and `npx prisma db seed`.
+3. **Optional env:** To enable maps and real data, see **[External sign-up & setup](#external-sign-up--setup)** above for Google Maps (`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) and Database (`DATABASE_URL`). Without them, maps show a placeholder and API routes that need the DB will fail when you click through.
 
 4. **Not needed for UI-only testing:**
    - `REDIS_URL` (only used by `npm run dev` with the custom server).
