@@ -47,9 +47,12 @@ export default function DashboardSidebar() {
             </h3>
             <ul className="space-y-0.5">
               {section.links.map((link) => {
-                const isActive =
-                  router.pathname === link.href ||
-                  (link.href.length > 1 && router.pathname.startsWith(link.href + '/'));
+                // Dashboard (index) should not be active when a child route is selected
+                const isParentOnly = link.href === '/dashboard';
+                const isActive = isParentOnly
+                  ? router.pathname === link.href
+                  : router.pathname === link.href ||
+                    (link.href.length > 1 && router.pathname.startsWith(link.href + '/'));
                 return (
                   <li key={link.href}>
                     <Link
