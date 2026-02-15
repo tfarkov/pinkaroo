@@ -118,7 +118,7 @@ These features require you to sign up for an external service and add credential
 
 ### 4. Other services (summary)
 
-- **Database:** Create a MySQL database (e.g. local, PlanetScale, Railway). Set `DATABASE_URL` in `.env`, then run `npx prisma migrate dev` and `npx prisma db seed`.
+- **Database:** Create a MySQL database (e.g. local, PlanetScale, Railway). Set `DATABASE_URL` in `.env`, then run `npx prisma migrate dev` and `npm run db:seed`. See [Test users (seed)](#test-users-seed) for the login table.
 - **NextAuth:** Generate a secret (`openssl rand -base64 32`) and set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` (e.g. `http://localhost:3000`). Required for any sign-in.
 - **Cloudinary:** Sign up at [cloudinary.com](https://cloudinary.com/), copy Cloud name / API Key / API Secret from the dashboard, set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Needed for Add Listing image uploads.
 - **GitHub / Apple / CREA / Redis / Nodemailer / Cron / Analytics:** See **[docs/SETUP-CREDENTIALS.md](docs/SETUP-CREDENTIALS.md)** for step-by-step and all env variable names.
@@ -182,13 +182,20 @@ Open **http://localhost:3000** in your browser.
 
 2. **Sign in**  
    - Click **Sign In** in the header (or go to **http://localhost:3000/signin**).
-   - Use one of the seeded accounts:
+   - Use one of the seeded test accounts (all use password **`password`**):
 
-   | Role    | Email               | Password  |
-   |---------|---------------------|-----------|
-   | Admin   | `admin@example.com` | `password` |
-   | Broker  | `broker@example.com` | `password` |
-   | Realtor | `realtor@example.com` | `password` |
+   | Email | Password | Name | Role |
+   |-------|----------|------|------|
+   | `admin@example.com` | `password` | Morgan Blake | Admin |
+   | `broker@example.com` | `password` | Jordan Lee | Broker |
+   | `broker2@example.com` | `password` | Riley Scott | Broker |
+   | `realtor@example.com` | `password` | Sam Chen | Realtor (team lead) |
+   | `realtor2@example.com` | `password` | Alex Rivera | Realtor |
+   | `realtor3@example.com` | `password` | Morgan Taylor | Realtor |
+   | `realtor4@example.com` | `password` | Casey Wong | Realtor |
+   | `user@example.com` | `password` | Jamie Smith | Consumer |
+
+   These users are created by the seed script (`npm run db:seed` or `npx prisma db seed`). Re-running the seed updates names and passwords so they stay in sync with `prisma/seed.ts`.
 
 3. **After sign-in**  
    - **Favourites** sidebar appears on the home page; you can add/remove favourites with the heart on listing cards (heart turns **red** when a listing is favourited).
@@ -222,3 +229,28 @@ To test the **signed-in UI** (favourites, nav, role-specific links) without sett
 | Profile (with role)   | Limited   | Full       |
 
 _Profile page is still reachable via URL when anonymous; the Profile **link** is hidden until signed in._
+
+---
+
+## Test users (seed)
+
+The seed script creates test users for all roles. After setting **`DATABASE_URL`** and running migrations, run:
+
+```bash
+npm run db:seed
+```
+
+(or `npx prisma db seed`). Re-running the seed **updates** existing users (names and passwords), so test logins stay in sync with `prisma/seed.ts`.
+
+**Logins** (sign in at **/signin**; password for all is **`password`**):
+
+| Email | Password | Name | Role |
+|-------|----------|------|------|
+| `admin@example.com` | `password` | Morgan Blake | Admin |
+| `broker@example.com` | `password` | Jordan Lee | Broker |
+| `broker2@example.com` | `password` | Riley Scott | Broker |
+| `realtor@example.com` | `password` | Sam Chen | Realtor (team lead, under Jordan Lee) |
+| `realtor2@example.com` | `password` | Alex Rivera | Realtor (under Jordan Lee) |
+| `realtor3@example.com` | `password` | Morgan Taylor | Realtor (under Riley Scott) |
+| `realtor4@example.com` | `password` | Casey Wong | Realtor (under Jordan Lee) |
+| `user@example.com` | `password` | Jamie Smith | Consumer (USER) |
