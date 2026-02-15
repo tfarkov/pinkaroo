@@ -10,7 +10,7 @@ export default function BrokerApprovals() {
   const { isBroker } = useAuth();
   const [selectedListing, setSelectedListing] = useState(null);
   const queryClient = useQueryClient();
-  const { register, handleSubmit } = useForm<{ rejectionReason: string }>();
+  const { register, handleSubmit, formState: { errors } } = useForm<{ rejectionReason: string }>({ mode: 'onBlur' });
 
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['broker-pending'],
@@ -74,7 +74,8 @@ export default function BrokerApprovals() {
         {selectedListing && (
           <form onSubmit={handleSubmit((data) => rejectMutation.mutate({ id: selectedListing.id, rejectionReason: data.rejectionReason }))} className="mt-8 bg-white rounded-lg shadow-card border border-slate-200 p-6">
             <label className="label">Rejection reason</label>
-            <textarea {...register('rejectionReason')} placeholder="Rejection reason" className="input-field min-h-[100px] mb-4" required />
+            <textarea {...register('rejectionReason', { required: 'Rejection reason is required' })} placeholder="Rejection reason" className="input-field min-h-[100px] mb-4" aria-invalid={!!errors.rejectionReason} />
+            {errors.rejectionReason && <p className="text-red-600 text-sm mt-1 mb-4" role="alert">{errors.rejectionReason.message}</p>}
             <div className="flex flex-wrap gap-3">
               <button type="submit" className="btn-primary bg-red-600 hover:bg-red-700">Submit Rejection</button>
               <button type="button" onClick={() => setSelectedListing(null)} className="btn-secondary">Cancel</button>

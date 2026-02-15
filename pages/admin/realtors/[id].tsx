@@ -59,7 +59,7 @@ export default function AdminRealtorProfilePage() {
   );
   const isTeamLeadOnly = canEditRealtorProfiles && !isAdmin && role === 'REALTOR';
 
-  const { register, handleSubmit, reset } = useForm<RealtorProfileForm>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<RealtorProfileForm>({
     defaultValues: {
       name: '',
       email: '',
@@ -70,6 +70,7 @@ export default function AdminRealtorProfilePage() {
       brokerId: '',
       isTeamLead: false,
     },
+    mode: 'onBlur',
   });
 
   useEffect(() => {
@@ -154,12 +155,14 @@ export default function AdminRealtorProfilePage() {
           >
             <div>
               <label className="label">{UI.NAME}</label>
-              <input {...register('name')} className="input-field w-full" />
+              <input {...register('name', { required: 'Name is required' })} className="input-field w-full" aria-invalid={!!errors.name} />
+              {errors.name && <p className="text-red-600 text-sm mt-1" role="alert">{errors.name.message}</p>}
             </div>
             {!isTeamLeadOnly && (
             <div>
               <label className="label">{UI.EMAIL}</label>
-              <input {...register('email')} type="email" className="input-field w-full" required />
+              <input {...register('email', { required: 'Email is required' })} type="email" className="input-field w-full" aria-invalid={!!errors.email} />
+              {errors.email && <p className="text-red-600 text-sm mt-1" role="alert">{errors.email.message}</p>}
             </div>
             )}
             <div>

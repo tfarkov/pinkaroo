@@ -25,7 +25,7 @@ interface SearchFormData {
 }
 
 export default function MLSSearch() {
-  const { register, handleSubmit } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' } });
+  const { register, handleSubmit, formState: { errors } } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' }, mode: 'onBlur' });
   const { isMetric } = useUnitToggle();
   const [searchParams, setSearchParams] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +102,10 @@ export default function MLSSearch() {
               </div>
               <div>
                 <label htmlFor="province" className="label">Province</label>
-                <select id="province" {...register('province')} className="input-field" required>
+                <select id="province" {...register('province', { required: 'Province is required' })} className="input-field" aria-invalid={!!errors.province}>
                   {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
+                {errors.province && <p className="text-red-600 text-sm mt-1" role="alert">{errors.province.message}</p>}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

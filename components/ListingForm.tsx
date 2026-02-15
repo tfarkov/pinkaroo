@@ -39,8 +39,9 @@ const defaultNewListing: Partial<FormData> = {
 
 export default function ListingForm({ listing }: { listing?: any }) {
   const router = useRouter();
-  const { register, handleSubmit, watch, setValue } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: listing ?? defaultNewListing,
+    mode: 'onBlur',
   });
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -119,28 +120,33 @@ export default function ListingForm({ listing }: { listing?: any }) {
       <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
         <div>
           <label className="label">{UI.TITLE}</label>
-          <input {...register('title')} className="input-field" placeholder="e.g. Cozy 3BR" required />
+          <input {...register('title', { required: 'Title is required' })} className="input-field" placeholder="e.g. Cozy 3BR" aria-invalid={!!errors.title} />
+          {errors.title && <p className="text-red-600 text-sm mt-1" role="alert">{errors.title.message}</p>}
         </div>
         <div>
           <label className="label">{UI.DESCRIPTION}</label>
-          <textarea {...register('description')} className="input-field min-h-[100px]" required />
+          <textarea {...register('description', { required: 'Description is required' })} className="input-field min-h-[100px]" aria-invalid={!!errors.description} />
+          {errors.description && <p className="text-red-600 text-sm mt-1" role="alert">{errors.description.message}</p>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">{UI.PRICE}</label>
-            <input {...register('price')} type="number" className="input-field" required />
+            <input {...register('price', { required: 'Price is required', min: { value: 1, message: 'Price must be greater than 0' }, valueAsNumber: true })} type="number" className="input-field" aria-invalid={!!errors.price} />
+            {errors.price && <p className="text-red-600 text-sm mt-1" role="alert">{errors.price.message}</p>}
           </div>
           <div>
             <label className="label">{UI.LOCATION}</label>
-            <input {...register('location')} className="input-field" onChange={(e) => debouncedGeocode(e.target.value)} required />
+            <input {...register('location', { required: 'Location is required' })} className="input-field" onChange={(e) => debouncedGeocode(e.target.value)} aria-invalid={!!errors.location} />
+            {errors.location && <p className="text-red-600 text-sm mt-1" role="alert">{errors.location.message}</p>}
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Province</label>
-            <select {...register('province')} className="input-field" required>
+            <select {...register('province', { required: 'Province is required' })} className="input-field" aria-invalid={!!errors.province}>
               {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+            {errors.province && <p className="text-red-600 text-sm mt-1" role="alert">{errors.province.message}</p>}
           </div>
           <div>
             <label className="label">{UI.POSTAL_CODE}</label>
@@ -176,9 +182,10 @@ export default function ListingForm({ listing }: { listing?: any }) {
         </div>
         <div>
           <label className="label">Property type</label>
-          <select {...register('propertyType')} className="input-field" required>
+          <select {...register('propertyType', { required: 'Property type is required' })} className="input-field" aria-invalid={!!errors.propertyType}>
             {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
+          {errors.propertyType && <p className="text-red-600 text-sm mt-1" role="alert">{errors.propertyType.message}</p>}
         </div>
         <div>
           <label className="label">Photos</label>

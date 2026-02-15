@@ -33,6 +33,7 @@ type ClientRecord = {
   phone?: string;
   notes?: string;
   status?: string;
+  linkedUserId?: string | null;
   interactions?: { id: string; type: string; details: string; date: string }[];
 };
 
@@ -41,6 +42,7 @@ export default function CRM() {
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
   const [editingClient, setEditingClient] = useState<ClientRecord | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [clientMessage, setClientMessage] = useState('');
 
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
@@ -61,7 +63,7 @@ export default function CRM() {
     queryFn: async () => {
       if (!selectedClient?.id) return null;
       try {
-        const res = await fetch(`${API.CLIENTS}/${selectedClient.id}`);
+        const res = await fetch(`${API.CLIENTS}/${selectedClient.id}`, { credentials: 'include' });
         if (res.ok) return res.json();
         const list = getMockClients() as ClientRecord[];
         const client = list.find((c) => c.id === selectedClient.id);
@@ -83,9 +85,11 @@ export default function CRM() {
 
   const clientForm = useForm<ClientFormData>({
     defaultValues: { name: '', email: '', phone: '', notes: '', status: 'LEAD' },
+    mode: 'onBlur',
   });
   const interactionForm = useForm<InteractionFormData>({
     defaultValues: { type: 'Call', details: '', date: new Date().toISOString().slice(0, 10) },
+    mode: 'onBlur',
   });
 
   const clientCreateMutation = useMutation({
@@ -131,6 +135,7 @@ export default function CRM() {
         method: 'POST',
         body: JSON.stringify(data),
         headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
@@ -140,6 +145,17 @@ export default function CRM() {
         date: new Date().toISOString().slice(0, 10),
       });
     },
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (payload: { toUserId: string; message: string }) =>
+      fetch(API.NOTIFICATIONS, {
+        method: 'POST',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      }),
+    onSuccess: () => setClientMessage(''),
   });
 
   const startEdit = (client: ClientRecord) => {
@@ -177,7 +193,8 @@ export default function CRM() {
           >
             <div>
               <label className="label">{UI.NAME}</label>
-              <input {...clientForm.register('name')} required className="input-field" />
+              <input {...clientForm.register('name', { required: 'Name is required' })} className="input-field" aria-invalid={!!clientForm.formState.errors.name} />
+              {clientForm.formState.errors.name && <p className="text-red-600 text-sm mt-1" role="alert">{clientForm.formState.errors.name.message}</p>}
             </div>
             <div>
               <label className="label">{UI.EMAIL}</label>
@@ -193,13 +210,14 @@ export default function CRM() {
             </div>
             <div>
               <label className="label">Status</label>
-              <select {...clientForm.register('status')} required className="input-field">
+              <select {...clientForm.register('status', { required: 'Status is required' })} className="input-field" aria-invalid={!!clientForm.formState.errors.status}>
                 {CLIENT_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {s.replace(/_/g, ' ')}
                   </option>
                 ))}
               </select>
+              {clientForm.formState.errors.status && <p className="text-red-600 text-sm mt-1" role="alert">{clientForm.formState.errors.status.message}</p>}
             </div>
             <div className="flex flex-wrap gap-3">
               <button type="submit" className="btn-primary" disabled={clientCreateMutation.isPending || clientUpdateMutation.isPending}>
@@ -309,6 +327,32 @@ export default function CRM() {
               <dd className="text-slate-900 col-span-2">{selectedClient.notes ?? '—'}</dd>
             </dl>
 
+            {clientDetail?.linkedUserId ? (
+              <div className="mb-6 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Message client (in-app)</h3>
+                <p className="text-sm text-slate-600 mb-3">This client has an account. They will see your message in their Notifications.</p>
+                <textarea
+                  value={clientMessage}
+                  onChange={(e) => setClientMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  rows={3}
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm mb-2"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (clientMessage.trim()) sendMessageMutation.mutate({ toUserId: clientDetail.linkedUserId!, message: clientMessage.trim() });
+                  }}
+                  disabled={!clientMessage.trim() || sendMessageMutation.isPending}
+                  className="btn-primary text-sm"
+                >
+                  {sendMessageMutation.isPending ? 'Sending…' : 'Send message'}
+                </button>
+              </div>
+            ) : selectedClient?.email ? (
+              <p className="text-sm text-slate-500 mb-6">This client does not have an app account yet (no user with this email). They will see messages here once they sign up.</p>
+            ) : null}
+
             <h3 className="text-lg font-bold text-slate-900 mb-3">Interactions</h3>
             {interactions.length === 0 ? (
               <p className="text-slate-500 text-sm mb-4">No interactions yet.</p>
@@ -333,25 +377,28 @@ export default function CRM() {
             >
               <div>
                 <label className="label">{UI.INTERACTION_TYPE}</label>
-                <select {...interactionForm.register('type')} required className="input-field">
+                <select {...interactionForm.register('type', { required: 'Type is required' })} className="input-field" aria-invalid={!!interactionForm.formState.errors.type}>
                   {INTERACTION_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
                   ))}
                 </select>
+                {interactionForm.formState.errors.type && <p className="text-red-600 text-sm mt-1" role="alert">{interactionForm.formState.errors.type.message}</p>}
               </div>
               <div>
                 <label className="label">{UI.INTERACTION_DETAILS}</label>
                 <textarea
-                  {...interactionForm.register('details')}
-                  required
+                  {...interactionForm.register('details', { required: 'Details are required' })}
                   className="input-field min-h-[80px]"
+                  aria-invalid={!!interactionForm.formState.errors.details}
                 />
+                {interactionForm.formState.errors.details && <p className="text-red-600 text-sm mt-1" role="alert">{interactionForm.formState.errors.details.message}</p>}
               </div>
               <div>
                 <label className="label">{UI.INTERACTION_DATE}</label>
-                <input type="date" {...interactionForm.register('date')} required className="input-field" />
+                <input type="date" {...interactionForm.register('date', { required: 'Date is required' })} className="input-field" aria-invalid={!!interactionForm.formState.errors.date} />
+                {interactionForm.formState.errors.date && <p className="text-red-600 text-sm mt-1" role="alert">{interactionForm.formState.errors.date.message}</p>}
               </div>
               <button
                 type="submit"

@@ -28,10 +28,20 @@ export default function SignIn() {
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const emailTrimmed = email.trim();
+    const passwordTrimmed = password.trim();
+    if (!emailTrimmed) {
+      setError('Email is required.');
+      return;
+    }
+    if (!passwordTrimmed) {
+      setError('Password is required.');
+      return;
+    }
     setLoading(true);
     const res = await signIn('credentials', {
-      email,
-      password,
+      email: emailTrimmed,
+      password: passwordTrimmed,
       redirect: false,
       callbackUrl: typeof callbackUrl === 'string' ? callbackUrl : '/',
     });
@@ -60,7 +70,7 @@ export default function SignIn() {
                 alt=""
                 width={64}
                 height={64}
-                className="w-full h-full object-contain bg-transparent"
+                className="w-full h-full object-contain bg-transparent rounded-full"
                 onError={() => setLogoError(true)}
               />
             )}
