@@ -33,18 +33,20 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
       <div className="content-width flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white" aria-label="Pinkaroo home">
-          {logoError ? (
-            <LogoIcon className="w-11 h-11 flex-shrink-0" />
-          ) : (
-            <img
-              src="/logo.png"
-              alt="Pinkaroo"
-              width={44}
-              height={44}
-              className="w-11 h-11 object-contain flex-shrink-0 block"
-              onError={() => setLogoError(true)}
-            />
-          )}
+          <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+            {logoError ? (
+              <LogoIcon className="w-11 h-11 flex-shrink-0" />
+            ) : (
+              <img
+                src="/logo.png"
+                alt="Pinkaroo"
+                width={44}
+                height={44}
+                className="w-11 h-11 object-contain flex-shrink-0 block rounded-full"
+                onError={() => setLogoError(true)}
+              />
+            )}
+          </div>
           <span className="font-bold text-lg hidden sm:inline">Pinkaroo</span>
         </Link>
         <nav className="hidden md:flex items-center gap-0">
@@ -64,9 +66,11 @@ export default function Header() {
           >
             {isMetric ? 'Metric' : 'Imperial'}
           </button>
-          <div className="ml-1">
-            <NotificationsDropdown />
-          </div>
+          {isAuthenticated && (
+            <div className="ml-1">
+              <NotificationsDropdown />
+            </div>
+          )}
           {isAuthenticated ? (
             <Link href="/api/auth/signout" className="ml-3 px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md text-sm font-medium">
               Sign out
@@ -78,7 +82,7 @@ export default function Header() {
           )}
         </nav>
         <div className="flex md:hidden items-center gap-2">
-          <NotificationsDropdown />
+          {isAuthenticated && <NotificationsDropdown />}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-md text-white hover:bg-white/10"
