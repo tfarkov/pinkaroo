@@ -1,10 +1,10 @@
 import dynamic from 'next/dynamic';
 import { useQuery, useInfiniteQuery, useQueries } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE } from '../lib/constants';
+import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION } from '../lib/constants';
 import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockPinkarooTeam } from '../lib/mockData';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
@@ -49,6 +49,22 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ),
 });
 
+/** Radius (km) for nearby fetch: zoom in = smaller radius, zoom out = larger. Clamped 2–500 km. */
+function radiusKmFromZoom(zoom: number): number {
+  return Math.min(500, Math.max(2, DEFAULT_NEARBY_RADIUS_KM * Math.pow(2, 10 - zoom)));
+}
+
+/** Approximate distance in km between two points (for filtering to map radius). */
+function distanceKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const dLat = (b.lat - a.lat) * (Math.PI / 180);
+  const dLng = (b.lng - a.lng) * (Math.PI / 180);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * (Math.PI / 180)) * Math.cos(b.lat * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(x)); // 6371 km Earth radius
+}
+
 export default function Home() {
   const position = useGeolocation();
   const { isMetric } = useUnitToggle();
@@ -60,6 +76,8 @@ export default function Home() {
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const { ref, inView } = useInView();
+  const [mapView, setMapView] = useState<{ center: { lat: number; lng: number }; zoom: number } | null>(null);
+  const [mapExpandedRadiusKm, setMapExpandedRadiusKm] = useState<number | null>(null);
 
   useEffect(() => {
     if (!sortDropdownOpen) return;
@@ -81,14 +99,20 @@ export default function Home() {
     toggleFavorite(listingId, listing ? { id: listing.id, title: listing.title, price: listing.price, images: listing.images } : undefined);
   };
 
+  const mapCenter = mapView?.center ?? position ?? DEFAULT_LOCATION;
+  const mapZoom = mapView?.zoom ?? 10;
+  const nearbyRadiusKm = radiusKmFromZoom(mapZoom);
+  const effectiveNearbyRadiusKm = mapView
+    ? Math.max(nearbyRadiusKm, mapExpandedRadiusKm ?? nearbyRadiusKm)
+    : nearbyRadiusKm;
   const nearbyParams = buildQueryParams(filters, {
-    lat: String(position?.lat ?? ''),
-    lng: String(position?.lng ?? ''),
-    radius: String(DEFAULT_NEARBY_RADIUS_KM),
+    lat: String(mapCenter.lat),
+    lng: String(mapCenter.lng),
+    radius: String(effectiveNearbyRadiusKm),
   });
 
-  const { data: nearbyListings = [] } = useQuery({
-    queryKey: ['nearby', position, filters],
+  const { data: nearbyListings = [], isFetching: isNearbyFetching } = useQuery({
+    queryKey: ['nearby', mapCenter.lat, mapCenter.lng, effectiveNearbyRadiusKm, filters],
     queryFn: async () => {
       try {
         const res = await fetch(`${API.LISTINGS_NEARBY}${nearbyParams}`);
@@ -98,8 +122,38 @@ export default function Home() {
         return getMockNearbyListings(filters);
       }
     },
-    staleTime: STALE_TIME_5_MIN,
+    staleTime: 0,
   });
+
+  /** Map shows only listings within the base (zoom) radius; browse list shows expanded radius. */
+  const mapListings = useMemo(() => {
+    const list = nearbyListings as (ListingWithCoords & { latitude?: number; longitude?: number })[];
+    if (!mapView || list.length === 0) return list as ListingWithCoords[];
+    const lat = mapCenter.lat;
+    const lng = mapCenter.lng;
+    return list.filter(
+      (l) =>
+        l.latitude != null &&
+        l.longitude != null &&
+        distanceKm({ lat: l.latitude, lng: l.longitude }, { lat, lng }) <= nearbyRadiusKm
+    ) as ListingWithCoords[];
+  }, [mapView, nearbyListings, mapCenter.lat, mapCenter.lng, nearbyRadiusKm]);
+
+  const canExpandNearby = mapView != null && effectiveNearbyRadiusKm < 500;
+  useEffect(() => {
+    if (!mapView || !inView || !canExpandNearby || isNearbyFetching) return;
+    setMapExpandedRadiusKm((prev) => {
+      const current = prev ?? nearbyRadiusKm;
+      if (current >= 500) return prev;
+      return Math.min(500, Math.round(current * 2));
+    });
+  }, [inView, mapView, canExpandNearby, isNearbyFetching, nearbyRadiusKm]);
+
+  /** On pan/zoom, reset expanded radius so browse list shows only the mapped listings for the new view. */
+  const handleMapChange = useCallback((view: { center: { lat: number; lng: number }; zoom: number }) => {
+    setMapView(view);
+    setMapExpandedRadiusKm(null);
+  }, []);
 
   const listParams = (page: number) => buildQueryParams(filters, { page: String(page) });
 
@@ -144,6 +198,26 @@ export default function Home() {
         return arr;
     }
   }, [listings, listingsSort]);
+
+  /** Browse list shows nearby listings (50 km of user location by default; follows map when panned/zoomed). */
+  const browseListings = useMemo(() => {
+    const arr = [...(nearbyListings as ListingBasic[])];
+    if (listingsSort === 'default') return arr;
+    switch (listingsSort) {
+      case 'price-asc':
+        return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      case 'price-desc':
+        return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      case 'beds-desc':
+        return arr.sort((a, b) => (b.bedroomsTotal ?? 0) - (a.bedroomsTotal ?? 0));
+      case 'baths-desc':
+        return arr.sort((a, b) => (b.bathroomsTotal ?? 0) - (a.bathroomsTotal ?? 0));
+      case 'size-desc':
+        return arr.sort((a, b) => (b.sizeSqm ?? 0) - (a.sizeSqm ?? 0));
+      default:
+        return arr;
+    }
+  }, [nearbyListings, listingsSort]);
 
   const { data: pinkarooTeam = [], isLoading: pinkarooLoading } = useQuery({
     queryKey: ['realtors-pinkaroo'],
@@ -230,7 +304,12 @@ export default function Home() {
                 {UI.NEARBY_LISTINGS_TITLE}
               </h2>
               <div className="bg-white rounded-lg shadow-card overflow-hidden border border-slate-200">
-                <HomeMap position={position} listings={nearbyListings as ListingWithCoords[]} />
+                <HomeMap
+                  position={position ?? undefined}
+                  currentView={mapView}
+                  listings={mapListings}
+                  onMapChange={handleMapChange}
+                />
               </div>
             </section>
 
@@ -284,7 +363,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {sortedListings.map((listing) => (
+                {browseListings.map((listing) => (
                   <ListingCard
                     key={listing.id}
                     listing={listing}
@@ -294,9 +373,9 @@ export default function Home() {
                   />
                 ))}
               </div>
-              {hasNextPage && (
+              {mapView && canExpandNearby ? (
                 <div ref={ref} className="flex flex-col items-center justify-center py-12">
-                  {isFetchingNextPage ? (
+                  {isNearbyFetching ? (
                     <div className="flex flex-col items-center gap-3">
                       <div className="relative w-10 h-10" aria-hidden>
                         <div className="absolute inset-0 rounded-full border-2 border-slate-200" />
@@ -308,9 +387,11 @@ export default function Home() {
                     <span className="h-4" aria-hidden />
                   )}
                 </div>
-              )}
-              {sortedListings.length === 0 && !isFetchingNextPage && (
-                <p className="text-slate-500 py-10 text-center">No listings yet. Check back soon.</p>
+              ) : null}
+              {browseListings.length === 0 && !isNearbyFetching && (
+                <p className="text-slate-500 py-10 text-center">
+                  No listings within this area. Pan or zoom the map to explore, or try a different location.
+                </p>
               )}
             </section>
 

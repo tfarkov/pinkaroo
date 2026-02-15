@@ -9,9 +9,16 @@ interface MapListing {
   title?: string;
 }
 
+export type MapView = { center: { lat: number; lng: number }; zoom: number };
+
 interface Props {
+  /** Initial center (e.g. user location). Ignored after user pans if currentView is set. */
   position: { lat: number; lng: number } | undefined;
   listings: MapListing[];
+  /** Current map view from parent (updated on pan/zoom). Pass back so the map doesn't reset on re-render. */
+  currentView?: MapView | null;
+  /** Called when the user pans or zooms so the parent can refetch nearby listings */
+  onMapChange?: (view: MapView) => void;
 }
 
 /** Default Google map when the interactive map doesn't load (static image + link) */
@@ -42,7 +49,9 @@ function DefaultMap({ center, apiKey }: { center: { lat: number; lng: number }; 
   );
 }
 
-export default function HomeMap({ position, listings }: Props) {
+const DEFAULT_ZOOM = 10;
+
+export default function HomeMap({ position, listings, currentView, onMapChange }: Props) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
     return (
@@ -51,16 +60,43 @@ export default function HomeMap({ position, listings }: Props) {
       </div>
     );
   }
-  const center = position ?? { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
+  const center = currentView?.center ?? position ?? { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
+  const zoom = currentView?.zoom ?? DEFAULT_ZOOM;
   const [loadError, setLoadError] = useState(false);
 
   if (loadError) {
     return <DefaultMap center={center} apiKey={apiKey} />;
   }
 
+  const handleLoad = (map: google.maps.Map) => {
+    if (onMapChange) {
+      map.addListener('idle', () => {
+        const c = map.getCenter();
+        const z = map.getZoom();
+        if (c && z != null) onMapChange({ center: { lat: c.lat(), lng: c.lng() }, zoom: z });
+      });
+    }
+  };
+
+  // RIGHT_CENTER = 4 (ControlPosition); set here so we don't rely on `google` before LoadScript runs
+  const mapOptions: google.maps.MapOptions = {
+    zoomControl: true,
+    zoomControlOptions: { position: 4 },
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+    scaleControl: true,
+  };
+
   return (
     <LoadScript googleMapsApiKey={apiKey} onError={() => setLoadError(true)}>
-      <GoogleMap center={center} zoom={10} mapContainerStyle={{ height: '420px', width: '100%' }}>
+      <GoogleMap
+        center={center}
+        zoom={zoom}
+        mapContainerStyle={{ height: '420px', width: '100%' }}
+        options={mapOptions}
+        onLoad={handleLoad}
+      >
         {listings.map((listing) => (
           <Marker key={listing.id} position={{ lat: listing.latitude, lng: listing.longitude }} title={listing.title ?? ''} />
         ))}
