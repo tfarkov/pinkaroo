@@ -73,6 +73,7 @@ export const API = {
   MLS_SEARCH: '/api/mls/search',
   ADMIN_REALTORS: '/api/admin/realtors',
   ADMIN_BROKERS: '/api/admin/brokers',
+  ADMIN_USERS: '/api/admin/users',
   ADMIN_ASSIGN_BROKER: '/api/admin/assign-broker',
   BROKER_STATS: '/api/broker/stats',
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',

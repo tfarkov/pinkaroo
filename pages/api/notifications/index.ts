@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
       include: {
-        fromUser: { select: { id: true, name: true, email: true } },
+        fromUser: { select: { id: true, name: true, email: true, role: true } },
       },
     });
     res.json(notifications);
@@ -25,6 +25,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const trimmed = message.trim();
     if (!trimmed) return res.status(400).json({ error: 'message required' });
+    const role = session.user.role as string;
+    // Users can only message realtors/brokers (e.g. from Contact a Realtor). Users cannot message each other.
+    if (role === 'USER') {
+      const toUser = await prisma.user.findUnique({
+        where: { id: toUserId },
+        select: { role: true },
+      });
+      if (!toUser || (toUser.role !== 'REALTOR' && toUser.role !== 'BROKER')) {
+        return res.status(403).json({ error: 'You can only message realtors or brokers from Contact a Realtor.' });
+      }
+    } else if (role === 'REALTOR' || role === 'BROKER') {
+      // Brokers and realtors can only message users who have already contacted them (e.g. about a listing).
+      const toUser = await prisma.user.findUnique({
+        where: { id: toUserId },
+        select: { role: true },
+      });
+      if (toUser?.role === 'USER') {
+        const userContactedFirst = await prisma.notification.findFirst({
+          where: {
+            userId: session.user.id,
+            fromUserId: toUserId,
+            type: 'MESSAGE',
+          },
+        });
+        if (!userContactedFirst) {
+          return res.status(403).json({ error: 'You can only message users who have contacted you first (e.g. via Contact a Realtor).' });
+        }
+      }
+    }
+    // Admins can message any signed-up user (no "contacted first" check).
     await prisma.notification.create({
       data: {
         message: trimmed,

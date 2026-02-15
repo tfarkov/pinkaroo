@@ -7,13 +7,22 @@ const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
-  if (!session || session.user.role !== 'REALTOR') return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
+  const role = session.user.role as string;
+  if (!session || (role !== 'REALTOR' && role !== 'BROKER')) return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
   const { id } = req.query;
 
   if (req.method === 'GET') {
     const client = await prisma.client.findUnique({ where: { id: id as string }, include: { interactions: true } });
-    if (client.userId !== session.user.id) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
-    res.json(client);
+    if (!client || client.userId !== session.user.id) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
+    let linkedUserId: string | null = null;
+    if (client.email?.trim()) {
+      const userByEmail = await prisma.user.findUnique({
+        where: { email: client.email.trim() },
+        select: { id: true },
+      });
+      if (userByEmail) linkedUserId = userByEmail.id;
+    }
+    res.json({ ...client, linkedUserId });
   } else if (req.method === 'PUT') {
     const existing = await prisma.client.findUnique({ where: { id: id as string } });
     if (!existing || existing.userId !== session.user.id) return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
