@@ -8,7 +8,7 @@ export default function HamburgerMenu() {
 
   return (
     <div className="md:hidden">
-      <button onClick={() => setIsOpen(!isOpen)} className="bg-pink-500 text-white p-2 rounded">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="bg-pink-500 text-white p-2 rounded" aria-label="Menu" aria-expanded={isOpen}>
         ☰
       </button>
       {isOpen && (
