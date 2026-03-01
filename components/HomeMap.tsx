@@ -21,8 +21,8 @@ export function getMarkerPosition(listing: MapListing): { lat: number; lng: numb
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   // 0,0 is almost always invalid placeholder data for listings in this app.
   if (lat === 0 && lng === 0) return null;
-  // Common reversal for Ontario/Canada data: latitude is negative long, longitude is positive lat.
-  if (lat < 0 && lng > 0 && lng <= 90 && lat >= -180) return { lat: lng, lng: lat };
+  // Common data issue: Canadian coordinates saved as (lng, lat), e.g. lat=-79, lng=44.
+  if (lat < 0 && lng > 0 && lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180) return { lat: lng, lng: lat };
   // Correct (lat, lng): lat in [-90,90], lng in [-180,180]
   if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat, lng };
   // Possibly swapped: e.g. Ontario stored as latitude=-79, longitude=44
