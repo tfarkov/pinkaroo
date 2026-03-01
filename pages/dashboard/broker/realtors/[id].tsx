@@ -4,10 +4,10 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-import DashboardLayout from '../../../../../components/DashboardLayout';
-import { useAuth } from '../../../../../lib/hooks/useAuth';
-import { API, UI, getListingPageUrl } from '../../../../../lib/constants';
-import { formatPrice } from '../../../../../lib/format';
+import DashboardLayout from '../../../../components/DashboardLayout';
+import { useAuth } from '../../../../lib/hooks/useAuth';
+import { API, UI, getListingPageUrl } from '../../../../lib/constants';
+import { formatPrice } from '../../../../lib/format';
 
 type RealtorDashboardResponse = {
   realtor: {
