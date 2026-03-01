@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
 import {
   API,
   CLIENT_STATUSES,
@@ -11,6 +11,8 @@ import {
 } from '../../lib/constants';
 import { getMockClients, getMockInteractions } from '../../lib/mockData';
 import DashboardLayout from '../../components/DashboardLayout';
+import { Bar, Line } from 'react-chartjs-2';
+import 'chart.js/auto';
 
 interface ClientFormData {
   name: string;
@@ -83,6 +85,65 @@ export default function CRM() {
     enabled: !!selectedClient?.id,
   });
 
+  const {
+    data: interactionsData,
+    fetchNextPage: fetchMoreInteractions,
+    hasNextPage: hasMoreInteractions,
+    isFetchingNextPage: isFetchingMoreInteractions,
+  } = useInfiniteQuery({
+    queryKey: ['client', selectedClient?.id, 'interactions'],
+    queryFn: async ({ pageParam }) => {
+      const res = await fetch(
+        `${API.CLIENTS}/${selectedClient!.id}/interactions?page=${pageParam}&limit=15`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) return { interactions: [], nextPage: null, total: 0 };
+      return res.json();
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: { nextPage?: number | null }) => lastPage.nextPage ?? undefined,
+    enabled: !!selectedClient?.id,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['clients-stats'],
+    queryFn: async () => {
+      try {
+        const res = await fetch(API.CLIENTS_STATS, { credentials: 'include' });
+        if (res.ok) return res.json();
+        return { statusDistribution: {} as Record<string, number>, interactionsByMonth: [] as { month: string; count: number }[] };
+      } catch {
+        return { statusDistribution: {} as Record<string, number>, interactionsByMonth: [] as { month: string; count: number }[] };
+      }
+    },
+    staleTime: STALE_TIME_5_MIN,
+  });
+
+  const statusChartData = useMemo(() => {
+    const dist = stats?.statusDistribution ?? {};
+    const labels = CLIENT_STATUSES.map((s) => s.replace(/_/g, ' '));
+    const data = CLIENT_STATUSES.map((s) => dist[s] ?? 0);
+    return {
+      labels,
+      datasets: [{ label: 'Clients by status', data, backgroundColor: 'rgba(236, 72, 153, 0.6)' }],
+    };
+  }, [stats?.statusDistribution]);
+
+  const interactionsOverTimeChartData = useMemo(() => {
+    const byMonth = stats?.interactionsByMonth ?? [];
+    return {
+      labels: byMonth.map((x) => x.month),
+      datasets: [{
+        label: 'Interactions',
+        data: byMonth.map((x) => x.count),
+        borderColor: 'rgba(236, 72, 153, 1)',
+        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+        fill: true,
+        tension: 0.3,
+      }],
+    };
+  }, [stats?.interactionsByMonth]);
+
   const clientForm = useForm<ClientFormData>({
     defaultValues: { name: '', email: '', phone: '', notes: '', status: 'LEAD' },
     mode: 'onBlur',
@@ -101,6 +162,7 @@ export default function CRM() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
       clientForm.reset({ name: '', email: '', phone: '', notes: '', status: 'LEAD' });
     },
   });
@@ -114,6 +176,7 @@ export default function CRM() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
       queryClient.invalidateQueries({ queryKey: ['client', editingClient?.id] });
       if (selectedClient?.id === editingClient?.id) queryClient.invalidateQueries({ queryKey: ['client', selectedClient.id] });
       setEditingClient(null);
@@ -124,6 +187,7 @@ export default function CRM() {
     mutationFn: (id: string) => fetch(`${API.CLIENTS}/${id}`, { method: 'DELETE' }),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
       if (selectedClient?.id === id) setSelectedClient(null);
       setDeleteConfirm(null);
     },
@@ -139,6 +203,8 @@ export default function CRM() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
+      queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id, 'interactions'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-stats'] });
       interactionForm.reset({
         type: 'Call',
         details: '',
@@ -169,12 +235,45 @@ export default function CRM() {
     });
   };
 
-  const interactions = clientDetail?.interactions ?? [];
+  const interactionsFromInfinite = interactionsData?.pages?.flatMap((p: { interactions?: { id: string; type: string; details: string; date: string }[] }) => p.interactions ?? []) ?? [];
+  const interactions = interactionsFromInfinite.length > 0 ? interactionsFromInfinite : (clientDetail?.interactions ?? []);
   const clientList = clients as ClientRecord[];
 
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.CRM_TITLE}</h1>
+
+        {/* Dashboard charts: memoized from API stats for scalability */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Status distribution</h2>
+            <div className="h-[240px]">
+              <Bar
+                data={statusChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { beginAtZero: true } },
+                }}
+              />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Interactions over time</h2>
+            <div className="h-[240px]">
+              <Line
+                data={interactionsOverTimeChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { x: { display: true }, y: { beginAtZero: true } },
+                }}
+              />
+            </div>
+          </div>
+        </section>
 
         {/* Add Client / Edit Client */}
         <section className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
@@ -357,15 +456,27 @@ export default function CRM() {
             {interactions.length === 0 ? (
               <p className="text-slate-500 text-sm mb-4">No interactions yet.</p>
             ) : (
-              <ul className="space-y-2 mb-6">
-                {interactions.map((i) => (
-                  <li key={i.id} className="border border-slate-200 rounded-lg p-3 text-sm">
-                    <span className="font-medium text-slate-900">{i.type}</span>
-                    <span className="text-slate-500"> — {new Date(i.date).toLocaleDateString()}</span>
-                    <p className="text-slate-700 mt-1">{i.details}</p>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-2 mb-4">
+                  {interactions.map((i) => (
+                    <li key={i.id} className="border border-slate-200 rounded-lg p-3 text-sm">
+                      <span className="font-medium text-slate-900">{i.type}</span>
+                      <span className="text-slate-500"> — {new Date(i.date).toLocaleDateString()}</span>
+                      <p className="text-slate-700 mt-1">{i.details}</p>
+                    </li>
+                  ))}
+                </ul>
+                {hasMoreInteractions && (
+                  <button
+                    type="button"
+                    onClick={() => fetchMoreInteractions()}
+                    disabled={isFetchingMoreInteractions}
+                    className="text-sm font-medium text-accent-600 hover:text-accent-700 disabled:opacity-50 mb-6"
+                  >
+                    {isFetchingMoreInteractions ? UI.LOADING_MORE : 'Load more interactions'}
+                  </button>
+                )}
+              </>
             )}
 
             <h3 className="text-lg font-bold text-slate-900 mb-3">{UI.ADD_INTERACTION}</h3>
