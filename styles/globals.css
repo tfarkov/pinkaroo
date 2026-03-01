@@ -45,11 +45,11 @@
 .page-container {
   min-height: 100vh;
   padding-top: 64px;
-  padding-bottom: 96px;
+  padding-bottom: 64px; /* room for fixed BottomNav on mobile */
 }
 @media (min-width: 768px) {
   .page-container {
-    padding-bottom: 48px;
+    padding-bottom: 0;
   }
 }
 
