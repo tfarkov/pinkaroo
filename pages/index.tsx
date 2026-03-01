@@ -230,13 +230,9 @@ export default function Home() {
     setHeroImageError(false);
   }, [heroImageIndex]);
 
-  // Rotate hero headline phrases while keeping the background image fixed.
+  // Select one hero headline phrase on page load only.
   useEffect(() => {
-    if (HERO_PHRASES.length <= 1) return;
-    const interval = setInterval(() => {
-      setHeroPhraseIndex((prev) => (prev + 1) % HERO_PHRASES.length);
-    }, 4000);
-    return () => clearInterval(interval);
+    setHeroPhraseIndex(Math.floor(Math.random() * HERO_PHRASES.length));
   }, []);
 
   return (
