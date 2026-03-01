@@ -232,8 +232,10 @@ function buildAddressCoords(): { lat: number; lng: number }[] {
 function loadAddressCoords(): { lat: number; lng: number }[] {
   if (typeof process !== 'undefined' && process.versions?.node) {
     try {
-      const path = require('path') as typeof import('path');
-      const fs = require('fs') as typeof import('fs');
+      // Use eval('require') so browser bundlers don't try to resolve Node built-ins.
+      const req = (0, eval)('require') as NodeJS.Require;
+      const path = req('path') as typeof import('path');
+      const fs = req('fs') as typeof import('fs');
       const p = path.join(process.cwd(), 'lib', 'addressCoords.json');
       if (fs.existsSync(p)) {
         const raw = fs.readFileSync(p, 'utf8');

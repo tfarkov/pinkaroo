@@ -29,6 +29,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
     return;
   }
+  const num = (v: unknown) => (v === '' || v == null ? undefined : Number(v));
+  const bool = (v: unknown): boolean | undefined => {
+    if (v === true || v === 'true') return true;
+    if (v === false || v === 'false') return false;
+    return undefined;
+  };
   try {
   if (req.method === 'GET') {
     const page = parseInt(req.query.page as string) || 0;
@@ -68,7 +74,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }));
     const files = (req as { files?: Express.Multer.File[] }).files ?? [];
     const rawBody = (req as { body?: Record<string, unknown> }).body ?? {};
-    const num = (v: unknown) => (v === '' || v == null ? undefined : Number(v));
     const images = await Promise.all((files as Express.Multer.File[]).map(async file => {
       const result = await cloudinary.uploader.upload(file.path, { transformation: [{ width: 800, quality: 80, format: 'auto' }], secure: true });
       return result.secure_url;
@@ -106,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lotSizeSqm: num(rawBody.lotSizeSqm) ?? undefined,
       heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
       insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
-      hasRecentRenovations: rawBody.hasRecentRenovations === true || rawBody.hasRecentRenovations === 'true' ? true : (rawBody.hasRecentRenovations === false || rawBody.hasRecentRenovations === 'false' ? false : undefined),
+      hasRecentRenovations: bool(rawBody.hasRecentRenovations),
       roofAgeYears: num(rawBody.roofAgeYears) ?? null,
       appliancesAgeYears: num(rawBody.appliancesAgeYears) ?? null,
     };
@@ -151,7 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const y = updateData.yearBuilt !== undefined ? num(updateData.yearBuilt) : existing?.yearBuilt ?? undefined;
       const ht = updateData.heatingType !== undefined ? (updateData.heatingType != null && String(updateData.heatingType).trim() ? String(updateData.heatingType).trim() : null) : existing?.heatingType ?? undefined;
       const iq = updateData.insulationQuality !== undefined ? (updateData.insulationQuality != null && String(updateData.insulationQuality).trim() ? String(updateData.insulationQuality).trim() : null) : existing?.insulationQuality ?? undefined;
-      const ren = updateData.hasRecentRenovations !== undefined ? !!updateData.hasRecentRenovations : existing?.hasRecentRenovations ?? undefined;
+      const ren = updateData.hasRecentRenovations !== undefined ? bool(updateData.hasRecentRenovations) : existing?.hasRecentRenovations ?? undefined;
       const roof = updateData.roofAgeYears !== undefined ? num(updateData.roofAgeYears) : existing?.roofAgeYears ?? undefined;
       const app = updateData.appliancesAgeYears !== undefined ? num(updateData.appliancesAgeYears) : existing?.appliancesAgeYears ?? undefined;
       const ecoScore = computeEcoRatingScore({ yearBuilt: y ?? null, heatingType: ht ?? null, insulationQuality: iq ?? null, hasRecentRenovations: ren ?? null, roofAgeYears: roof ?? null, appliancesAgeYears: app ?? null });

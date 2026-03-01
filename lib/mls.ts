@@ -2,7 +2,7 @@ import axios from 'axios';
 import { attach as attachRetry } from 'retry-axios';
 import { PrismaClient } from '@prisma/client';
 import { sendEmail } from './email';
-import { ADMIN_EMAIL, DEFAULT_BROKER_ID, DEFAULT_LOCATION, DEFAULT_PROVINCE, EMAIL_SUBJECTS, type Province } from './constants';
+import { ADMIN_EMAIL, DEFAULT_BROKER_ID, DEFAULT_PROVINCE, EMAIL_SUBJECTS, type Province } from './constants';
 
 const prisma = new PrismaClient();
 attachRetry(axios);
@@ -83,8 +83,27 @@ function parseMLSDate(v: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Parse float to finite number; return null for empty/invalid values. */
+function parseFiniteFloat(v: unknown): number | null {
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Parse int to finite number; return null for empty/invalid values. */
+function parseFiniteInt(v: unknown): number | null {
+  if (v == null || v === '') return null;
+  const n = parseInt(String(v), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Map CREA DDF Property payload to Listing create/update data (shared by import and sync). */
-export function mlsDataToListingFields(mlsData: any, defaults: { userId: string; status: 'PENDING' | 'ACTIVE' }) {
+export function mlsDataToListingFields(
+  mlsData: any,
+  defaults: { userId: string; status: 'PENDING' | 'ACTIVE' },
+  options?: { forUpdate?: boolean }
+) {
+  const forUpdate = options?.forUpdate === true;
   const streetAddress =
     mlsData.UnparsedAddress?.trim() ||
     [mlsData.StreetNumber, mlsData.StreetDirPrefix, mlsData.StreetName, mlsData.StreetDirSuffix, mlsData.StreetSuffix]
@@ -93,51 +112,49 @@ export function mlsDataToListingFields(mlsData: any, defaults: { userId: string;
       .trim() ||
     mlsData.StreetAddress?.trim() ||
     null;
-  const lotSizeSource =
-    mlsData.LandSize != null
-      ? 'LandSize'
-      : mlsData.LotSize != null
-        ? 'LotSize'
-        : mlsData.LotSizeSqFt != null
-          ? 'LotSizeSqFt'
-          : null;
-  const lotRaw = parseFloat(lotSizeSource ? mlsData[lotSizeSource] : '');
-  // CREA may send lot in sqft; if value is large assume sqft and convert to sqm
-  const lotSizeSqm = Number.isFinite(lotRaw)
-    ? lotSizeSource === 'LotSizeSqFt' || lotRaw > 10000
-      ? lotRaw * 0.09290304
-      : lotRaw
-    : null;
+  const lotRaw = parseFiniteFloat(mlsData.LandSize ?? mlsData.LotSize);
+  const lotSqFtRaw = parseFiniteFloat(mlsData.LotSizeSqFt);
+  // LandSize/LotSize can be ambiguous; LotSizeSqFt is explicitly sqft and should always be converted.
+  const lotSizeSqm = lotRaw != null
+    ? (lotRaw > 10000 ? lotRaw * 0.09290304 : lotRaw)
+    : (lotSqFtRaw != null ? lotSqFtRaw * 0.09290304 : null);
+  const latitude = parseFiniteFloat(mlsData.Latitude);
+  const longitude = parseFiniteFloat(mlsData.Longitude);
+  const title = (mlsData.StandardStatus && mlsData.PropertyType ? mlsData.StandardStatus + ' ' + mlsData.PropertyType : mlsData.Title) || undefined;
+  const description = mlsData.PublicRemarks || mlsData.Remarks || undefined;
+  const location = mlsData.City || mlsData.UnparsedAddress?.split(',')[0]?.trim() || undefined;
   return {
-    title: (mlsData.StandardStatus && mlsData.PropertyType ? mlsData.StandardStatus + ' ' + mlsData.PropertyType : mlsData.Title) || 'Listing',
-    description: mlsData.PublicRemarks || mlsData.Remarks || '',
-    price: parseFloat(mlsData.ListPrice) || 0,
-    location: mlsData.City || mlsData.UnparsedAddress?.split(',')[0]?.trim() || '',
-    province: (mlsData.StateOrProvince || DEFAULT_PROVINCE) as Province,
-    postalCode: mlsData.PostalCode ?? null,
-    sizeSqm: parseFloat(mlsData.LivingArea) || null,
-    bedroomsTotal: parseInt(mlsData.BedroomsTotal, 10) || null,
-    bathroomsTotal: parseInt(mlsData.BathroomsTotalInteger, 10) || null,
-    propertyType: mlsData.PropertyType ?? null,
-    latitude: parseFloat(mlsData.Latitude) || DEFAULT_LOCATION.lat,
-    longitude: parseFloat(mlsData.Longitude) || DEFAULT_LOCATION.lng,
-    images: Array.isArray(mlsData.Media) ? mlsData.Media.map((m: any) => m.MediaURL || m.Url).filter(Boolean) : [],
+    title: title ?? (forUpdate ? undefined : 'Listing'),
+    description: description ?? (forUpdate ? undefined : ''),
+    price: parseFiniteFloat(mlsData.ListPrice) ?? (forUpdate ? undefined : 0),
+    location: location ?? (forUpdate ? undefined : ''),
+    province: (mlsData.StateOrProvince ?? (forUpdate ? undefined : DEFAULT_PROVINCE)) as Province,
+    postalCode: mlsData.PostalCode !== undefined ? mlsData.PostalCode ?? null : (forUpdate ? undefined : null),
+    sizeSqm: parseFiniteFloat(mlsData.LivingArea) ?? (forUpdate ? undefined : null),
+    bedroomsTotal: parseFiniteInt(mlsData.BedroomsTotal) ?? (forUpdate ? undefined : null),
+    bathroomsTotal: parseFiniteInt(mlsData.BathroomsTotalInteger) ?? (forUpdate ? undefined : null),
+    propertyType: mlsData.PropertyType !== undefined ? mlsData.PropertyType : (forUpdate ? undefined : null),
+    // Avoid writing fallback coordinates for malformed MLS data.
+    latitude: latitude ?? undefined,
+    longitude: longitude ?? undefined,
+    images: Array.isArray(mlsData.Media) ? mlsData.Media.map((m: any) => m.MediaURL || m.Url).filter(Boolean) : (forUpdate ? undefined : []),
     mlsId: mlsData.ListingKey ?? null,
     status: defaults.status,
     userId: defaults.userId,
     streetAddress: streetAddress || undefined,
     unitNumber: mlsData.UnitNumber?.trim() || undefined,
-    yearBuilt: parseInt(mlsData.YearBuilt, 10) || undefined,
+    yearBuilt: parseFiniteInt(mlsData.YearBuilt) ?? undefined,
     lotSizeSqm: lotSizeSqm ?? undefined,
     standardStatus: mlsData.StandardStatus?.trim() || undefined,
-    halfBathroomsTotal: parseInt(mlsData.HalfBathTotal ?? mlsData.BathroomsHalfTotal, 10) || undefined,
-    buildingLevelTotal: parseInt(mlsData.BuildingLevelTotal ?? mlsData.StoriesTotal, 10) || undefined,
+    halfBathroomsTotal: parseFiniteInt(mlsData.HalfBathTotal ?? mlsData.BathroomsHalfTotal) ?? undefined,
+    buildingLevelTotal: parseFiniteInt(mlsData.BuildingLevelTotal ?? mlsData.StoriesTotal) ?? undefined,
     mlsLastUpdated: parseMLSDate(mlsData.LastUpdated ?? mlsData.ModificationTimestamp) ?? undefined,
     mlsData: mlsData ?? undefined,
   };
 }
 
 export async function importListingFromMLS(mlsData: any, userId: string) {
+  if (!mlsData?.ListingKey) throw new Error('Missing MLS ListingKey');
   const existing = await prisma.listing.findFirst({ where: { mlsId: mlsData.ListingKey } });
   if (existing) return existing;
   const data = mlsDataToListingFields(mlsData, { userId, status: 'PENDING' });
@@ -152,11 +169,14 @@ export async function syncMLS() {
     for (let i = 0; i < results.length; i += batchSize) {
       const batch = results.slice(i, i + batchSize);
       await Promise.all(batch.map(async (mlsData) => {
-        const fields = mlsDataToListingFields(mlsData, { userId: DEFAULT_BROKER_ID, status: 'ACTIVE' });
+        if (!mlsData?.ListingKey) return;
+        const createFields = mlsDataToListingFields(mlsData, { userId: DEFAULT_BROKER_ID, status: 'ACTIVE' });
+        const updateFields = mlsDataToListingFields(mlsData, { userId: DEFAULT_BROKER_ID, status: 'ACTIVE' }, { forUpdate: true });
+        const { userId, status, mlsId, ...updatePayload } = updateFields;
         await prisma.listing.upsert({
           where: { mlsId: mlsData.ListingKey },
-          update: { price: fields.price },
-          create: { ...fields, mlsId: mlsData.ListingKey },
+          update: updatePayload,
+          create: { ...createFields, mlsId: mlsData.ListingKey },
         });
       }));
     }

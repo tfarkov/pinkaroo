@@ -10,6 +10,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 
 export default function Dashboard() {
   const { role, user } = useAuth();
+  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'ADMIN';
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
@@ -95,46 +96,47 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* CRM - Realtor & Broker */}
-        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <h2 className="text-xl font-bold text-slate-900">CRM – Client management</h2>
-            <Link href="/dashboard/crm" className="btn-primary shrink-0">
-              Open CRM
-            </Link>
-          </div>
-          <p className="text-slate-600 text-sm mb-4">
-            Add clients, track status, and log interactions (calls, meetings, emails).
-          </p>
-          {role === 'REALTOR' && (clients?.length ?? 0) > 0 && (
-            <>
-              <p className="text-slate-700 font-medium mb-2">
-                Recent clients ({clients?.length ?? 0} total)
-              </p>
-              <ul className="space-y-2 mb-4">
-                {(clients ?? []).slice(0, 5).map((c: { id: string; name?: string; status?: string; email?: string }) => (
-                  <li key={c.id}>
-                    <Link href="/dashboard/crm" className="block p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-accent-200 transition-colors">
-                      <span className="font-medium text-slate-900">{c.name ?? '—'}</span>
-                      <span className="text-slate-500 text-sm"> — {c.status ?? '—'}</span>
-                      {c.email && <span className="text-slate-500 text-sm block truncate">{c.email}</span>}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              {interactions.length > 0 && (
-                <p className="text-slate-500 text-sm">
-                  {interactions.length} interaction(s) logged.
-                </p>
-              )}
-            </>
-          )}
-          {(role !== 'REALTOR' || !clients?.length) && (
-            <p className="text-slate-500 text-sm">
-              {role === 'REALTOR' ? 'No clients yet. Go to CRM to add your first client.' : 'Use CRM to manage your clients and leads.'}
+        {canUseCrm && (
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <h2 className="text-xl font-bold text-slate-900">CRM – Client management</h2>
+              <Link href="/dashboard/crm" className="btn-primary shrink-0">
+                Open CRM
+              </Link>
+            </div>
+            <p className="text-slate-600 text-sm mb-4">
+              Add clients, track status, and log interactions (calls, meetings, emails).
             </p>
-          )}
-        </div>
+            {role === 'REALTOR' && (clients?.length ?? 0) > 0 && (
+              <>
+                <p className="text-slate-700 font-medium mb-2">
+                  Recent clients ({clients?.length ?? 0} total)
+                </p>
+                <ul className="space-y-2 mb-4">
+                  {(clients ?? []).slice(0, 5).map((c: { id: string; name?: string; status?: string; email?: string }) => (
+                    <li key={c.id}>
+                      <Link href="/dashboard/crm" className="block p-3 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-accent-200 transition-colors">
+                        <span className="font-medium text-slate-900">{c.name ?? '—'}</span>
+                        <span className="text-slate-500 text-sm"> — {c.status ?? '—'}</span>
+                        {c.email && <span className="text-slate-500 text-sm block truncate">{c.email}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {interactions.length > 0 && (
+                  <p className="text-slate-500 text-sm">
+                    {interactions.length} interaction(s) logged.
+                  </p>
+                )}
+              </>
+            )}
+            {(role !== 'REALTOR' || !clients?.length) && (
+              <p className="text-slate-500 text-sm">
+                {role === 'REALTOR' ? 'No clients yet. Go to CRM to add your first client.' : 'Use CRM to manage your clients and leads.'}
+              </p>
+            )}
+          </div>
+        )}
     </DashboardLayout>
   );
 }
