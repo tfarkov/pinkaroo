@@ -7,7 +7,8 @@ import NotificationsDropdown from './NotificationsDropdown';
 function LogoIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
-      <text x="22" y="28" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold" fontFamily="system-ui,sans-serif">P</text>
+      <circle cx="22" cy="22" r="22" fill="#db2777" />
+      <text x="22" y="29" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold" fontFamily="system-ui,sans-serif">P</text>
     </svg>
   );
 }
