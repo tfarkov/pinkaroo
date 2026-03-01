@@ -19,6 +19,8 @@ function getMarkerPosition(listing: MapListing): { lat: number; lng: number } | 
   const lat = Number(listing.latitude);
   const lng = Number(listing.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  // Common data issue: Canadian coordinates saved as (lng, lat), e.g. lat=-79, lng=44.
+  if (lat < 0 && lng > 0 && lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180) return { lat: lng, lng: lat };
   // Correct (lat, lng): lat in [-90,90], lng in [-180,180]
   if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) return { lat, lng };
   // Possibly swapped: e.g. Ontario stored as latitude=-79, longitude=44

@@ -101,6 +101,34 @@ describe('mlsDataToListingFields', () => {
     expect(out.mlsLastUpdated).toBeInstanceOf(Date);
   });
 
+  it('converts LotSizeSqFt fallback values to square meters', () => {
+    const out = mlsDataToListingFields(
+      {
+        ListingKey: 'x',
+        City: 'Barrie',
+        StateOrProvince: 'ONTARIO',
+        ListPrice: 1,
+        LotSizeSqFt: 5000,
+      },
+      defaults
+    );
+    expect(out.lotSizeSqm).toBeCloseTo(464.5152, 4);
+  });
+
+  it('does not apply create fallbacks when mapping update payloads', () => {
+    const out = mlsDataToListingFields(
+      { ListingKey: 'x' },
+      defaults,
+      { forUpdate: true }
+    );
+    expect(out.title).toBeUndefined();
+    expect(out.description).toBeUndefined();
+    expect(out.price).toBeUndefined();
+    expect(out.latitude).toBeUndefined();
+    expect(out.longitude).toBeUndefined();
+    expect(out.images).toBeUndefined();
+  });
+
   it('stores full mlsData in mlsData field', () => {
     const payload = { ListingKey: 'x', City: 'Barrie', StateOrProvince: 'ONTARIO', ListPrice: 1, custom: 'value' };
     const out = mlsDataToListingFields(payload, defaults);
