@@ -10,7 +10,9 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "cypress:open": "cypress open",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "geocode-mock": "npx ts-node --project tsconfig.scripts.json scripts/geocode-mock-addresses.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
@@ -23,6 +25,7 @@
     "bcryptjs": "latest",
     "chart.js": "latest",
     "cloudinary": "latest",
+    "express": "^5.2.1",
     "express-rate-limit": "latest",
     "idb": "latest",
     "jsonwebtoken": "latest",
@@ -47,8 +50,10 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
+    "@testing-library/react-hooks": "^8.0.1",
     "@types/bcryptjs": "latest",
     "@types/jest": "latest",
     "@types/jsonwebtoken": "latest",
@@ -61,6 +66,7 @@
     "autoprefixer": "latest",
     "cypress": "latest",
     "jest": "latest",
+    "jest-environment-jsdom": "^30.2.0",
     "postcss": "latest",
     "supertest": "latest",
     "tailwindcss": "latest",
@@ -68,6 +74,6 @@
     "typescript": "5.9.3"
   },
   "prisma": {
-    "seed": "npx ts-node prisma/seed.ts"
+    "seed": "npx ts-node --project prisma/tsconfig.seed.json prisma/seed.ts"
   }
 }
