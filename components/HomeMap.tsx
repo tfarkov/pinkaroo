@@ -15,10 +15,12 @@ interface MapListing {
  * Map pin position from listing. API/DB use latitude = lat, longitude = lng (WGS84).
  * Google Maps expects { lat, lng }. Only swap when clearly reversed (e.g. lat=-79, lng=44).
  */
-function getMarkerPosition(listing: MapListing): { lat: number; lng: number } | null {
+export function getMarkerPosition(listing: MapListing): { lat: number; lng: number } | null {
   const lat = Number(listing.latitude);
   const lng = Number(listing.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  // 0,0 is almost always invalid placeholder data for listings in this app.
+  if (lat === 0 && lng === 0) return null;
   // Common data issue: Canadian coordinates saved as (lng, lat), e.g. lat=-79, lng=44.
   if (lat < 0 && lng > 0 && lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180) return { lat: lng, lng: lat };
   // Correct (lat, lng): lat in [-90,90], lng in [-180,180]
