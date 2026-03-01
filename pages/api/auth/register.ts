@@ -3,23 +3,31 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { BCRYPT_ROUNDS } from './[...nextauth]';
 import { ROLES } from '../../../lib/constants';
+import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).end();
+  if (!requireMethod(req, res, ['POST'])) return;
   const { email, password, name, role = 'USER' } = req.body || {};
   if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Email and password required' });
+    sendError(res, 400, 'Email and password required');
+    return;
   }
   if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    sendError(res, 400, 'Password must be at least 8 characters');
+    return;
   }
   if (!ROLES.includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
+    sendError(res, 400, 'Invalid role');
+    return;
   }
+  try {
   const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
-  if (existing) return res.status(400).json({ error: 'Email already registered' });
+  if (existing) {
+    sendError(res, 400, 'Email already registered');
+    return;
+  }
   const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const user = await prisma.user.create({
     data: {
@@ -31,4 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     select: { id: true, email: true, name: true, role: true },
   });
   res.status(201).json(user);
+  } catch (err) {
+    console.error('[api/auth/register]', err);
+    if (!res.headersSent) sendError(res, 500);
+  }
 }

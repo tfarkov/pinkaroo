@@ -67,6 +67,19 @@ export default function BrokerDashboard() {
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">Broker {UI.DASHBOARD}</h1>
         <p className="text-slate-600 mb-6">Team count: {teamStats?.teamCount ?? 0}</p>
+
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{UI.TEAM_MANAGEMENT}</h2>
+              <p className="text-slate-600 text-sm mt-1">Create teams and assign realtors. Designate team leads to allow them to edit realtor profiles.</p>
+            </div>
+            <Link href="/dashboard/broker/team" className="btn-primary shrink-0">
+              Manage teams
+            </Link>
+          </div>
+        </div>
+
         <div className="space-y-8">
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
             <div className="h-[280px] min-h-0 w-full">

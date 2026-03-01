@@ -5,7 +5,7 @@ import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { getMockRealtors, getMockTeams } from '../../../lib/mockData';
 import DashboardLayout from '../../../components/DashboardLayout';
 
-type Team = { id: string; name: string; brokerId: string; members?: { id: string }[] };
+type Team = { id: string; name: string; brokerId: string; members?: { id: string; name?: string | null; email?: string | null; isTeamLead?: boolean | null }[] };
 type TeamMember = {
   id: string;
   name?: string | null;
@@ -24,7 +24,7 @@ export default function BrokerTeamPage() {
   const [editingTeamName, setEditingTeamName] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const { data: teams = [], isLoading: teamsLoading } = useQuery({
+  const { data: teams = [], isLoading: teamsLoading, error: teamsError, isFetching: teamsFetching } = useQuery({
     queryKey: ['broker-teams'],
     queryFn: async () => {
       try {
@@ -38,7 +38,7 @@ export default function BrokerTeamPage() {
     enabled: isBroker,
   });
 
-  const { data: teamMembers = [], isLoading: membersLoading } = useQuery({
+  const { data: teamMembers = [], isLoading: membersLoading, error: membersError, isFetching: membersFetching } = useQuery({
     queryKey: ['broker-team'],
     queryFn: async () => {
       try {
@@ -52,14 +52,22 @@ export default function BrokerTeamPage() {
     enabled: isBroker,
   });
 
+  const teamList = (teams as Team[]) ?? [];
+  const membersList = (teamMembers as TeamMember[]) ?? [];
+  const usingMockTeams = !teamsLoading && !teamsError && teamList.length > 0 && teamList[0]?.id?.startsWith?.('mock-');
+  const usingMockMembers = !membersLoading && !membersError && membersList.length > 0 && membersList[0]?.id?.startsWith?.('mock-');
+
   const createTeamMutation = useMutation({
-    mutationFn: (name: string) =>
-      fetch(API.BROKER_TEAMS, {
+    mutationFn: async (name: string) => {
+      const res = await fetch(API.BROKER_TEAMS, {
         method: 'POST',
         headers: { 'Content-Type': CONTENT_TYPE.JSON },
         body: JSON.stringify({ name }),
         credentials: 'include',
-      }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-teams'] });
       setNewTeamName('');
@@ -67,13 +75,16 @@ export default function BrokerTeamPage() {
   });
 
   const updateTeamMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      fetch(`${API.BROKER_TEAMS}/${id}`, {
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await fetch(`${API.BROKER_TEAMS}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': CONTENT_TYPE.JSON },
         body: JSON.stringify({ name }),
         credentials: 'include',
-      }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-teams'] });
       setEditingTeamId(null);
@@ -81,8 +92,10 @@ export default function BrokerTeamPage() {
   });
 
   const deleteTeamMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch(`${API.BROKER_TEAMS}/${id}`, { method: 'DELETE', credentials: 'include' }),
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API.BROKER_TEAMS}/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error(await res.text());
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['broker-teams'] });
       queryClient.invalidateQueries({ queryKey: ['broker-team'] });
@@ -91,13 +104,16 @@ export default function BrokerTeamPage() {
   });
 
   const updateRealtorMutation = useMutation({
-    mutationFn: ({ id, isTeamLead, teamId }: { id: string; isTeamLead?: boolean; teamId?: string | null }) =>
-      fetch(`${API.USERS}/${id}`, {
+    mutationFn: async ({ id, isTeamLead, teamId }: { id: string; isTeamLead?: boolean; teamId?: string | null }) => {
+      const res = await fetch(`${API.USERS}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': CONTENT_TYPE.JSON },
         body: JSON.stringify({ isTeamLead, teamId }),
         credentials: 'include',
-      }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-team'] }),
   });
 
@@ -111,13 +127,29 @@ export default function BrokerTeamPage() {
     );
   }
 
-  const teamList = teams as Team[];
-  const membersList = teamMembers as TeamMember[];
+  const teamsFailed = !!teamsError;
+  const membersFailed = !!membersError;
 
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.BROKER_TEAM_TITLE}</h1>
       <p className="text-slate-600 mb-8 max-w-2xl">{UI.BROKER_TEAM_DESCRIPTION}</p>
+
+      {teamsFailed && (
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm" role="alert">
+          Failed to load teams. Please try again.
+        </div>
+      )}
+      {membersFailed && (
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm" role="alert">
+          Failed to load realtors. Please try again.
+        </div>
+      )}
+      {(usingMockTeams || usingMockMembers) && (
+        <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm" role="status">
+          Using mock data for testing (API unavailable or not signed in as broker).
+        </div>
+      )}
 
       {/* Teams */}
       <section className="mb-10">
@@ -141,9 +173,12 @@ export default function BrokerTeamPage() {
             disabled={!newTeamName.trim() || createTeamMutation.isPending}
             className="btn-primary"
           >
-            {UI.ADD_TEAM}
+            {createTeamMutation.isPending ? 'Adding…' : UI.ADD_TEAM}
           </button>
         </div>
+        {createTeamMutation.isError && (
+          <p className="text-red-600 text-sm mb-2" role="alert">{String(createTeamMutation.error?.message ?? 'Failed to add team')}</p>
+        )}
         {teamsLoading ? (
           <p className="text-slate-500">{UI.LOADING}</p>
         ) : teamList.length === 0 ? (
@@ -166,10 +201,10 @@ export default function BrokerTeamPage() {
                     <button
                       type="button"
                       onClick={() => updateTeamMutation.mutate({ id: team.id, name: editingTeamName.trim() })}
-                      disabled={!editingTeamName.trim()}
+                      disabled={!editingTeamName.trim() || updateTeamMutation.isPending}
                       className="btn-primary text-sm"
                     >
-                      {UI.SAVE}
+                      {updateTeamMutation.isPending ? 'Saving…' : UI.SAVE}
                     </button>
                     <button type="button" onClick={() => setEditingTeamId(null)} className="btn-secondary text-sm">
                       Cancel
