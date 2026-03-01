@@ -188,6 +188,10 @@ export default function Home() {
     () => sortListings(listings, listingsSort as ListingSortValue),
     [listings, listingsSort]
   );
+  const selectedSortLabel = useMemo(
+    () => LISTING_SORT_OPTIONS.find((opt) => opt.value === listingsSort)?.label ?? 'Sort',
+    [listingsSort]
+  );
 
   const { data: pinkarooTeam = [], isLoading: pinkarooLoading } = useQuery({
     queryKey: ['realtors-pinkaroo'],
@@ -302,12 +306,12 @@ export default function Home() {
                 <h2 id="listings-title" className="text-2xl font-bold text-slate-900">
                   {UI.FEATURED_LISTINGS_TITLE}
                 </h2>
-                <div className="flex items-center shrink-0" ref={sortDropdownRef}>
-                  <div className="relative inline-flex">
+                <div className="flex items-center shrink-0 w-full sm:w-auto" ref={sortDropdownRef}>
+                  <div className="relative inline-flex w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={() => setSortDropdownOpen((open) => !open)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 transition-all"
+                      className="inline-flex h-10 w-full sm:w-auto sm:min-w-[11rem] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 shadow-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 transition-all"
                       aria-label="Sort listings"
                       aria-haspopup="listbox"
                       aria-expanded={sortDropdownOpen}
@@ -315,7 +319,8 @@ export default function Home() {
                       id="listings-sort-button"
                       title="Sort listings"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <span className="truncate text-sm font-medium text-slate-700">{selectedSortLabel}</span>
+                      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                       </svg>
                     </button>
@@ -324,7 +329,7 @@ export default function Home() {
                         id="listings-sort-listbox"
                         role="listbox"
                         aria-labelledby="listings-sort-button"
-                        className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-xl border border-slate-200 bg-white shadow-lg py-2 z-50"
+                        className="absolute left-0 right-0 sm:left-auto sm:right-0 top-full mt-2 w-full sm:min-w-[14rem] rounded-xl border border-slate-200 bg-white shadow-lg py-2 max-h-72 overflow-y-auto z-50"
                       >
                         {LISTING_SORT_OPTIONS.map((opt) => (
                           <li key={opt.value} role="option" aria-selected={listingsSort === opt.value}>

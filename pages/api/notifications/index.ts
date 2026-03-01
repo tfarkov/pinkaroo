@@ -5,6 +5,7 @@ import { API_MESSAGES } from '../../../lib/constants';
 import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
+const STAFF_ROLES = new Set(['ADMIN', 'BROKER', 'REALTOR']);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET', 'POST', 'PUT'])) return;
@@ -36,24 +37,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sendError(res, 400, 'message required');
       return;
     }
-    const role = session.user.role as string;
-    // Users can only message realtors/brokers (e.g. from Contact a Realtor). Users cannot message each other.
-    if (role === 'USER') {
-      const toUser = await prisma.user.findUnique({
-        where: { id: toUserId },
-        select: { role: true },
-      });
-      if (!toUser || (toUser.role !== 'REALTOR' && toUser.role !== 'BROKER')) {
-        sendError(res, 403, 'You can only message realtors or brokers from Contact a Realtor.');
+    const senderRole = session.user.role as string;
+    const toUser = await prisma.user.findUnique({
+      where: { id: toUserId },
+      select: { role: true },
+    });
+    if (!toUser) {
+      sendError(res, 404, 'Recipient not found.');
+      return;
+    }
+
+    const recipientRole = toUser.role as string;
+    const senderIsStaff = STAFF_ROLES.has(senderRole);
+    const recipientIsStaff = STAFF_ROLES.has(recipientRole);
+
+    if (senderRole === 'USER') {
+      if (!recipientIsStaff) {
+        sendError(res, 403, 'Users can only message staff members.');
         return;
       }
-    } else if (role === 'REALTOR' || role === 'BROKER') {
-      // Brokers and realtors can only message users who have already contacted them (e.g. about a listing).
-      const toUser = await prisma.user.findUnique({
-        where: { id: toUserId },
-        select: { role: true },
-      });
-      if (toUser?.role === 'USER') {
+    } else if (senderIsStaff) {
+      if (!recipientIsStaff && recipientRole === 'USER' && senderRole !== 'ADMIN') {
         const userContactedFirst = await prisma.notification.findFirst({
           where: {
             userId: session.user.id,
@@ -62,12 +66,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
         if (!userContactedFirst) {
-          sendError(res, 403, 'You can only message users who have contacted you first (e.g. via Contact a Realtor).');
+          sendError(res, 403, 'Only admins can message users unsolicited. This user must contact you first.');
           return;
         }
+      } else if (!recipientIsStaff && recipientRole !== 'USER') {
+        sendError(res, 403, 'Unsupported recipient role.');
+        return;
       }
+    } else {
+      sendError(res, 403, 'Unsupported sender role.');
+      return;
     }
-    // Admins can message any signed-up user (no "contacted first" check).
+
     await prisma.notification.create({
       data: {
         message: trimmed,
