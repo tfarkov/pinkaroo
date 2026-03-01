@@ -128,7 +128,6 @@ describe('mlsDataToListingFields', () => {
     expect(out.longitude).toBeUndefined();
     expect(out.images).toBeUndefined();
   });
-
   it('stores full mlsData in mlsData field', () => {
     const payload = { ListingKey: 'x', City: 'Barrie', StateOrProvince: 'ONTARIO', ListPrice: 1, custom: 'value' };
     const out = mlsDataToListingFields(payload, defaults);
