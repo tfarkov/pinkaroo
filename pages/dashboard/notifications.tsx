@@ -349,7 +349,7 @@ export default function DashboardNotificationsPage() {
                       onOpen={() => openDialog(notif)}
                       onMarkRead={() => markAsRead(notif.id)}
                       onToggleFlag={() => setFlagged(notif.id, !notif.flagged)}
-                      isUpdating={updateMutation.isLoading}
+                      isUpdating={updateMutation.isPending}
                       onAddToCrm={canAddToCrm && notif.fromUser && notif.fromUser.role === 'USER' ? () => handleAddToCrm({ id: notif.fromUserId ?? notif.fromUser!.id, name: notif.fromUser!.name ?? null, email: notif.fromUser!.email ?? '' }) : undefined}
                       addToCrmLoading={addToCrmMutation.isPending}
                       addedToCrm={canAddToCrm && notif.fromUser?.role === 'USER' && (notif.fromUserId || notif.fromUser?.id) ? addedToCrmIds.has(notif.fromUserId ?? notif.fromUser!.id) : false}
@@ -368,7 +368,7 @@ export default function DashboardNotificationsPage() {
                 onOpen={() => openDialog(notif)}
                 onMarkRead={() => markAsRead(notif.id)}
                 onToggleFlag={() => setFlagged(notif.id, !notif.flagged)}
-                isUpdating={updateMutation.isLoading}
+                isUpdating={updateMutation.isPending}
                 onAddToCrm={canAddToCrm && notif.fromUser && notif.fromUser.role === 'USER' ? () => handleAddToCrm({ id: notif.fromUserId ?? notif.fromUser!.id, name: notif.fromUser!.name ?? null, email: notif.fromUser!.email ?? '' }) : undefined}
                 addToCrmLoading={addToCrmMutation.isPending}
                 addedToCrm={canAddToCrm && notif.fromUser?.role === 'USER' && (notif.fromUserId || notif.fromUser?.id) ? addedToCrmIds.has(notif.fromUserId ?? notif.fromUser!.id) : false}
@@ -386,7 +386,7 @@ export default function DashboardNotificationsPage() {
             setReplyDraft((prev) => ({ ...prev, [dialogNotification.id]: value }))
           }
           onReply={handleReply}
-          isReplySubmitting={updateMutation.isLoading}
+          isReplySubmitting={updateMutation.isPending}
           onToggleFlag={() =>
             setFlagged(dialogNotification.id, !dialogNotification.flagged)
           }

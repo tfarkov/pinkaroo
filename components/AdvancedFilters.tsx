@@ -44,8 +44,8 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
         <form onSubmit={handleSubmit(onFilter)} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[140px]">
-              <label className="label">{UI.ANY_PROVINCE}</label>
-              <select {...register('province')} className="input-field">
+              <label htmlFor="filters-province" className="label">{UI.ANY_PROVINCE}</label>
+              <select id="filters-province" {...register('province')} className="input-field">
                 <option value="">All</option>
                 {PROVINCES.map(p => (
                   <option key={p} value={p}>{p.replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase())}</option>
@@ -53,8 +53,8 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
               </select>
             </div>
             <div className="min-w-[140px]">
-              <label className="label">{UI.CITY}</label>
-              <input {...register('city')} type="text" placeholder="e.g. Barrie" className="input-field" />
+              <label htmlFor="filters-city" className="label">{UI.CITY}</label>
+              <input id="filters-city" {...register('city')} type="text" placeholder="e.g. Barrie" className="input-field" />
             </div>
             <div className="min-w-[100px]">
               <label className="label">{UI.MIN_PRICE}</label>

@@ -1,17 +1,29 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ListingForm from '../ListingForm';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AllProviders } from '../../lib/__tests__/test-utils';
+
 jest.mock('react-ga');
-const queryClient = new QueryClient();
+jest.mock('next/router', () => ({
+  useRouter: () => ({ push: jest.fn(), query: {}, pathname: '/listings/new', asPath: '/listings/new' }),
+}));
+
+function withProviders(ui: React.ReactElement) {
+  return <AllProviders>{ui}</AllProviders>;
+}
+
 test('renders form and submits', async () => {
-  render(<QueryClientProvider client={queryClient}><ListingForm /></QueryClientProvider>);
-  expect(screen.getByPlaceholderText(/Title/i)).toBeInTheDocument();
-  fireEvent.change(screen.getByPlaceholderText(/Title/i), { target: { value: 'Test' } });
-  fireEvent.submit(screen.getByRole('button', { name: /Submit/i }));
-  // Assert mutation called, GA event.
+  render(withProviders(<ListingForm />));
+  const titleInput = screen.getByPlaceholderText('e.g. Cozy 3BR');
+  expect(titleInput).toBeInTheDocument();
+  fireEvent.change(titleInput, { target: { value: 'Test' } });
+  fireEvent.click(screen.getByRole('button', { name: /Submit/i }));
 });
+
 test('handles file upload', () => {
-  // Test file input
+  const { container } = render(withProviders(<ListingForm />));
+  const fileInput = container.querySelector('input[type="file"]');
+  expect(fileInput).toBeTruthy();
   const file = new File([''], 'test.png', { type: 'image/png' });
-  fireEvent.change(screen.getByType('file'), { target: { files: [file] } });
+  fireEvent.change(fileInput!, { target: { files: [file] } });
 });

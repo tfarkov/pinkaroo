@@ -2,13 +2,25 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../lib/constants';
+import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!requireMethod(req, res, ['GET'])) return;
   const session = await getSession(req, res);
-  if (!session || session.user.role !== 'ADMIN') return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
-
-  const brokers = await prisma.user.findMany({ where: { role: 'BROKER' }, include: { teamMembers: true } });
-  res.json(brokers);
+  if (!session || session.user.role !== 'ADMIN') {
+    sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
+    return;
+  }
+  try {
+    const brokers = await prisma.user.findMany({
+      where: { role: 'BROKER' },
+      include: { teamMembers: true, teams: { orderBy: { name: 'asc' } } },
+    });
+    res.json(brokers);
+  } catch (err) {
+    console.error('[api/admin/brokers]', err);
+    if (!res.headersSent) sendError(res, 500);
+  }
 }

@@ -20,9 +20,14 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [showDevHint, setShowDevHint] = useState(false);
 
   useEffect(() => {
     getProviders().then(setProviders);
+  }, []);
+
+  useEffect(() => {
+    setShowDevHint(process.env.NODE_ENV === 'development');
   }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -126,7 +131,7 @@ export default function SignIn() {
             </form>
           )}
 
-          {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
+          {showDevHint && (
             <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200">
               <p className="text-sm font-medium text-amber-900 mb-2">Local testing: emulate signed-in session</p>
               <p className="text-xs text-amber-800 mb-3">

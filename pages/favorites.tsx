@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { openDB } from 'idb';
-import { IDB_NAME, IDB_VERSION, UI } from '../lib/constants';
+import { IDB_NAME, IDB_VERSION, UI, getListingPageUrl } from '../lib/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -30,9 +30,10 @@ export default function Favorites() {
       <main className="flex-1 content-width pb-14">
         <h1 className="text-3xl font-bold text-slate-900 py-8 mb-6">My Favourites</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {favorites.map((f) => (
-            <article key={f.id} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group">
-              <Link href={`/listings/${f.listing?.id}`} className="block">
+          {favorites.map((f) => {
+            const listingUrl = getListingPageUrl(f.listing?.id);
+            const content = (
+              <>
                 <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
                   <SafeListingImage src={f.listing?.images?.[0]} />
                 </div>
@@ -40,9 +41,20 @@ export default function Favorites() {
                   <h2 className="font-semibold text-slate-900 group-hover:text-accent-600 line-clamp-2">{f.listing?.title}</h2>
                   <span className="inline-block mt-2 text-accent-600 font-semibold text-sm">{UI.VIEW} →</span>
                 </div>
-              </Link>
-            </article>
-          ))}
+              </>
+            );
+            return (
+              <article key={f.id} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group">
+                {listingUrl ? (
+                  <Link href={listingUrl} className="block">
+                    {content}
+                  </Link>
+                ) : (
+                  <div className="block">{content}</div>
+                )}
+              </article>
+            );
+          })}
         </div>
         {favorites.length === 0 && <p className="text-slate-500 py-12 text-center">No favourites yet.</p>}
       </main>

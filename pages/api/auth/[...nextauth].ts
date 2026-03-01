@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import type { NextApiRequest, NextApiResponse } from 'next';
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
@@ -8,6 +9,35 @@ import AppleProvider from 'next-auth/providers/apple';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+/** Wrap res so NextAuth always sees .status() as a function. Chain from status(code) must forward to real res so redirects work. */
+function ensureRes(res: NextApiResponse): NextApiResponse {
+  const r = res as NextApiResponse & { statusCode?: number };
+  if (typeof r.status === 'function') return res;
+  return new Proxy(res, {
+    get(target, prop) {
+      if (prop === 'status') {
+        return function (code: number) {
+          (target as unknown as { statusCode?: number }).statusCode = code;
+          const t = target as NextApiResponse;
+          const chain = {
+            setHeader: (name: string, value: string | number | string[]) => {
+              t.setHeader(name, value);
+              return chain;
+            },
+            end: (data?: unknown, encoding?: unknown, cb?: () => void) => t.end(data as any, encoding as any, cb),
+            json: (body: unknown) => t.json(body),
+            send: (body: unknown) => t.send(body),
+          };
+          return chain;
+        };
+      }
+      const v = (target as unknown as Record<string, unknown>)[prop as string];
+      if (typeof v === 'function') return (v as (...args: unknown[]) => unknown).bind(target);
+      return v;
+    },
+  }) as NextApiResponse;
+}
 
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 10;
@@ -132,5 +162,10 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export default NextAuth(authOptions);
+const nextAuthHandler = NextAuth(authOptions);
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  return nextAuthHandler(req, ensureRes(res));
+}
+
 export { BCRYPT_ROUNDS };

@@ -2,13 +2,18 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../lib/constants';
+import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!requireMethod(req, res, ['GET', 'POST', 'PUT'])) return;
   const session = await getSession(req, res);
-  if (!session) return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
-
+  if (!session) {
+    sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
+    return;
+  }
+  try {
   if (req.method === 'GET') {
     const notifications = await prisma.notification.findMany({
       where: { userId: session.user.id },
@@ -18,13 +23,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
     res.json(notifications);
-  } else if (req.method === 'POST') {
+    return;
+  }
+  if (req.method === 'POST') {
     const { toUserId, message } = req.body ?? {};
     if (!toUserId || typeof toUserId !== 'string' || !message || typeof message !== 'string') {
-      return res.status(400).json({ error: 'toUserId and message required' });
+      sendError(res, 400, 'toUserId and message required');
+      return;
     }
     const trimmed = message.trim();
-    if (!trimmed) return res.status(400).json({ error: 'message required' });
+    if (!trimmed) {
+      sendError(res, 400, 'message required');
+      return;
+    }
     const role = session.user.role as string;
     // Users can only message realtors/brokers (e.g. from Contact a Realtor). Users cannot message each other.
     if (role === 'USER') {
@@ -33,7 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         select: { role: true },
       });
       if (!toUser || (toUser.role !== 'REALTOR' && toUser.role !== 'BROKER')) {
-        return res.status(403).json({ error: 'You can only message realtors or brokers from Contact a Realtor.' });
+        sendError(res, 403, 'You can only message realtors or brokers from Contact a Realtor.');
+        return;
       }
     } else if (role === 'REALTOR' || role === 'BROKER') {
       // Brokers and realtors can only message users who have already contacted them (e.g. about a listing).
@@ -50,7 +62,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
         if (!userContactedFirst) {
-          return res.status(403).json({ error: 'You can only message users who have contacted you first (e.g. via Contact a Realtor).' });
+          sendError(res, 403, 'You can only message users who have contacted you first (e.g. via Contact a Realtor).');
+          return;
         }
       }
     }
@@ -64,14 +77,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
     res.status(201).end();
-  } else if (req.method === 'PUT') {
+    return;
+  }
+  if (req.method === 'PUT') {
     const { id, read, replyText, flagged } = req.body ?? {};
-    if (!id || typeof id !== 'string') return res.status(400).json({ error: 'id required' });
+    if (!id || typeof id !== 'string') {
+      sendError(res, 400, 'id required');
+      return;
+    }
     const notification = await prisma.notification.findFirst({
       where: { id, userId: session.user.id },
       include: { fromUser: { select: { id: true } } },
     });
-    if (!notification) return res.status(404).json({ error: 'Notification not found' });
+    if (!notification) {
+      sendError(res, 404, 'Notification not found');
+      return;
+    }
     const data: { read?: boolean; replyText?: string; repliedAt?: Date; flagged?: boolean } = {};
     if (typeof read === 'boolean') data.read = read;
     if (typeof flagged === 'boolean') data.flagged = flagged;
@@ -95,8 +116,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
     res.status(204).end();
-  } else {
-    res.setHeader('Allow', 'GET, POST, PUT');
-    res.status(405).json({ error: 'Method not allowed' });
+  }
+  } catch (err) {
+    console.error('[api/notifications]', err);
+    if (!res.headersSent) sendError(res, 500);
   }
 }
