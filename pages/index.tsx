@@ -35,6 +35,13 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ),
 });
 
+const HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1920&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1920&q=80',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1920&q=80',
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1920&q=80',
+];
+
 /**
  * Home page: hero, map with listing pins, browse list (filtered by map center/radius),
  * recently viewed, and sidebar (favourites + contact realtor).
@@ -47,6 +54,7 @@ export default function Home() {
   const recentIds = useRecentlyViewed();
   const { favorites, isFavorited, toggleFavorite } = useFavorites();
   const [heroImageError, setHeroImageError] = useState(false);
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
   const [filters, setFilters] = useState<FilterParams>({ province: DEFAULT_PROVINCE });
   const [listingsSort, setListingsSort] = useState<string>('default');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -205,6 +213,20 @@ export default function Home() {
     if (loadMoreInView && hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [loadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Rotate hero background images for a more dynamic first impression.
+  useEffect(() => {
+    if (HERO_IMAGES.length <= 1) return;
+    setHeroImageIndex(Math.floor(Math.random() * HERO_IMAGES.length));
+    const interval = setInterval(() => {
+      setHeroImageIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    setHeroImageError(false);
+  }, [heroImageIndex]);
+
   return (
     <div className="page-container flex flex-col">
       <Header />
@@ -215,7 +237,8 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-br from-header to-slate-800" aria-hidden />
           ) : (
             <Image
-              src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1920&q=80"
+              key={HERO_IMAGES[heroImageIndex]}
+              src={HERO_IMAGES[heroImageIndex]}
               alt=""
               fill
               priority
