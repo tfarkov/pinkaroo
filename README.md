@@ -76,6 +76,7 @@ These features require you to sign up for an external service and add credential
    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_maps_api_key_here
    ```
    Without this key, the app shows a placeholder instead of the map.
+7. **Mock listings / seed:** To use real coordinates for the 111 mock addresses, run once with the API key set: `npm run geocode-mock`. This writes `lib/addressCoords.json`; the app and seed use it when present.
 
 ---
 
@@ -118,12 +119,14 @@ These features require you to sign up for an external service and add credential
 
 ### 4. Other services (summary)
 
-- **Database:** Create a MySQL database (e.g. local, PlanetScale, Railway). Set `DATABASE_URL` in `.env`, then run `npx prisma migrate dev` and `npm run db:seed`. See [Test users (seed)](#test-users-seed) for the login table.
+- **Database:** Create a MySQL database (e.g. local, PlanetScale, Railway, or [Kamatera MySQL](https://kamatera.com/services/mysql/)). Set `DATABASE_URL` in `.env`, then run `npx prisma migrate dev` and `npm run db:seed`. See [Test users (seed)](#test-users-seed) for the login table. **Kamatera:** see **[docs/KAMATERA-MYSQL-SETUP.md](docs/KAMATERA-MYSQL-SETUP.md)** for step-by-step.
 - **NextAuth:** Generate a secret (`openssl rand -base64 32`) and set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` (e.g. `http://localhost:3000`). Required for any sign-in.
 - **Cloudinary:** Sign up at [cloudinary.com](https://cloudinary.com/), copy Cloud name / API Key / API Secret from the dashboard, set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Needed for Add Listing image uploads.
 - **GitHub / Apple / CREA / Redis / Nodemailer / Cron / Analytics:** See **[docs/SETUP-CREDENTIALS.md](docs/SETUP-CREDENTIALS.md)** for step-by-step and all env variable names.
 
 Keep `.env` out of version control (it should be in `.gitignore`). For production, set these variables in your host's environment (e.g. Vercel, Railway).
+
+**Cron jobs (Vercel):** The MLS sync runs on a schedule via Vercel Cron. Set `CRON_SECRET` in the project’s env and deploy; see **[docs/VERCEL-CRON-DEPLOYMENT.md](docs/VERCEL-CRON-DEPLOYMENT.md)** for steps.
 
 ---
 

@@ -205,16 +205,17 @@ Used for real-time notifications. If not set, the app falls back to in-memory So
 
 ## 13. Cron (MLS sync)
 
-Used to protect the cron endpoint that runs MLS sync.
+Used to protect the cron endpoint that runs MLS sync. **On Vercel**, set `CRON_SECRET` in the project’s Environment Variables; Vercel sends it as `Authorization: Bearer <CRON_SECRET>` when invoking the cron. See **[VERCEL-CRON-DEPLOYMENT.md](VERCEL-CRON-DEPLOYMENT.md)** for full deployment steps.
 
 ### Steps
 
-1. Generate a secret (e.g. `openssl rand -base64 24`).
-2. Add to `.env`:
+1. Generate a secret (e.g. `openssl rand -base64 24`; at least 16 characters).
+2. Add to `.env` for local runs:
    ```env
    CRON_SECRET=your_cron_secret
    ```
-3. When calling the cron job (e.g. from a scheduler), send:  
+3. On Vercel: add `CRON_SECRET` in **Settings → Environment Variables** (Production).
+4. When calling the cron job manually or from another scheduler, send:  
    `Authorization: Bearer your_cron_secret`
 
 ---

@@ -1,30 +1,61 @@
 const { createServer } = require('http');
 const { parse } = require('url');
+const express = require('express');
 const next = require('next');
 const { Server } = require('socket.io');
 const rateLimit = require('express-rate-limit');
 const redis = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
+
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many attempts' } });
+const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_MAX_GENERAL = 400;  // per IP per window
+const DEFAULT_MAX_AUTH = 30;      // per IP per window (sign-in, register, callbacks)
 
-function isAuthPath(url) {
-  const path = typeof url === 'string' ? url : url?.pathname;
-  return path && (path.includes('/api/auth/callback') || path === '/api/auth/register');
+// General API (dashboard, listings, nav, etc.)
+const generalLimiter = rateLimit({
+  windowMs: RATE_WINDOW_MS,
+  max: Number(process.env.RATE_LIMIT_MAX_GENERAL) || DEFAULT_MAX_GENERAL,
+  message: { error: 'Too many requests. Please try again in a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Auth: sign-in, register, NextAuth callbacks
+const authLimiter = rateLimit({
+  windowMs: RATE_WINDOW_MS,
+  max: Number(process.env.RATE_LIMIT_MAX_AUTH) || DEFAULT_MAX_AUTH,
+  message: { error: 'Too many sign-in attempts. Please try again in a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function isAuthPath(pathname) {
+  return pathname && pathname.startsWith('/api/auth/');
 }
 
 app.prepare().then(() => {
-  const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    const limiter = isAuthPath(parsedUrl.pathname) ? authLimiter : generalLimiter;
-    limiter(req, res, () => {
-      handle(req, res, parsedUrl);
-    });
+  const expressApp = express();
+
+  // Trust proxy so req.ip is set from X-Forwarded-For when behind a reverse proxy
+  expressApp.set('trust proxy', 1);
+
+  // Path-specific rate limiting (express-rate-limit works with Express req/res)
+  expressApp.use((req, res, nextHandler) => {
+    const limiter = isAuthPath(req.path) ? authLimiter : generalLimiter;
+    limiter(req, res, nextHandler);
   });
+
+  // All requests go to Next.js (use middleware instead of all('*') to avoid path-to-regexp rejecting '*' in Express 5)
+  expressApp.use((req, res) => {
+    const parsedUrl = parse(req.url, true);
+    handle(req, res, parsedUrl);
+  });
+
+  const server = createServer(expressApp);
 
   function startWithSocket(io) {
     io.on('connection', (socket) => {
