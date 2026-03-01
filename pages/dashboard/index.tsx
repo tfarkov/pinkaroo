@@ -31,7 +31,7 @@ export default function Dashboard() {
   );
 
   const { data: myListingsData } = useQuery({
-    queryKey: ['my-listings-dashboard', role, user?.id],
+    queryKey: ['my-listings-dashboard', role, user?.email ?? 'anonymous'],
     queryFn: async () => {
       const res = await fetch(`${API.LISTINGS}?mine=1&page=0`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load my listings');
