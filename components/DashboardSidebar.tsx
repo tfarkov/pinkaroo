@@ -20,6 +20,7 @@ const BROKER_LINKS = [
 
 const ADMIN_LINKS = [
   { href: '/admin', label: 'Admin' },
+  { href: '/dashboard/crm', label: 'CRM' },
   { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
 ];
 

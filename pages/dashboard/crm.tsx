@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import {
   API,
   CLIENT_STATUSES,
@@ -13,6 +14,7 @@ import { getMockClients, getMockInteractions } from '../../lib/mockData';
 import DashboardLayout from '../../components/DashboardLayout';
 import { Bar, Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+import { useAuth } from '../../lib/hooks/useAuth';
 
 interface ClientFormData {
   name: string;
@@ -40,6 +42,9 @@ type ClientRecord = {
 };
 
 export default function CRM() {
+  const router = useRouter();
+  const { role, status } = useAuth();
+  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'ADMIN';
   const queryClient = useQueryClient();
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
   const [editingClient, setEditingClient] = useState<ClientRecord | null>(null);
@@ -238,6 +243,18 @@ export default function CRM() {
   const interactionsFromInfinite = interactionsData?.pages?.flatMap((p: { interactions?: { id: string; type: string; details: string; date: string }[] }) => p.interactions ?? []) ?? [];
   const interactions = interactionsFromInfinite.length > 0 ? interactionsFromInfinite : (clientDetail?.interactions ?? []);
   const clientList = clients as ClientRecord[];
+
+  useEffect(() => {
+    if (status !== 'loading' && !canUseCrm) router.replace('/dashboard');
+  }, [canUseCrm, router, status]);
+
+  if (status === 'loading' || !canUseCrm) {
+    return (
+      <DashboardLayout>
+        <p className="py-8 text-slate-500">Loading…</p>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
