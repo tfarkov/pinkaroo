@@ -48,6 +48,10 @@ test('importListingFromMLS creates new', async () => {
   expect(result).toEqual({ id: 'new' });
 });
 
+test('importListingFromMLS throws when ListingKey is missing', async () => {
+  await expect(importListingFromMLS({} as any, 'user1')).rejects.toThrow('Missing MLS ListingKey');
+});
+
 describe('mlsDataToListingFields', () => {
   const defaults = { userId: 'user-1', status: 'PENDING' as const };
 
@@ -105,5 +109,14 @@ describe('mlsDataToListingFields', () => {
     const payload = { ListingKey: 'x', City: 'Barrie', StateOrProvince: 'ONTARIO', ListPrice: 1, custom: 'value' };
     const out = mlsDataToListingFields(payload, defaults);
     expect(out.mlsData).toEqual(payload);
+  });
+
+  it('does not inject fallback coordinates when MLS lat/lng are invalid', () => {
+    const out = mlsDataToListingFields(
+      { ListingKey: 'x', City: 'Barrie', StateOrProvince: 'ONTARIO', ListPrice: 1, Latitude: 'bad', Longitude: '' },
+      defaults
+    );
+    expect(out.latitude).toBeUndefined();
+    expect(out.longitude).toBeUndefined();
   });
 });
