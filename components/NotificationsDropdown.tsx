@@ -82,7 +82,7 @@ export default function NotificationsDropdown() {
             setReplyDraft((prev) => ({ ...prev, [dialogNotification.id]: '' }));
             setDialogNotificationId(null);
           }}
-          isReplySubmitting={updateMutation.isLoading}
+          isReplySubmitting={updateMutation.isPending}
           onToggleFlag={() =>
             setFlagged(dialogNotification.id, !dialogNotification.flagged)
           }

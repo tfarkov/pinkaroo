@@ -6,6 +6,7 @@ import type { FavoriteItem } from '../types';
 
 type MinimalListing = { id: string; title?: string; price?: number; images?: string[] };
 
+/** Load saved favorites from localStorage for guests (no auth). Returns [] on server. */
 function loadAnonymousFavorites(): FavoriteItem[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -17,6 +18,7 @@ function loadAnonymousFavorites(): FavoriteItem[] {
   }
 }
 
+/** Persist guest favorites to localStorage. */
 function saveAnonymousFavorites(items: FavoriteItem[]) {
   if (typeof window === 'undefined') return;
   try {
@@ -26,11 +28,17 @@ function saveAnonymousFavorites(items: FavoriteItem[]) {
   }
 }
 
+/**
+ * Favorites state: from API when authenticated, from localStorage when not.
+ * Initial anonymous list is [] to avoid hydration mismatch (server has no localStorage).
+ */
 export function useFavorites() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  // Start with [] so server and client first paint match (no localStorage on server)
   const [anonymousList, setAnonymousList] = useState<FavoriteItem[]>([]);
 
+  /** Fetched favorites when user is signed in (GET /api/favorites). */
   const { data: apiFavorites = [], isLoading: isLoadingApi } = useQuery({
     queryKey: ['favorites'],
     queryFn: async () => {
@@ -42,6 +50,7 @@ export function useFavorites() {
     enabled: isAuthenticated,
   });
 
+  /** Add/remove favorite when authenticated (POST/DELETE /api/favorites). */
   const apiMutation = useMutation({
     mutationFn: async ({ listingId, isFavorited }: { listingId: string; isFavorited: boolean }) => {
       const res = await fetch(API.FAVORITES, {
@@ -54,12 +63,23 @@ export function useFavorites() {
       return res;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
+    onError: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
   });
 
+  /** After mount, hydrate anonymous list from localStorage when not signed in. */
   useEffect(() => {
     if (!isAuthenticated) setAnonymousList(loadAnonymousFavorites());
   }, [isAuthenticated]);
 
+  /** Sync anonymous list from storage when window gains focus (e.g. back from another tab). */
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const onFocus = () => setAnonymousList(loadAnonymousFavorites());
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [isAuthenticated]);
+
+  /** Current list: from API when auth, else from in-memory anonymous list (backed by localStorage). */
   const favorites: FavoriteItem[] = isAuthenticated ? apiFavorites : anonymousList;
 
   const isFavorited = useCallback(

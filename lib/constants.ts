@@ -58,18 +58,19 @@ export const MAX_FAVORITES = 100; // Limit for indexedDB and anonymous localStor
 export const ANONYMOUS_FAVORITES_KEY = 'pinkaroo_anonymous_favorites';
 export const REVENUE_MONTHS = 12; // For charts
 
-// ——— API routes ———
+// ——— API routes (must match pages/api/* file structure) ———
 export const API = {
-  LISTINGS: '/api/listings',
-  LISTINGS_PUBLIC: '/api/listings/public',
-  LISTINGS_NEARBY: '/api/listings/nearby',
-  FAVORITES: '/api/favorites',
-  NOTIFICATIONS: '/api/notifications',
-  CLIENTS: '/api/clients',
+  LISTINGS: '/api/listings',                    // GET/POST/PUT/DELETE (auth); single listing: /api/listings/[id]
+  LISTINGS_PUBLIC: '/api/listings/public',      // GET paginated public listings (no auth)
+  LISTINGS_NEARBY: '/api/listings/nearby',      // GET by lat/lng/radius (no auth)
+  FAVORITES: '/api/favorites',                  // GET/POST/DELETE (auth); index.ts re-exports handler
+  NOTIFICATIONS: '/api/notifications',          // GET/POST/PUT (auth)
+  CLIENTS: '/api/clients',                      // CRUD; single: /api/clients/[id]
   CLIENTS_INTERACTIONS: '/api/clients/interactions',
-  USERS: '/api/users',
-  REALTORS: '/api/realtors',
-  REALTORS_PINKAROO: '/api/realtors/pinkaroo',
+  CLIENTS_STATS: '/api/clients/stats',           // Aggregated stats for CRM charts
+  USERS: '/api/users',                          // Single user: GET/PUT /api/users/[id] (auth)
+  REALTORS: '/api/realtors',                    // Single realtor: GET /api/realtors/[id] (public)
+  REALTORS_PINKAROO: '/api/realtors/pinkaroo',  // GET Pinkaroo team (public)
   MLS_SEARCH: '/api/mls/search',
   ADMIN_REALTORS: '/api/admin/realtors',
   ADMIN_BROKERS: '/api/admin/brokers',
@@ -78,8 +79,19 @@ export const API = {
   BROKER_STATS: '/api/broker/stats',
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
-  BROKER_TEAMS: '/api/broker/teams',
+  BROKER_TEAMS: '/api/broker/teams',            // List: index; single: /api/broker/teams/[id]
 } as const;
+
+/** Base path for the listing detail page (pages/listings/[id].tsx). */
+export const LISTING_PAGE_PATH = '/listings';
+
+/**
+ * Build URL for the listing detail page. Returns null if id is missing or invalid so callers can avoid linking to /listings/undefined.
+ */
+export function getListingPageUrl(id: string | undefined | null): string | null {
+  if (id == null || typeof id !== 'string' || !id.trim()) return null;
+  return `${LISTING_PAGE_PATH}/${encodeURIComponent(id.trim())}`;
+}
 
 // ——— HTTP / API messages ———
 export const API_MESSAGES = {
@@ -97,8 +109,14 @@ export const DEFAULT_BROKER_ID = 'default-broker-id';
 export const IDB_NAME = 'pinkaroo';
 export const IDB_VERSION = 1;
 export const RECENTLY_VIEWED_LIMIT = 20;
+/** Default radius (km) for nearby listings; haversine filter. Client falls back to Barrie, ON when geolocation is unavailable. */
 export const DEFAULT_NEARBY_RADIUS_KM = 50;
+/** Radius (km) for the single "pool" fetch; pins are then filtered client-side by zoom. */
+export const NEARBY_POOL_RADIUS_KM = 120;
 export const KM_PER_DEGREE_APPROX = 111;
+
+/** Message shown when Google Maps API key is not set (maps on home, listing form, listing detail). */
+export const MAP_NO_KEY_MESSAGE = 'Map (set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable)';
 
 // ——— Cache & timing ———
 export const STALE_TIME_5_MIN = 5 * 60 * 1000;
@@ -137,7 +155,7 @@ export const EMAIL_SUBJECTS = {
 // ——— UI copy ———
 export const UI = {
   WELCOME_TITLE: 'Welcome to Pinkaroo Real Estate Portal',
-  NEARBY_LISTINGS_TITLE: 'Nearby Listings (within 50km)',
+  NEARBY_LISTINGS_TITLE: 'Nearby Listings',
   LISTINGS_TITLE: 'Listings',
   FEATURED_LISTINGS_TITLE: 'Browse Listings',
   RECENTLY_VIEWED_TITLE: 'Recently Viewed',

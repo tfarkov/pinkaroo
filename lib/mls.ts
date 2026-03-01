@@ -76,29 +76,64 @@ export async function searchMLS(filter: string) {
   }
 }
 
+/** Parse MLS LastUpdated (ISO string or similar) to Date or null. */
+function parseMLSDate(v: unknown): Date | null {
+  if (v == null) return null;
+  const d = new Date(String(v));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Map CREA DDF Property payload to Listing create/update data (shared by import and sync). */
+export function mlsDataToListingFields(mlsData: any, defaults: { userId: string; status: 'PENDING' | 'ACTIVE' }) {
+  const streetAddress =
+    mlsData.UnparsedAddress?.trim() ||
+    [mlsData.StreetNumber, mlsData.StreetDirPrefix, mlsData.StreetName, mlsData.StreetDirSuffix, mlsData.StreetSuffix]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    mlsData.StreetAddress?.trim() ||
+    null;
+  const lotRaw = parseFloat(mlsData.LandSize ?? mlsData.LotSize ?? mlsData.LotSizeSqFt ?? '');
+  // CREA may send lot in sqft; if value is large assume sqft and convert to sqm
+  const lotSizeSqm = Number.isFinite(lotRaw)
+    ? lotRaw > 10000
+      ? lotRaw * 0.09290304
+      : lotRaw
+    : null;
+  return {
+    title: (mlsData.StandardStatus && mlsData.PropertyType ? mlsData.StandardStatus + ' ' + mlsData.PropertyType : mlsData.Title) || 'Listing',
+    description: mlsData.PublicRemarks || mlsData.Remarks || '',
+    price: parseFloat(mlsData.ListPrice) || 0,
+    location: mlsData.City || mlsData.UnparsedAddress?.split(',')[0]?.trim() || '',
+    province: (mlsData.StateOrProvince || DEFAULT_PROVINCE) as Province,
+    postalCode: mlsData.PostalCode ?? null,
+    sizeSqm: parseFloat(mlsData.LivingArea) || null,
+    bedroomsTotal: parseInt(mlsData.BedroomsTotal, 10) || null,
+    bathroomsTotal: parseInt(mlsData.BathroomsTotalInteger, 10) || null,
+    propertyType: mlsData.PropertyType ?? null,
+    latitude: parseFloat(mlsData.Latitude) || DEFAULT_LOCATION.lat,
+    longitude: parseFloat(mlsData.Longitude) || DEFAULT_LOCATION.lng,
+    images: Array.isArray(mlsData.Media) ? mlsData.Media.map((m: any) => m.MediaURL || m.Url).filter(Boolean) : [],
+    mlsId: mlsData.ListingKey ?? null,
+    status: defaults.status,
+    userId: defaults.userId,
+    streetAddress: streetAddress || undefined,
+    unitNumber: mlsData.UnitNumber?.trim() || undefined,
+    yearBuilt: parseInt(mlsData.YearBuilt, 10) || undefined,
+    lotSizeSqm: lotSizeSqm ?? undefined,
+    standardStatus: mlsData.StandardStatus?.trim() || undefined,
+    halfBathroomsTotal: parseInt(mlsData.HalfBathTotal ?? mlsData.BathroomsHalfTotal, 10) || undefined,
+    buildingLevelTotal: parseInt(mlsData.BuildingLevelTotal ?? mlsData.StoriesTotal, 10) || undefined,
+    mlsLastUpdated: parseMLSDate(mlsData.LastUpdated ?? mlsData.ModificationTimestamp) ?? undefined,
+    mlsData: mlsData ?? undefined,
+  };
+}
+
 export async function importListingFromMLS(mlsData: any, userId: string) {
   const existing = await prisma.listing.findFirst({ where: { mlsId: mlsData.ListingKey } });
   if (existing) return existing;
-  return prisma.listing.create({
-    data: {
-      title: mlsData.StandardStatus + ' ' + mlsData.PropertyType,
-      description: mlsData.PublicRemarks || '',
-      price: parseFloat(mlsData.ListPrice) || 0,
-      location: mlsData.City || '',
-      province: mlsData.StateOrProvince as any || 'ONTARIO',
-      postalCode: mlsData.PostalCode,
-      sizeSqm: parseFloat(mlsData.LivingArea) || 0,
-      bedroomsTotal: parseInt(mlsData.BedroomsTotal) || 0,
-      bathroomsTotal: parseInt(mlsData.BathroomsTotalInteger) || 0,
-      propertyType: mlsData.PropertyType,
-      latitude: parseFloat(mlsData.Latitude) || DEFAULT_LOCATION.lat,
-      longitude: parseFloat(mlsData.Longitude) || DEFAULT_LOCATION.lng,
-      images: mlsData.Media?.map((m: any) => m.MediaURL) || [],
-      mlsId: mlsData.ListingKey,
-      status: 'PENDING',
-      userId,
-    },
-  });
+  const data = mlsDataToListingFields(mlsData, { userId, status: 'PENDING' });
+  return prisma.listing.create({ data });
 }
 
 export async function syncMLS() {
@@ -109,30 +144,12 @@ export async function syncMLS() {
     for (let i = 0; i < results.length; i += batchSize) {
       const batch = results.slice(i, i + batchSize);
       await Promise.all(batch.map(async (mlsData) => {
+        const fields = mlsDataToListingFields(mlsData, { userId: DEFAULT_BROKER_ID, status: 'ACTIVE' });
+        const { userId, status, mlsId, ...updatePayload } = fields;
         await prisma.listing.upsert({
           where: { mlsId: mlsData.ListingKey },
-          update: {
-            price: parseFloat(mlsData.ListPrice),
-            // Update other fields as needed
-          },
-          create: {
-            title: mlsData.StandardStatus + ' ' + mlsData.PropertyType,
-            description: mlsData.PublicRemarks || '',
-            price: parseFloat(mlsData.ListPrice) || 0,
-            location: mlsData.City || '',
-            province: ((mlsData.StateOrProvince as string) || DEFAULT_PROVINCE) as Province,
-            postalCode: mlsData.PostalCode,
-            sizeSqm: parseFloat(mlsData.LivingArea) || 0,
-            bedroomsTotal: parseInt(mlsData.BedroomsTotal) || 0,
-            bathroomsTotal: parseInt(mlsData.BathroomsTotalInteger) || 0,
-            propertyType: mlsData.PropertyType,
-            latitude: parseFloat(mlsData.Latitude) || DEFAULT_LOCATION.lat,
-            longitude: parseFloat(mlsData.Longitude) || DEFAULT_LOCATION.lng,
-            images: mlsData.Media?.map((m: any) => m.MediaURL) || [],
-            mlsId: mlsData.ListingKey,
-            status: 'ACTIVE',
-            userId: DEFAULT_BROKER_ID,
-          },
+          update: updatePayload,
+          create: { ...fields, mlsId: mlsData.ListingKey },
         });
       }));
     }

@@ -1,13 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { getMockPinkarooTeam } from '../../../lib/mockData';
+import { requireMethod } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 /** Public: returns brokers and realtors belonging to Pinkaroo Real Estate (random order). */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).end();
-
+  if (!requireMethod(req, res, ['GET'])) return;
   try {
     const broker = await prisma.user.findFirst({
       where: { role: 'BROKER', name: { contains: 'Pinkaroo' } },
@@ -28,8 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ];
     const shuffled = [...team].sort(() => Math.random() - 0.5);
     return res.json(shuffled);
-  } catch {
-    const team = getMockPinkarooTeam();
-    return res.json(team);
+  } catch (err) {
+    console.error('[api/realtors/pinkaroo]', err);
+    if (!res.headersSent) res.json(getMockPinkarooTeam());
   }
 }
