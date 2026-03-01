@@ -3,6 +3,12 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../lib/hooks/useAuth';
 import { UI } from '../lib/constants';
 
+const USER_LINKS = [
+  { href: '/dashboard', label: UI.DASHBOARD },
+  { href: '/favorites', label: 'Favourites' },
+  { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
+];
+
 const REALTOR_LINKS = [
   { href: '/dashboard', label: UI.DASHBOARD },
   { href: '/listings/new', label: 'Add Listing' },
@@ -12,6 +18,7 @@ const REALTOR_LINKS = [
 
 const BROKER_LINKS = [
   { href: '/dashboard/broker', label: 'Broker Dashboard' },
+  { href: '/dashboard/broker/realtors', label: 'Realtor dashboards' },
   { href: '/dashboard/broker/team', label: UI.TEAM_MANAGEMENT },
   { href: '/dashboard/broker/approvals', label: UI.PENDING_APPROVALS },
   { href: '/dashboard/crm', label: 'CRM' },
@@ -26,9 +33,10 @@ const ADMIN_LINKS = [
 
 export default function DashboardSidebar() {
   const router = useRouter();
-  const { isRealtor, isBroker, isAdmin } = useAuth();
+  const { role, isRealtor, isBroker, isAdmin } = useAuth();
 
   const sections: { title: string; links: { href: string; label: string }[] }[] = [];
+  if (role === 'USER') sections.push({ title: 'User', links: USER_LINKS });
   if (isRealtor) sections.push({ title: 'Realtor', links: REALTOR_LINKS });
   if (isBroker) sections.push({ title: 'Broker', links: BROKER_LINKS });
   if (isAdmin) sections.push({ title: 'Admin', links: ADMIN_LINKS });

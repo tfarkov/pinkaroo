@@ -19,14 +19,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
   try {
-    const teamMemberIds = await prisma.user.findMany({
+    const realtors = await prisma.user.findMany({
       where: { brokerId: session.user.id },
-      select: { id: true, name: true, email: true, listingsCount: true },
+      select: { id: true, name: true, email: true, listingsCount: true, teamId: true, isTeamLead: true },
     });
-    const ids = teamMemberIds.map((m) => m.id);
-    const teamCount = ids.length;
+    const ids = realtors.map((m) => m.id);
+    const teams = await prisma.team.findMany({
+      where: { brokerId: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { members: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+    const teamCount = teams.length;
 
-    const [listingCountByStatus, totalListings] =
+    const [listingCountByStatus, totalListings, interactionCounts] =
       ids.length > 0
         ? await Promise.all([
             prisma.listing.groupBy({
@@ -35,8 +44,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               _count: { id: true },
             }),
             prisma.listing.count({ where: { userId: { in: ids } } }),
+            prisma.interaction.groupBy({
+              by: ['userId'],
+              where: { userId: { in: ids } },
+              _count: { id: true },
+            }),
           ])
-        : [[], 0];
+        : [[], 0, []];
 
     let pending = 0,
       approved = 0,
@@ -47,15 +61,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       else if (g.status === 'REJECTED') rejected = g._count.id;
     }
 
+    const interactionMap = new Map<string, number>();
+    for (const row of interactionCounts as { userId: string; _count: { id: number } }[]) {
+      interactionMap.set(row.userId, row._count.id);
+    }
+
+    const enrichedRealtors = realtors.map((r) => ({
+      ...r,
+      interactionsCount: interactionMap.get(r.id) ?? 0,
+    }));
+    const availableRealtors = enrichedRealtors.filter((r) => !r.teamId);
+
     const revenue = [100000, 200000];
     const months = ['Jan', 'Feb'];
     res.json({
       teamCount,
+      teams,
       listings: totalListings,
       pending,
       approved,
       rejected,
-      realtors: teamMemberIds,
+      realtors: enrichedRealtors,
+      availableRealtors,
       revenue,
       months,
     });

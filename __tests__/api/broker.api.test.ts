@@ -5,8 +5,10 @@ import { createMockRequest, createMockResponse, runHandler } from './helpers';
 
 const mockGetSession = jest.fn();
 const mockUserFindMany = jest.fn();
+const mockTeamFindMany = jest.fn();
 const mockListingGroupBy = jest.fn();
 const mockListingCount = jest.fn();
+const mockInteractionGroupBy = jest.fn();
 const mockListingFindUnique = jest.fn();
 const mockListingUpdate = jest.fn();
 const mockNotificationCreate = jest.fn();
@@ -19,11 +21,15 @@ const mockTx = {
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn(() => ({
     user: { findMany: mockUserFindMany },
+    team: { findMany: mockTeamFindMany },
     listing: {
       groupBy: mockListingGroupBy,
       count: mockListingCount,
       findUnique: mockListingFindUnique,
       update: mockListingUpdate,
+    },
+    interaction: {
+      groupBy: mockInteractionGroupBy,
     },
     notification: { create: mockNotificationCreate },
     $transaction: (fn: (tx: typeof mockTx) => Promise<void>) => fn(mockTx),
@@ -55,9 +61,11 @@ describe('GET /api/broker/stats', () => {
 
   it('returns 200 with teamCount and listings when BROKER', async () => {
     mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
-    mockUserFindMany.mockResolvedValue([{ id: 'r1', name: 'R1', email: 'r1@test.com', listingsCount: 2 }]);
+    mockUserFindMany.mockResolvedValue([{ id: 'r1', name: 'R1', email: 'r1@test.com', listingsCount: 2, teamId: null, isTeamLead: false }]);
+    mockTeamFindMany.mockResolvedValue([{ id: 't1', name: 'Team A', _count: { members: 1 } }]);
     mockListingGroupBy.mockResolvedValue([{ status: 'PENDING', _count: { id: 1 } }, { status: 'APPROVED', _count: { id: 3 } }]);
     mockListingCount.mockResolvedValue(4);
+    mockInteractionGroupBy.mockResolvedValue([{ userId: 'r1', _count: { id: 2 } }]);
     const req = createMockRequest({ method: 'GET' });
     const res = createMockResponse();
     await runHandler(handler, req, res);

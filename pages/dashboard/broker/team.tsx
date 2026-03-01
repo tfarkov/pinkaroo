@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { getMockRealtors, getMockTeams } from '../../../lib/mockData';
@@ -276,6 +277,7 @@ export default function BrokerTeamPage() {
                     <th className="text-left p-4 text-slate-700 font-semibold">{UI.EMAIL}</th>
                     <th className="text-left p-4 text-slate-700 font-semibold">{UI.ASSIGN_TO_TEAM}</th>
                     <th className="text-left p-4 text-slate-700 font-semibold">{UI.TEAM_LEAD}</th>
+                    <th className="text-left p-4 text-slate-700 font-semibold">Dashboard</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,6 +317,11 @@ export default function BrokerTeamPage() {
                           />
                           <span className="text-sm text-slate-700">Team lead</span>
                         </label>
+                      </td>
+                      <td className="p-4">
+                        <Link href={`/dashboard/broker/realtors/${encodeURIComponent(member.id)}`} className="text-sm text-accent-600 hover:text-accent-700">
+                          View realtor dashboard →
+                        </Link>
                       </td>
                     </tr>
                   ))}

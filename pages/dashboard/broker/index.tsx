@@ -12,7 +12,7 @@ export default function BrokerDashboard() {
     queryKey: ['broker-stats'],
     queryFn: async () => {
       try {
-        const res = await fetch(API.BROKER_STATS);
+        const res = await fetch(API.BROKER_STATS, { credentials: 'include' });
         if (res.ok) return res.json();
         return getMockBrokerStats();
       } catch {
@@ -63,20 +63,109 @@ export default function BrokerDashboard() {
     };
   }, [teamStats]);
 
+  const realtorProgressChartData = useMemo(() => {
+    const realtors = teamStats?.realtors ?? [];
+    return {
+      labels: realtors.length > 0 ? realtors.map((r: { name?: string }) => r.name ?? '—') : ['—'],
+      datasets: [
+        {
+          label: 'Listings',
+          data: realtors.length > 0 ? realtors.map((r: { listingsCount?: number }) => r.listingsCount ?? 0) : [0],
+          backgroundColor: 'rgba(236, 72, 153, 0.6)',
+        },
+        {
+          label: 'Interactions',
+          data: realtors.length > 0 ? realtors.map((r: { interactionsCount?: number }) => r.interactionsCount ?? 0) : [0],
+          backgroundColor: 'rgba(99, 102, 241, 0.6)',
+        },
+      ],
+    };
+  }, [teamStats]);
+
+  const teams = (teamStats?.teams ?? []) as { id: string; name: string; _count?: { members?: number } }[];
+  const availableRealtors = (teamStats?.availableRealtors ?? []) as { id: string; name?: string; email?: string }[];
+
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">Broker {UI.DASHBOARD}</h1>
         <p className="text-slate-600 mb-6">Team count: {teamStats?.teamCount ?? 0}</p>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Teams managed</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{teamStats?.teamCount ?? 0}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Available realtors</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{availableRealtors.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Pending approvals</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{teamStats?.pending ?? 0}</p>
+          </div>
+        </div>
+
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
             <div>
               <h2 className="text-xl font-bold text-slate-900">{UI.TEAM_MANAGEMENT}</h2>
               <p className="text-slate-600 text-sm mt-1">Create teams and assign realtors. Designate team leads to allow them to edit realtor profiles.</p>
             </div>
-            <Link href="/dashboard/broker/team" className="btn-primary shrink-0">
-              Manage teams
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/broker/team" className="btn-primary shrink-0">
+                Manage teams
+              </Link>
+              <Link href="/dashboard/broker/realtors" className="btn-secondary shrink-0">
+                Realtor dashboards
+              </Link>
+            </div>
+          </div>
+          {teams.length > 0 && (
+            <ul className="space-y-2">
+              {teams.slice(0, 5).map((team) => (
+                <li key={team.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  {team.name} · {(team._count?.members ?? 0)} member{(team._count?.members ?? 0) !== 1 ? 's' : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Available realtors</h2>
+          {availableRealtors.length === 0 ? (
+            <p className="text-slate-500 text-sm">All realtors are assigned to teams.</p>
+          ) : (
+            <ul className="space-y-2">
+              {availableRealtors.slice(0, 8).map((realtor) => (
+                <li key={realtor.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-slate-900 font-medium">{realtor.name ?? 'Unnamed realtor'}</span>
+                    <Link href={`/dashboard/broker/realtors/${encodeURIComponent(realtor.id)}`} className="text-accent-600 hover:text-accent-700">
+                      View realtor dashboard →
+                    </Link>
+                  </div>
+                  <p className="text-slate-500">{realtor.email ?? 'No email'}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="space-y-8">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Realtor progress</h2>
+            <div className="h-[280px] min-h-0 w-full">
+              <Bar
+                data={realtorProgressChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: true } },
+                  scales: { y: { beginAtZero: true } },
+                }}
+              />
+            </div>
           </div>
         </div>
 

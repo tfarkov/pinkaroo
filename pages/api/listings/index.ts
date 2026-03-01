@@ -40,6 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const page = parseInt(req.query.page as string) || 0;
     const filters = req.query;
     const where: Record<string, unknown> = {};
+    const mine = filters.mine === '1' || filters.mine === 'true';
+    if (mine) where.userId = session.user.id;
     if (filters.province && typeof filters.province === 'string') where.province = filters.province;
     const city = typeof filters.city === 'string' ? filters.city.trim() : undefined;
     if (city) where.location = { contains: city };

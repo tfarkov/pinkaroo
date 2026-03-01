@@ -80,6 +80,7 @@ export const API = {
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
   BROKER_TEAMS: '/api/broker/teams',            // List: index; single: /api/broker/teams/[id]
+  BROKER_REALTOR_DASHBOARD: '/api/broker/realtor-dashboard',
 } as const;
 
 /** Base path for the listing detail page (pages/listings/[id].tsx). */
