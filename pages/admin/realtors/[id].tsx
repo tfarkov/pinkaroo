@@ -200,8 +200,8 @@ export default function AdminRealtorProfilePage() {
             )}
             {successMessage && <p className="text-green-600 text-sm font-medium">{successMessage}</p>}
             {mutation.isError && <p className="text-red-600 text-sm">Failed to save. Try again.</p>}
-            <button type="submit" className="btn-primary" disabled={mutation.isLoading}>
-              {mutation.isLoading ? UI.LOADING : UI.SAVE_PROFILE}
+            <button type="submit" className="btn-primary" disabled={mutation.isPending}>
+              {mutation.isPending ? UI.LOADING : UI.SAVE_PROFILE}
             </button>
           </form>
         )}
