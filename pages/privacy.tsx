@@ -78,11 +78,17 @@ export default function Privacy() {
           </section>
         </div>
 
-        <p className="mt-10">
+        <div className="mt-10 flex flex-wrap gap-4 text-sm">
           <Link href="/" className="text-accent-600 font-semibold hover:underline">
-            ← Back to home
+            &larr; Back to home
           </Link>
-        </p>
+          <Link href="/terms" className="text-accent-600 font-semibold hover:underline">
+            Terms of Use
+          </Link>
+          <Link href="/cookie-policy" className="text-accent-600 font-semibold hover:underline">
+            Cookie Policy
+          </Link>
+        </div>
       </main>
       <Footer />
       <BottomNav />
