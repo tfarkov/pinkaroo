@@ -93,10 +93,18 @@ export function mlsDataToListingFields(mlsData: any, defaults: { userId: string;
       .trim() ||
     mlsData.StreetAddress?.trim() ||
     null;
-  const lotRaw = parseFloat(mlsData.LandSize ?? mlsData.LotSize ?? mlsData.LotSizeSqFt ?? '');
+  const lotSizeSource =
+    mlsData.LandSize != null
+      ? 'LandSize'
+      : mlsData.LotSize != null
+        ? 'LotSize'
+        : mlsData.LotSizeSqFt != null
+          ? 'LotSizeSqFt'
+          : null;
+  const lotRaw = parseFloat(lotSizeSource ? mlsData[lotSizeSource] : '');
   // CREA may send lot in sqft; if value is large assume sqft and convert to sqm
   const lotSizeSqm = Number.isFinite(lotRaw)
-    ? lotRaw > 10000
+    ? lotSizeSource === 'LotSizeSqFt' || lotRaw > 10000
       ? lotRaw * 0.09290304
       : lotRaw
     : null;
@@ -145,10 +153,9 @@ export async function syncMLS() {
       const batch = results.slice(i, i + batchSize);
       await Promise.all(batch.map(async (mlsData) => {
         const fields = mlsDataToListingFields(mlsData, { userId: DEFAULT_BROKER_ID, status: 'ACTIVE' });
-        const { userId, status, mlsId, ...updatePayload } = fields;
         await prisma.listing.upsert({
           where: { mlsId: mlsData.ListingKey },
-          update: updatePayload,
+          update: { price: fields.price },
           create: { ...fields, mlsId: mlsData.ListingKey },
         });
       }));

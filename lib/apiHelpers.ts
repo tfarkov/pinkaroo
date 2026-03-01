@@ -43,20 +43,3 @@ export function requireIdParam(req: NextApiRequest, res: NextApiResponse): strin
   return id;
 }
 
-/**
- * Wrap an async API handler with try/catch. On thrown errors, logs and sends 500.
- * Use like: export default withApiHandler(async (req, res) => { ... }).
- */
-export function withApiHandler(
-  handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>,
-  logLabel: string = 'api'
-) {
-  return async (req: NextApiRequest, res: NextApiResponse): Promise<void> => {
-    try {
-      await handler(req, res);
-    } catch (err) {
-      console.error(`[${logLabel}]`, err);
-      if (!res.headersSent) sendError(res, 500, SERVER_ERROR);
-    }
-  };
-}
