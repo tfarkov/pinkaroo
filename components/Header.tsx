@@ -39,12 +39,11 @@ export default function Header() {
               <LogoIcon className="w-11 h-11 flex-shrink-0" />
             ) : (
               <img
-                src="/logo.png"
+                src="/logo-white.png"
                 alt="Pinkaroo"
                 width={44}
                 height={44}
                 className="w-11 h-11 object-contain block"
-                style={{ backgroundColor: 'white' }}
                 onError={() => setLogoError(true)}
               />
             )}

@@ -72,12 +72,11 @@ export default function SignIn() {
               <LogoIcon className="w-16 h-16" />
             ) : (
               <img
-                src="/logo.png"
+                src="/logo-white.png"
                 alt=""
                 width={64}
                 height={64}
                 className="w-full h-full object-contain block"
-                style={{ backgroundColor: 'white' }}
                 onError={() => setLogoError(true)}
               />
             )}
