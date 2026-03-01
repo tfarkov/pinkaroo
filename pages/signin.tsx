@@ -66,7 +66,7 @@ export default function SignIn() {
       <div className="w-full max-w-sm flex flex-col items-center text-center">
         {/* Branding */}
         <Link href="/" className="flex flex-col items-center gap-3 mb-10 text-white hover:text-white">
-          <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden">
             {logoError ? (
               <LogoIcon className="w-10 h-10 text-white" />
             ) : (
