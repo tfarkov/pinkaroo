@@ -42,6 +42,13 @@ const HERO_IMAGES = [
   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1920&q=80',
 ];
 
+const HERO_PHRASES = [
+  'Find a House. Make It a Home.',
+  'Discover Listings That Fit Your Lifestyle.',
+  'Your Next Move Starts with Pinkaroo.',
+  'Browse Smarter. Buy with Confidence.',
+];
+
 /**
  * Home page: hero, map with listing pins, browse list (filtered by map center/radius),
  * recently viewed, and sidebar (favourites + contact realtor).
@@ -55,6 +62,7 @@ export default function Home() {
   const { favorites, isFavorited, toggleFavorite } = useFavorites();
   const [heroImageError, setHeroImageError] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState(0);
+  const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
   const [filters, setFilters] = useState<FilterParams>({ province: DEFAULT_PROVINCE });
   const [listingsSort, setListingsSort] = useState<string>('default');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -213,19 +221,23 @@ export default function Home() {
     if (loadMoreInView && hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [loadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Rotate hero background images for a more dynamic first impression.
+  // Select one hero background image on page load only.
   useEffect(() => {
-    if (HERO_IMAGES.length <= 1) return;
     setHeroImageIndex(Math.floor(Math.random() * HERO_IMAGES.length));
-    const interval = setInterval(() => {
-      setHeroImageIndex((prev) => (prev + 1) % HERO_IMAGES.length);
-    }, 6000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     setHeroImageError(false);
   }, [heroImageIndex]);
+
+  // Rotate hero headline phrases while keeping the background image fixed.
+  useEffect(() => {
+    if (HERO_PHRASES.length <= 1) return;
+    const interval = setInterval(() => {
+      setHeroPhraseIndex((prev) => (prev + 1) % HERO_PHRASES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="page-container flex flex-col">
@@ -250,7 +262,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-slate-900/50" aria-hidden />
           <div className="relative content-width text-center py-10 md:py-14 px-4">
             <h1 className="text-3xl md:text-6xl font-bold mb-3 tracking-tight">
-              find a house. make it a home.
+              {HERO_PHRASES[heroPhraseIndex]}
             </h1>
             <p className="text-white/90 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
               Browse listings from trusted REALTORS® and save your favourites.
