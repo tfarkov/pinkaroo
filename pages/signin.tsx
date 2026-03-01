@@ -67,16 +67,17 @@ export default function SignIn() {
       <div className="w-full max-w-sm flex flex-col items-center text-center">
         {/* Branding */}
         <Link href="/" className="flex flex-col items-center gap-3 mb-10 text-white hover:text-white">
-          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden">
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-white">
             {logoError ? (
-              <LogoIcon className="w-10 h-10 text-white" />
+              <LogoIcon className="w-16 h-16" />
             ) : (
               <img
                 src="/logo.png"
                 alt=""
                 width={64}
                 height={64}
-                className="w-full h-full object-contain bg-transparent rounded-full"
+                className="w-full h-full object-contain block"
+                style={{ backgroundColor: 'white' }}
                 onError={() => setLogoError(true)}
               />
             )}
