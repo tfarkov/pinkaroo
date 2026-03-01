@@ -52,10 +52,10 @@ export default function MLSSearch() {
     const params = new URLSearchParams();
     const payload = { ...data };
     if (!isMetric) {
-      if (payload.minSize != null && payload.minSize !== '') {
+      if (payload.minSize != null && String(payload.minSize).trim() !== '') {
         payload.minSize = Number(payload.minSize) / SQFT_CONVERSION_FACTOR;
       }
-      if (payload.maxSize != null && payload.maxSize !== '') {
+      if (payload.maxSize != null && String(payload.maxSize).trim() !== '') {
         payload.maxSize = Number(payload.maxSize) / SQFT_CONVERSION_FACTOR;
       }
     }

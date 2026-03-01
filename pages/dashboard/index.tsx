@@ -22,11 +22,11 @@ export default function Dashboard() {
       }
     },
   });
-  const { data: interactions } = useQuery({
-    queryKey: ['interactions'],
+  const { data: interactionsRaw } = useQuery({
+    queryKey: ['interactions', 0],
     queryFn: async () => {
       try {
-        const res = await fetch(API.CLIENTS_INTERACTIONS);
+        const res = await fetch(`${API.CLIENTS_INTERACTIONS}?page=0&limit=100`);
         if (res.ok) return res.json();
         return getMockInteractions();
       } catch {
@@ -35,6 +35,7 @@ export default function Dashboard() {
     },
     enabled: role === 'REALTOR',
   });
+  const interactions = Array.isArray(interactionsRaw) ? interactionsRaw : (interactionsRaw?.interactions ?? []);
 
   const clientChartData = useMemo(() => ({
     labels: [...CLIENT_STATUSES],
@@ -121,9 +122,9 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
-              {(interactions?.length ?? 0) > 0 && (
+              {interactions.length > 0 && (
                 <p className="text-slate-500 text-sm">
-                  {(interactions ?? []).length} interaction(s) logged.
+                  {interactions.length} interaction(s) logged.
                 </p>
               )}
             </>

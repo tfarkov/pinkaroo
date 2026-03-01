@@ -49,15 +49,16 @@ export default function AdminPanel() {
     },
     enabled: isAdmin,
   });
-  const { data: allUsers = [] } = useQuery<UserOption[]>({
-    queryKey: ['admin-users'],
+  const { data: usersData } = useQuery<{ users: UserOption[]; nextPage: number | null; total: number }>({
+    queryKey: ['admin-users', 0],
     queryFn: async () => {
-      const res = await fetch(API.ADMIN_USERS, { credentials: 'include' });
-      if (!res.ok) return [];
+      const res = await fetch(`${API.ADMIN_USERS}?page=0&limit=50`, { credentials: 'include' });
+      if (!res.ok) return { users: [], nextPage: null, total: 0 };
       return res.json();
     },
     enabled: isAdmin,
   });
+  const allUsers = usersData?.users ?? [];
   const { register, handleSubmit, formState: { errors } } = useForm<{ realtorId: string; brokerId: string }>({ mode: 'onBlur' });
 
   const sendMessageMutation = useMutation({
@@ -166,14 +167,16 @@ export default function AdminPanel() {
               <tr>
                 <th className="text-left p-3 text-slate-700 font-semibold">Name</th>
                 <th className="text-left p-3 text-slate-700 font-semibold">Broker</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Team</th>
                 <th className="text-left p-3 text-slate-700 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {realtors.map(r => (
+              {realtors.map((r: { id: string; name?: string | null; broker?: { name?: string | null } | null; team?: { name: string } | null }) => (
                 <tr key={r.id} className="border-t border-slate-200">
                   <td className="p-3 text-slate-900">{r.name}</td>
                   <td className="p-3 text-slate-900">{r.broker?.name || 'None'}</td>
+                  <td className="p-3 text-slate-900">{r.team?.name ?? '—'}</td>
                   <td className="p-3">
                     <Link href={`/admin/realtors/${r.id}`} className="text-accent-600 hover:underline font-medium text-sm">
                       Edit profile
@@ -192,14 +195,28 @@ export default function AdminPanel() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="text-left p-3 text-slate-700 font-semibold">Name</th>
-                <th className="text-left p-3 text-slate-700 font-semibold">Team Size</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Realtors</th>
+                <th className="text-left p-3 text-slate-700 font-semibold">Teams</th>
               </tr>
             </thead>
             <tbody>
-              {brokers.map(b => (
+              {brokers.map((b: { id: string; name?: string | null; teamMembers?: unknown[]; teams?: { id: string; name: string }[] }) => (
                 <tr key={b.id} className="border-t border-slate-200">
                   <td className="p-3 text-slate-900">{b.name}</td>
                   <td className="p-3 text-slate-900">{b.teamMembers?.length ?? 0}</td>
+                  <td className="p-3 text-slate-900">
+                    {b.teams?.length ? (
+                      <span className="inline-flex flex-wrap gap-1">
+                        {b.teams.map((t) => (
+                          <span key={t.id} className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-sm">
+                            {t.name}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

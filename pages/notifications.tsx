@@ -97,7 +97,7 @@ export default function NotificationsPage() {
             setReplyDraft((prev) => ({ ...prev, [dialogNotification.id]: value }))
           }
           onReply={handleReply}
-          isReplySubmitting={updateMutation.isLoading}
+          isReplySubmitting={updateMutation.isPending}
           onToggleFlag={() =>
             setFlagged(dialogNotification.id, !dialogNotification.flagged)
           }

@@ -2,7 +2,7 @@ import { useAuth } from '../lib/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { UI, RECENTLY_VIEWED_LIMIT } from '../lib/constants';
+import { UI, RECENTLY_VIEWED_LIMIT, getListingPageUrl } from '../lib/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -61,14 +61,22 @@ export default function Profile() {
         </div>
         <h2 className="text-xl font-bold text-slate-900 mb-4">{UI.RECENTLY_VIEWED_TITLE}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {recentlyViewed.filter((id): id is string => typeof id === 'string' && id.length > 0).map((id) => (
-            <Link key={id} href={`/listings/${encodeURIComponent(id)}`} className="bg-white rounded-lg shadow-card border border-slate-200 block p-0 overflow-hidden hover:shadow-card-hover transition-shadow group">
+          {recentlyViewed.filter((id): id is string => typeof id === 'string' && id.length > 0).map((id) => {
+            const url = getListingPageUrl(id);
+            return url ? (
+            <Link key={id} href={url} className="bg-white rounded-lg shadow-card border border-slate-200 block p-0 overflow-hidden hover:shadow-card-hover transition-shadow group">
               <div className="aspect-[4/3] bg-slate-200 flex items-center justify-center text-slate-500 text-sm">#{id.slice(0, 8)}</div>
               <div className="p-4">
                 <span className="text-accent-600 font-semibold group-hover:text-accent-700">{UI.VIEW_LISTING} →</span>
               </div>
             </Link>
-          ))}
+            ) : (
+              <div key={id} className="bg-white rounded-lg shadow-card border border-slate-200 block p-0 overflow-hidden">
+                <div className="aspect-[4/3] bg-slate-200 flex items-center justify-center text-slate-500 text-sm">#{id.slice(0, 8)}</div>
+                <div className="p-4"><span className="text-slate-500 font-semibold">{UI.VIEW_LISTING} →</span></div>
+              </div>
+            );
+          })}
         </div>
         {recentlyViewed.length === 0 && <p className="text-slate-500 py-10 text-center">No recently viewed listings.</p>}
       </main>
