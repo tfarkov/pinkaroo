@@ -33,7 +33,7 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
       <div className="content-width flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 shrink-0 text-white hover:text-white" aria-label="Pinkaroo home">
-          <div className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
             {logoError ? (
               <LogoIcon className="w-11 h-11 flex-shrink-0" />
             ) : (
