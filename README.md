@@ -126,7 +126,7 @@ These features require you to sign up for an external service and add credential
 
 Keep `.env` out of version control (it should be in `.gitignore`). For production, set these variables in your host's environment (e.g. Vercel, Railway).
 
-**Cron jobs (Vercel):** The MLS sync runs on a schedule via Vercel Cron. Set `CRON_SECRET` in the project’s env and deploy; see **[docs/VERCEL-CRON-DEPLOYMENT.md](docs/VERCEL-CRON-DEPLOYMENT.md)** for steps.
+**Cron jobs (Vercel):** The MLS sync runs on a schedule via Vercel Cron. Set `CRON_SECRET` in the project’s env and deploy; see **[docs/VERCEL-DEPLOYMENT-GUIDE.md](docs/VERCEL-DEPLOYMENT-GUIDE.md)** for steps.
 
 ---
 

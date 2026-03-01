@@ -121,6 +121,20 @@ export default function ListingDetail() {
   }
 
   const images = Array.isArray(listing.images) ? listing.images : [];
+<<<<<<< HEAD
+  const normalizeAddressPart = (value: string) => value.toLowerCase().replace(/[,\s]+/g, ' ').trim();
+  const street = typeof listing.streetAddress === 'string' ? listing.streetAddress.trim() : '';
+  const location = typeof listing.location === 'string' ? listing.location.trim() : '';
+  const displayAddress = (() => {
+    if (street && location) {
+      const streetNorm = normalizeAddressPart(street);
+      const locationNorm = normalizeAddressPart(location);
+      if (locationNorm.includes(streetNorm)) return location;
+      if (streetNorm.includes(locationNorm)) return street;
+      return `${street}, ${location}`;
+    }
+    return street || location || '';
+=======
   const normalizeAddressPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const street = typeof listing.streetAddress === 'string' ? listing.streetAddress.trim() : '';
   const location = typeof listing.location === 'string' ? listing.location.trim() : '';
@@ -146,6 +160,7 @@ export default function ListingDetail() {
     }
 
     return uniqueParts.join(', ');
+>>>>>>> origin/dev
   })();
 
   return (
