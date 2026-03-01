@@ -76,6 +76,7 @@ const DEFAULT_ZOOM = 12;
 export default function HomeMap({ position, listings, currentView, onMapChange }: Props) {
   const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const [loadError, setLoadError] = useState(false);
   if (!apiKey) {
     return (
       <div className="h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
@@ -85,7 +86,6 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   }
   const center = currentView?.center ?? position ?? { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
   const zoom = currentView?.zoom ?? DEFAULT_ZOOM;
-  const [loadError, setLoadError] = useState(false);
 
   if (loadError) {
     return <DefaultMap center={center} apiKey={apiKey} />;

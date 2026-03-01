@@ -121,6 +121,7 @@ export default function ListingDetail() {
   }
 
   const images = Array.isArray(listing.images) ? listing.images : [];
+<<<<<<< HEAD
   const normalizeAddressPart = (value: string) => value.toLowerCase().replace(/[,\s]+/g, ' ').trim();
   const street = typeof listing.streetAddress === 'string' ? listing.streetAddress.trim() : '';
   const location = typeof listing.location === 'string' ? listing.location.trim() : '';
@@ -133,6 +134,33 @@ export default function ListingDetail() {
       return `${street}, ${location}`;
     }
     return street || location || '';
+=======
+  const normalizeAddressPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const street = typeof listing.streetAddress === 'string' ? listing.streetAddress.trim() : '';
+  const location = typeof listing.location === 'string' ? listing.location.trim() : '';
+  const displayAddress = (() => {
+    const addressParts = [street, location]
+      .flatMap((value) => value.split(','))
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const uniqueParts: string[] = [];
+    const uniqueNorms: string[] = [];
+
+    for (const part of addressParts) {
+      const partNorm = normalizeAddressPart(part);
+      if (!partNorm) continue;
+      const isDuplicate = uniqueNorms.some(
+        (existing) => existing === partNorm || existing.includes(partNorm) || partNorm.includes(existing)
+      );
+      if (!isDuplicate) {
+        uniqueParts.push(part);
+        uniqueNorms.push(partNorm);
+      }
+    }
+
+    return uniqueParts.join(', ');
+>>>>>>> origin/dev
   })();
 
   return (
