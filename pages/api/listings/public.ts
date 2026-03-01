@@ -1,42 +1,91 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { parseQueryNum, parseQueryInt } from '../../../lib/utils/parse';
+import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
-/** Public paginated listings (no auth). Only ACTIVE/APPROVED for homepage browse. */
+/**
+ * GET /api/listings/public
+ * Public paginated listings (no auth). Only ACTIVE/APPROVED.
+ * Query: page, province, city, minPrice, maxPrice, bedrooms, bathrooms, propertyType.
+ */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).end();
+  if (!requireMethod(req, res, ['GET'])) return;
+  try {
+    const page = Math.max(0, parseQueryInt(req.query.page) ?? 0);
+    const province = typeof req.query.province === 'string' ? req.query.province : undefined;
+    const minPrice = parseQueryNum(req.query.minPrice);
+    const maxPrice = parseQueryNum(req.query.maxPrice);
+    const bedrooms = parseQueryInt(req.query.bedrooms);
+    const bathrooms = parseQueryInt(req.query.bathrooms);
+    const propertyType = typeof req.query.propertyType === 'string' ? req.query.propertyType : undefined;
+    const city = typeof req.query.city === 'string' ? req.query.city.trim() : undefined;
 
-  const page = Math.max(0, parseInt(req.query.page as string) || 0);
-  const province = typeof req.query.province === 'string' ? req.query.province : undefined;
-  const minPrice = parseFloat(req.query.minPrice as string);
-  const maxPrice = parseFloat(req.query.maxPrice as string);
-  const bedrooms = parseInt(req.query.bedrooms as string, 10);
-  const bathrooms = parseInt(req.query.bathrooms as string, 10);
-  const propertyType = typeof req.query.propertyType === 'string' ? req.query.propertyType : undefined;
-  const city = typeof req.query.city === 'string' ? req.query.city.trim() : undefined;
+    const where: Record<string, unknown> = {
+      status: { in: ['ACTIVE', 'APPROVED'] },
+    };
+    if (province) where.province = province;
+    if (city) where.location = { contains: city };
+    if (minPrice != null && minPrice > 0) where.price = { ...((where.price as object) || {}), gte: minPrice };
+    if (maxPrice != null && maxPrice > 0) where.price = { ...((where.price as object) || {}), lte: maxPrice };
+    if (bedrooms != null && bedrooms > 0) where.bedroomsTotal = { gte: bedrooms };
+    if (bathrooms != null && bathrooms > 0) where.bathroomsTotal = { gte: bathrooms };
+    if (propertyType) where.propertyType = propertyType;
 
-  const where: Record<string, unknown> = {
-    status: { in: ['ACTIVE', 'APPROVED'] },
-  };
-  if (province) where.province = province;
-  if (city) where.location = { contains: city };
-  if (!isNaN(minPrice) && minPrice > 0) where.price = { ...((where.price as object) || {}), gte: minPrice };
-  if (!isNaN(maxPrice) && maxPrice > 0) where.price = { ...((where.price as object) || {}), lte: maxPrice };
-  if (!isNaN(bedrooms) && bedrooms > 0) where.bedroomsTotal = { gte: bedrooms };
-  if (!isNaN(bathrooms) && bathrooms > 0) where.bathroomsTotal = { gte: bathrooms };
-  if (propertyType) where.propertyType = propertyType;
+    const rows = await prisma.listing.findMany({
+      where: where as Parameters<typeof prisma.listing.findMany>[0]['where'],
+      skip: page * PAGE_SIZE,
+      take: PAGE_SIZE,
+      orderBy: { updatedAt: 'desc' },
+    });
 
-  const listings = await prisma.listing.findMany({
-    where: where as Parameters<typeof prisma.listing.findMany>[0]['where'],
-    skip: page * PAGE_SIZE,
-    take: PAGE_SIZE,
-    orderBy: { updatedAt: 'desc' },
-  });
+    // Build plain JSON-safe objects; ensure ecoRatingScore is always a number or null for client
+    const listings = rows.map((l) => {
+      const eco = l.ecoRatingScore != null ? Number(l.ecoRatingScore) : null;
+      return {
+        id: l.id,
+        title: l.title,
+        description: l.description,
+        price: Number(l.price),
+        location: l.location,
+        province: l.province,
+        postalCode: l.postalCode,
+        sizeSqm: l.sizeSqm != null ? Number(l.sizeSqm) : null,
+        bedroomsTotal: l.bedroomsTotal,
+        bathroomsTotal: l.bathroomsTotal,
+        propertyType: l.propertyType,
+        latitude: l.latitude != null ? Number(l.latitude) : null,
+        longitude: l.longitude != null ? Number(l.longitude) : null,
+        images: l.images,
+        status: l.status,
+        userId: l.userId,
+        createdAt: l.createdAt,
+        updatedAt: l.updatedAt,
+        streetAddress: l.streetAddress ?? null,
+        unitNumber: l.unitNumber ?? null,
+        yearBuilt: l.yearBuilt ?? null,
+        lotSizeSqm: l.lotSizeSqm != null ? Number(l.lotSizeSqm) : null,
+        standardStatus: l.standardStatus ?? null,
+        halfBathroomsTotal: l.halfBathroomsTotal ?? null,
+        buildingLevelTotal: l.buildingLevelTotal ?? null,
+        mlsId: l.mlsId ?? null,
+        ecoRatingScore: eco,
+        heatingType: l.heatingType ?? null,
+        insulationQuality: l.insulationQuality ?? null,
+        hasRecentRenovations: l.hasRecentRenovations ?? null,
+        roofAgeYears: l.roofAgeYears ?? null,
+        appliancesAgeYears: l.appliancesAgeYears ?? null,
+      };
+    });
 
-  res.json({
-    listings,
-    nextPage: listings.length === PAGE_SIZE ? page + 1 : null,
-  });
+    res.json({
+      listings,
+      nextPage: listings.length === PAGE_SIZE ? page + 1 : null,
+    });
+  } catch (err) {
+    console.error('[api/listings/public]', err);
+    if (!res.headersSent) sendError(res, 500);
+  }
 }

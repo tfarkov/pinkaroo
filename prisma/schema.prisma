@@ -1,6 +1,7 @@
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 generator client {
   provider = "prisma-client-js"
@@ -26,8 +27,8 @@ model User {
   isTeamLead    Boolean?  @default(false) // Realtors designated as team leads can edit team profiles
   broker        User?     @relation("BrokerTeam", fields: [brokerId], references: [id])
   teamMembers   User[]    @relation("BrokerTeam")
-  teams         Team[]    // Teams this user (broker) owns
-  team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  teams         Team[]    @relation("BrokerOwnsTeams") // Teams this user (broker) owns
+  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -45,12 +46,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token      String?
-  access_token      String?
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
   expires_at        Int?
   token_type        String?
-  scope             String?
-  id_token          String?
+  scope             String?  @db.Text
+  id_token          String?  @db.Text
   session_state     String?
   user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([provider, providerAccountId])
@@ -76,33 +77,51 @@ enum Role {
   BROKER
 }
 model Listing {
-  id               String       @id @default(uuid())
-  title            String
-  description      String
-  price            Float
-  location         String
-  province         Province     @default(ONTARIO)
-  postalCode       String?
-  sizeSqm          Float?
-  bedroomsTotal    Int?
-  bathroomsTotal   Int?
-  propertyType     String?
-  latitude         Float?
-  longitude        Float?
-  images           Json?   // array of image URLs
-  mlsId            String?  @unique
-  status           ListingStatus @default(ACTIVE)
-  approvedBy       String?
-  approvedAt       DateTime?
-  rejectionReason  String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  userId           String
-  user             User         @relation(fields: [userId], references: [id])
-  favorites        Favorite[]
+  id                 String       @id @default(uuid())
+  title              String
+  description        String
+  price              Float
+  location           String
+  province           Province     @default(ONTARIO)
+  postalCode         String?
+  sizeSqm            Float?
+  bedroomsTotal      Int?
+  bathroomsTotal     Int?
+  propertyType       String?
+  latitude           Float?
+  longitude          Float?
+  images             Json?   // array of image URLs
+  mlsId              String?  @unique
+  status             ListingStatus @default(ACTIVE)
+  approvedBy         String?
+  approvedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  userId             String
+  user               User         @relation(fields: [userId], references: [id])
+  favorites          Favorite[]
+  // MLS / DDF property attributes
+  streetAddress      String?
+  unitNumber         String?
+  yearBuilt          Int?
+  lotSizeSqm         Float?
+  standardStatus     String?   // e.g. Active, Sold
+  halfBathroomsTotal Int?
+  buildingLevelTotal Int?      // stories
+  mlsLastUpdated     DateTime?
+  mlsData            Json?     // full raw MLS payload for extra attributes
+  // Eco-rating: precomputed 1–10 score, indexed for sorting
+  ecoRatingScore     Float?
+  heatingType        String?
+  insulationQuality  String?
+  hasRecentRenovations Boolean?
+  roofAgeYears       Int?
+  appliancesAgeYears Int?
   @@index([status])
   @@index([userId])
   @@index([latitude, longitude])
+  @@index([ecoRatingScore])
 }
 enum ListingStatus {
   ACTIVE
@@ -156,6 +175,8 @@ model Interaction {
   userId    String   
   client    Client   @relation(fields: [clientId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  @@index([userId])
+  @@index([clientId, date])
 }
 model Notification {
   id         String    @id @default(uuid())
@@ -181,8 +202,8 @@ model Team {
   id        String   @id @default(uuid())
   name      String
   brokerId  String
-  broker    User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  members   User[]
+  broker    User     @relation("BrokerOwnsTeams", fields: [brokerId], references: [id], onDelete: Cascade)
+  members   User[]   @relation("TeamMembers")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([brokerId])

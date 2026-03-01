@@ -9,6 +9,7 @@ export interface ListingBasic {
   bedroomsTotal?: number;
   bathroomsTotal?: number;
   sizeSqm?: number;
+  ecoRatingScore?: number | null;
 }
 
 export interface ListingWithCoords extends ListingBasic {

@@ -1,7 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Province, type ListingStatus } from '@prisma/client';
 import { API_MESSAGES, NOTIFICATION_MESSAGES } from '../../../lib/constants';
+import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { geocodeAddress } from '../../../lib/geocode';
+import { computeEcoRatingScore } from '../../../lib/ecoRating';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -20,9 +23,13 @@ export const config = {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!requireMethod(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
   const session = await getSession(req, res);
-  if (!session) return res.status(401).json({ error: API_MESSAGES.UNAUTHORIZED });
-
+  if (!session) {
+    sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
+    return;
+  }
+  try {
   if (req.method === 'GET') {
     const page = parseInt(req.query.page as string) || 0;
     const filters = req.query;
@@ -40,16 +47,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isNaN(bedrooms) && bedrooms > 0) where.bedroomsTotal = { gte: bedrooms };
     if (!isNaN(bathrooms) && bathrooms > 0) where.bathroomsTotal = { gte: bathrooms };
     if (filters.propertyType && typeof filters.propertyType === 'string') where.propertyType = filters.propertyType;
+    const PAGE_SIZE = 10;
     const listings = await prisma.listing.findMany({
-      skip: page * 20,
-      take: 20,
+      skip: page * PAGE_SIZE,
+      take: PAGE_SIZE,
       where: where as Parameters<typeof prisma.listing.findMany>[0]['where'],
     });
-    res.json({ listings, nextPage: listings.length === 20 ? page + 1 : null });
-  } else if (req.method === 'POST') {
+    res.json({ listings, nextPage: listings.length === PAGE_SIZE ? page + 1 : null });
+    return;
+  }
+  if (req.method === 'POST') {
     const role = session.user.role;
     if (role !== 'REALTOR' && role !== 'BROKER' && role !== 'ADMIN') {
-      return res.status(403).json({ error: API_MESSAGES.FORBIDDEN });
+      sendError(res, 403, API_MESSAGES.FORBIDDEN);
+      return;
     }
     await new Promise<void>((resolve, reject) => upload.array('images')(req as any, res as any, (err) => {
       if (err) reject(err);
@@ -62,23 +73,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await cloudinary.uploader.upload(file.path, { transformation: [{ width: 800, quality: 80, format: 'auto' }], secure: true });
       return result.secure_url;
     }));
+    const province = ((rawBody.province as string) ?? 'ONTARIO') as Province;
+    const status = (role === 'REALTOR' ? 'PENDING' : 'ACTIVE') as ListingStatus;
+    let latitude = num(rawBody.latitude) ?? null;
+    let longitude = num(rawBody.longitude) ?? null;
+    const locationStr = String(rawBody.location ?? '').trim();
+    if ((latitude == null || longitude == null) && locationStr) {
+      const geocoded = await geocodeAddress(locationStr);
+      if (geocoded) {
+        latitude = geocoded.lat;
+        longitude = geocoded.lng;
+      }
+    }
     const data = {
       title: String(rawBody.title ?? ''),
       description: String(rawBody.description ?? ''),
       price: num(rawBody.price) ?? 0,
       location: String(rawBody.location ?? ''),
-      province: (rawBody.province as string) ?? 'ONTARIO',
+      province,
       postalCode: rawBody.postalCode != null ? String(rawBody.postalCode) : null,
       sizeSqm: num(rawBody.sizeSqm),
       bedroomsTotal: num(rawBody.bedroomsTotal) ?? null,
       bathroomsTotal: num(rawBody.bathroomsTotal) ?? null,
       propertyType: rawBody.propertyType != null ? String(rawBody.propertyType) : null,
-      latitude: num(rawBody.latitude) ?? null,
-      longitude: num(rawBody.longitude) ?? null,
+      latitude,
+      longitude,
       images: images.length ? images : (rawBody.images as string[] | undefined) ?? [],
       userId: session.user.id,
-      status: role === 'REALTOR' ? 'PENDING' : 'ACTIVE',
+      status,
+      streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
+      yearBuilt: num(rawBody.yearBuilt) ?? undefined,
+      lotSizeSqm: num(rawBody.lotSizeSqm) ?? undefined,
+      heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
+      insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
+      hasRecentRenovations: rawBody.hasRecentRenovations === true || rawBody.hasRecentRenovations === 'true' ? true : (rawBody.hasRecentRenovations === false || rawBody.hasRecentRenovations === 'false' ? false : undefined),
+      roofAgeYears: num(rawBody.roofAgeYears) ?? null,
+      appliancesAgeYears: num(rawBody.appliancesAgeYears) ?? null,
     };
+    const ecoScore = computeEcoRatingScore({
+      yearBuilt: data.yearBuilt ?? undefined,
+      heatingType: data.heatingType ?? undefined,
+      insulationQuality: data.insulationQuality ?? undefined,
+      hasRecentRenovations: data.hasRecentRenovations ?? undefined,
+      roofAgeYears: data.roofAgeYears ?? undefined,
+      appliancesAgeYears: data.appliancesAgeYears ?? undefined,
+    });
+    (data as Record<string, unknown>).ecoRatingScore = ecoScore ?? null;
     const listing = await prisma.listing.create({ data });
     const io = (global as { io?: { to: (id: string) => { emit: (e: string, d: unknown) => void } } }).io;
     if (role === 'REALTOR' && io) {
@@ -86,13 +126,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (user?.brokerId) io.to(user.brokerId).emit('notification', { message: NOTIFICATION_MESSAGES.NEW_LISTING_PENDING, id: listing.id });
     }
     res.json(listing);
-  } else if (req.method === 'PUT') {
-    const { id, ...updateData } = req.body;
+    return;
+  }
+  if (req.method === 'PUT') {
+    const { id, ...updateData } = (req.body ?? {}) as Record<string, unknown> & { id?: string };
+    if (!id || typeof id !== 'string') {
+      sendError(res, 400, 'id is required');
+      return;
+    }
+    const locationStr = typeof updateData.location === 'string' ? updateData.location.trim() : '';
+    const hasLat = updateData.latitude != null && !Number.isNaN(Number(updateData.latitude));
+    const hasLng = updateData.longitude != null && !Number.isNaN(Number(updateData.longitude));
+    if (locationStr && (!hasLat || !hasLng)) {
+      const geocoded = await geocodeAddress(locationStr);
+      if (geocoded) {
+        updateData.latitude = geocoded.lat;
+        updateData.longitude = geocoded.lng;
+      }
+    }
+    const ecoKeys = ['yearBuilt', 'heatingType', 'insulationQuality', 'hasRecentRenovations', 'roofAgeYears', 'appliancesAgeYears'];
+    const hasEcoChange = ecoKeys.some((k) => updateData[k] !== undefined);
+    if (hasEcoChange) {
+      const existing = await prisma.listing.findUnique({ where: { id }, select: { yearBuilt: true, heatingType: true, insulationQuality: true, hasRecentRenovations: true, roofAgeYears: true, appliancesAgeYears: true } });
+      const y = updateData.yearBuilt !== undefined ? num(updateData.yearBuilt) : existing?.yearBuilt ?? undefined;
+      const ht = updateData.heatingType !== undefined ? (updateData.heatingType != null && String(updateData.heatingType).trim() ? String(updateData.heatingType).trim() : null) : existing?.heatingType ?? undefined;
+      const iq = updateData.insulationQuality !== undefined ? (updateData.insulationQuality != null && String(updateData.insulationQuality).trim() ? String(updateData.insulationQuality).trim() : null) : existing?.insulationQuality ?? undefined;
+      const ren = updateData.hasRecentRenovations !== undefined ? !!updateData.hasRecentRenovations : existing?.hasRecentRenovations ?? undefined;
+      const roof = updateData.roofAgeYears !== undefined ? num(updateData.roofAgeYears) : existing?.roofAgeYears ?? undefined;
+      const app = updateData.appliancesAgeYears !== undefined ? num(updateData.appliancesAgeYears) : existing?.appliancesAgeYears ?? undefined;
+      const ecoScore = computeEcoRatingScore({ yearBuilt: y ?? null, heatingType: ht ?? null, insulationQuality: iq ?? null, hasRecentRenovations: ren ?? null, roofAgeYears: roof ?? null, appliancesAgeYears: app ?? null });
+      updateData.ecoRatingScore = ecoScore ?? null;
+    }
     const updated = await prisma.listing.update({ where: { id }, data: updateData });
     res.json(updated);
-  } else if (req.method === 'DELETE') {
-    const { id } = req.body;
+    return;
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body ?? {};
+    if (!id || typeof id !== 'string') {
+      sendError(res, 400, 'id is required');
+      return;
+    }
     await prisma.listing.delete({ where: { id } });
     res.status(204).end();
+  }
+  } catch (err) {
+    console.error('[api/listings]', err);
+    if (!res.headersSent) sendError(res, 500);
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Seed script: creates test users and sample data.
+ * Seed script: creates test users, mock listings (for before MLS sync), and sample data.
  * Run: npx prisma db seed  (or: npm run db:seed)
  *
  * ┌─────────────────────────┬────────────┬───────────────┬─────────────────────────────────────┐
@@ -15,13 +15,17 @@
  * │ user@example.com        │ password   │ Jamie Smith   │ Consumer (USER)                      │
  * └─────────────────────────┴────────────┴───────────────┴─────────────────────────────────────┘
  * Sign in at /signin with any row above.
+ *
+ * Mock listings (30 Barrie/Innisfil properties) are upserted so they load from DB until MLS sync is active.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Role, type Province, type ListingStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { ADMIN_EMAIL, UI } from '../lib/constants';
+import { MOCK_LISTINGS } from '../lib/mockData';
 
 const prisma = new PrismaClient();
 const TEST_PASSWORD = 'password';
+const ADMIN_EMAIL = 'admin@example.com';
+const WELCOME_NOTIFICATION = 'Welcome to Pinkaroo';
 
 async function main() {
   const hashedPassword = await bcrypt.hash(TEST_PASSWORD, 10);
@@ -178,7 +182,7 @@ async function main() {
     },
   });
   // Emulate user for local testing (no DB required to sign in; seed creates record so APIs work)
-  const emulateRole = (process.env.EMULATE_SESSION_ROLE ?? 'REALTOR').toUpperCase();
+  const emulateRole = (process.env.EMULATE_SESSION_ROLE ?? 'REALTOR').toUpperCase() as Role;
   await prisma.user.upsert({
     where: { id: 'emulate-local' },
     update: { role: emulateRole },
@@ -212,6 +216,81 @@ async function main() {
       userId: realtor.id,
     },
   });
+
+  // Mock listings: upsert by id so re-seed is safe. Include all MLS attributes from mock data.
+  for (const l of MOCK_LISTINGS) {
+    await prisma.listing.upsert({
+      where: { id: l.id },
+      create: {
+        id: l.id,
+        title: l.title,
+        description: l.description,
+        price: l.price,
+        location: l.location,
+        province: (l.province as Province) ?? 'ONTARIO',
+        postalCode: l.postalCode ?? null,
+        sizeSqm: l.sizeSqm ?? null,
+        bedroomsTotal: l.bedroomsTotal ?? null,
+        bathroomsTotal: l.bathroomsTotal ?? null,
+        propertyType: l.propertyType ?? null,
+        latitude: l.latitude ?? null,
+        longitude: l.longitude ?? null,
+        images: (l.images ?? []) as object,
+        status: (l.status as ListingStatus) ?? 'ACTIVE',
+        mlsId: l.mlsId ?? null,
+        userId: realtor.id,
+        streetAddress: l.streetAddress ?? null,
+        unitNumber: l.unitNumber ?? null,
+        yearBuilt: l.yearBuilt ?? null,
+        lotSizeSqm: l.lotSizeSqm ?? null,
+        standardStatus: l.standardStatus ?? null,
+        halfBathroomsTotal: l.halfBathroomsTotal ?? null,
+        buildingLevelTotal: l.buildingLevelTotal ?? null,
+        mlsLastUpdated: l.mlsLastUpdated ? new Date(l.mlsLastUpdated) : null,
+        mlsData: (l.mlsData ?? null) as object | null,
+        ecoRatingScore: l.ecoRatingScore ?? null,
+        heatingType: l.heatingType ?? null,
+        insulationQuality: l.insulationQuality ?? null,
+        hasRecentRenovations: l.hasRecentRenovations ?? null,
+        roofAgeYears: l.roofAgeYears ?? null,
+        appliancesAgeYears: l.appliancesAgeYears ?? null,
+      },
+      update: {
+        title: l.title,
+        description: l.description,
+        price: l.price,
+        location: l.location,
+        province: (l.province as Province) ?? 'ONTARIO',
+        postalCode: l.postalCode ?? null,
+        sizeSqm: l.sizeSqm ?? null,
+        bedroomsTotal: l.bedroomsTotal ?? null,
+        bathroomsTotal: l.bathroomsTotal ?? null,
+        propertyType: l.propertyType ?? null,
+        latitude: l.latitude ?? null,
+        longitude: l.longitude ?? null,
+        images: (l.images ?? []) as object,
+        status: (l.status as ListingStatus) ?? 'ACTIVE',
+        mlsId: l.mlsId ?? null,
+        streetAddress: l.streetAddress ?? null,
+        unitNumber: l.unitNumber ?? null,
+        yearBuilt: l.yearBuilt ?? null,
+        lotSizeSqm: l.lotSizeSqm ?? null,
+        standardStatus: l.standardStatus ?? null,
+        halfBathroomsTotal: l.halfBathroomsTotal ?? null,
+        buildingLevelTotal: l.buildingLevelTotal ?? null,
+        mlsLastUpdated: l.mlsLastUpdated ? new Date(l.mlsLastUpdated) : null,
+        mlsData: (l.mlsData ?? null) as object | null,
+        ecoRatingScore: l.ecoRatingScore ?? null,
+        heatingType: l.heatingType ?? null,
+        insulationQuality: l.insulationQuality ?? null,
+        hasRecentRenovations: l.hasRecentRenovations ?? null,
+        roofAgeYears: l.roofAgeYears ?? null,
+        appliancesAgeYears: l.appliancesAgeYears ?? null,
+      },
+    });
+  }
+  console.log(`Seeded ${MOCK_LISTINGS.length} mock listings (ids mock-1..mock-100, at 10/20/…/100 km).`);
+
   // Sample client
   await prisma.client.create({
     data: {
@@ -226,7 +305,7 @@ async function main() {
   // Sample notification
   await prisma.notification.create({
     data: {
-      message: UI.WELCOME_NOTIFICATION,
+      message: WELCOME_NOTIFICATION,
       type: 'SYSTEM',
       userId: admin.id,
     },

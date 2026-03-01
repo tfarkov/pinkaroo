@@ -4,14 +4,18 @@ import { useInView } from 'react-intersection-observer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION } from '../lib/constants';
-import { getMockListingsPage, getMockNearbyListings, getMockListing, getMockPinkarooTeam } from '../lib/mockData';
+import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION, NEARBY_POOL_RADIUS_KM, getListingPageUrl } from '../lib/constants';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { useRecentlyViewed } from '../lib/hooks/useRecentlyViewed';
 import { useFavorites } from '../lib/hooks/useFavorites';
 import { formatPrice } from '../lib/format';
 import type { ListingBasic, ListingWithCoords, FavoriteItem, RealtorTeamMember } from '../lib/types';
+import type { ListingSortValue } from '../lib/listings';
+import { buildQueryParams } from '../lib/utils/queryParams';
+import type { FilterParams } from '../lib/utils/queryParams';
+import { distanceKm, radiusKmFromZoom } from '../lib/utils/geo';
+import { sortListings, LISTING_SORT_OPTIONS } from '../lib/listings';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -19,26 +23,8 @@ import SafeListingImage from '../components/ui/SafeListingImage';
 import ListingCard from '../components/ListingCard';
 import ContactRealtorCard from '../components/ContactRealtorCard';
 import AdvancedFilters from '../components/AdvancedFilters';
-
-type FilterParams = Record<string, string | number | undefined>;
-
-function buildQueryParams(filters: FilterParams, extra: Record<string, string> = {}): string {
-  const params = new URLSearchParams();
-  Object.entries({ ...filters, ...extra }).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
-  });
-  const q = params.toString();
-  return q ? `?${q}` : '';
-}
-
-const SORT_OPTIONS = [
-  { value: 'default', label: 'Default' },
-  { value: 'price-asc', label: 'Price: low to high' },
-  { value: 'price-desc', label: 'Price: high to low' },
-  { value: 'beds-desc', label: 'Beds: most first' },
-  { value: 'baths-desc', label: 'Baths: most first' },
-  { value: 'size-desc', label: 'Size: largest first' },
-] as const;
+import LoadingMore from '../components/ui/LoadingMore';
+import EmptyState from '../components/ui/EmptyState';
 
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
@@ -49,24 +35,14 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ),
 });
 
-/** Radius (km) for nearby fetch: zoom in = smaller radius, zoom out = larger. Clamped 2–500 km. */
-function radiusKmFromZoom(zoom: number): number {
-  return Math.min(500, Math.max(2, DEFAULT_NEARBY_RADIUS_KM * Math.pow(2, 10 - zoom)));
-}
-
-/** Approximate distance in km between two points (for filtering to map radius). */
-function distanceKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number }
-): number {
-  const dLat = (b.lat - a.lat) * (Math.PI / 180);
-  const dLng = (b.lng - a.lng) * (Math.PI / 180);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * (Math.PI / 180)) * Math.cos(b.lat * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.sqrt(x)); // 6371 km Earth radius
-}
-
+/**
+ * Home page: hero, map with listing pins, browse list (filtered by map center/radius),
+ * recently viewed, and sidebar (favourites + contact realtor).
+ * Listings from /api/listings/nearby (haversine, indexed lat/lng, default 50km) and
+ * /api/listings/public. User position from geolocation with fallback to Barrie, ON.
+ */
 export default function Home() {
-  const position = useGeolocation();
+  const position = useGeolocation(); // Barrie, ON when geolocation unavailable or denied
   const { isMetric } = useUnitToggle();
   const recentIds = useRecentlyViewed();
   const { favorites, isFavorited, toggleFavorite } = useFavorites();
@@ -75,10 +51,14 @@ export default function Home() {
   const [listingsSort, setListingsSort] = useState<string>('default');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
-  const { ref, inView } = useInView();
+  const { ref, inView } = useInView({ rootMargin: '200px', threshold: 0 });
+  /** IntersectionObserver: prefetch next page when sentinel is ~300px from viewport for smoother infinite scroll. */
+  const { ref: loadMoreRef, inView: loadMoreInView } = useInView({ rootMargin: '300px', threshold: 0 });
   const [mapView, setMapView] = useState<{ center: { lat: number; lng: number }; zoom: number } | null>(null);
   const [mapExpandedRadiusKm, setMapExpandedRadiusKm] = useState<number | null>(null);
+  const sentinelExpandedRef = useRef(false);
 
+  // Close sort dropdown on outside click or Escape
   useEffect(() => {
     if (!sortDropdownOpen) return;
     function handleClickOutside(e: MouseEvent) {
@@ -100,35 +80,32 @@ export default function Home() {
   };
 
   const mapCenter = mapView?.center ?? position ?? DEFAULT_LOCATION;
-  const mapZoom = mapView?.zoom ?? 10;
+  const mapZoom = mapView?.zoom ?? 12;
   const nearbyRadiusKm = radiusKmFromZoom(mapZoom);
-  const effectiveNearbyRadiusKm = mapView
-    ? Math.max(nearbyRadiusKm, mapExpandedRadiusKm ?? nearbyRadiusKm)
-    : nearbyRadiusKm;
+
+  /** Single fetch: pool of listings within NEARBY_POOL_RADIUS_KM of initial center. No refetch on pan/zoom. */
+  const poolCenter = position ?? DEFAULT_LOCATION;
   const nearbyParams = buildQueryParams(filters, {
-    lat: String(mapCenter.lat),
-    lng: String(mapCenter.lng),
-    radius: String(effectiveNearbyRadiusKm),
+    lat: String(poolCenter.lat),
+    lng: String(poolCenter.lng),
+    radius: String(NEARBY_POOL_RADIUS_KM),
   });
 
-  const { data: nearbyListings = [], isFetching: isNearbyFetching } = useQuery({
-    queryKey: ['nearby', mapCenter.lat, mapCenter.lng, effectiveNearbyRadiusKm, filters],
+  const { data: nearbyPool = [], isFetching: isNearbyFetching } = useQuery({
+    queryKey: ['nearby', poolCenter.lat, poolCenter.lng, NEARBY_POOL_RADIUS_KM, filters],
     queryFn: async () => {
-      try {
-        const res = await fetch(`${API.LISTINGS_NEARBY}${nearbyParams}`);
-        if (res.ok) return res.json();
-        return getMockNearbyListings(filters);
-      } catch {
-        return getMockNearbyListings(filters);
-      }
+      const res = await fetch(`${API.LISTINGS_NEARBY}${nearbyParams}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
-    staleTime: 0,
+    staleTime: STALE_TIME_5_MIN,
   });
 
-  /** Map shows only listings within the base (zoom) radius; browse list shows expanded radius. */
+  /** Pins: filter pool by current map center + zoom radius only (no refetch). */
   const mapListings = useMemo(() => {
-    const list = nearbyListings as (ListingWithCoords & { latitude?: number; longitude?: number })[];
-    if (!mapView || list.length === 0) return list as ListingWithCoords[];
+    const list = nearbyPool as (ListingWithCoords & { latitude?: number; longitude?: number })[];
+    if (list.length === 0) return list as ListingWithCoords[];
     const lat = mapCenter.lat;
     const lng = mapCenter.lng;
     return list.filter(
@@ -137,19 +114,32 @@ export default function Home() {
         l.longitude != null &&
         distanceKm({ lat: l.latitude, lng: l.longitude }, { lat, lng }) <= nearbyRadiusKm
     ) as ListingWithCoords[];
-  }, [mapView, nearbyListings, mapCenter.lat, mapCenter.lng, nearbyRadiusKm]);
+  }, [nearbyPool, mapCenter.lat, mapCenter.lng, nearbyRadiusKm]);
 
-  const canExpandNearby = mapView != null && effectiveNearbyRadiusKm < 500;
+  /** Browse list uses expanded radius when user scrolls (still no refetch; filter more of the pool). */
+  const effectiveNearbyRadiusKm =
+    mapView == null
+      ? DEFAULT_NEARBY_RADIUS_KM
+      : Math.min(NEARBY_POOL_RADIUS_KM, Math.max(nearbyRadiusKm, mapExpandedRadiusKm ?? nearbyRadiusKm));
+
+  const canExpandNearby = mapView != null && effectiveNearbyRadiusKm < NEARBY_POOL_RADIUS_KM;
+
+  // Reset "already expanded" when sentinel scrolls out of view so next scroll-to-bottom can expand again
   useEffect(() => {
-    if (!mapView || !inView || !canExpandNearby || isNearbyFetching) return;
+    if (!inView) sentinelExpandedRef.current = false;
+  }, [inView]);
+
+  // Expand radius only once per scroll-to-bottom to avoid flicker from rapid re-renders
+  useEffect(() => {
+    if (!mapView || !inView || !canExpandNearby || isNearbyFetching || sentinelExpandedRef.current) return;
+    sentinelExpandedRef.current = true;
     setMapExpandedRadiusKm((prev) => {
       const current = prev ?? nearbyRadiusKm;
-      if (current >= 500) return prev;
-      return Math.min(500, Math.round(current * 2));
+      if (current >= NEARBY_POOL_RADIUS_KM) return prev;
+      return Math.min(NEARBY_POOL_RADIUS_KM, Math.round(current * 2));
     });
   }, [inView, mapView, canExpandNearby, isNearbyFetching, nearbyRadiusKm]);
 
-  /** On pan/zoom, reset expanded radius so browse list shows only the mapped listings for the new view. */
   const handleMapChange = useCallback((view: { center: { lat: number; lng: number }; zoom: number }) => {
     setMapView(view);
     setMapExpandedRadiusKm(null);
@@ -162,16 +152,14 @@ export default function Home() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching: isListingsFetching,
   } = useInfiniteQuery({
     queryKey: ['listings-public', filters],
     queryFn: async ({ pageParam }) => {
-      try {
-        const res = await fetch(`${API.LISTINGS_PUBLIC}${listParams(pageParam)}`);
-        if (res.ok) return res.json();
-        return getMockListingsPage(pageParam, 20, filters);
-      } catch {
-        return getMockListingsPage(pageParam, 20, filters);
-      }
+      const res = await fetch(`${API.LISTINGS_PUBLIC}${listParams(pageParam)}`);
+      if (!res.ok) return { listings: [], nextPage: null };
+      const data = await res.json();
+      return { listings: data?.listings ?? [], nextPage: data?.nextPage ?? null };
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage: { nextPage?: number | null }) => lastPage.nextPage ?? undefined,
@@ -180,78 +168,42 @@ export default function Home() {
 
   const listings: ListingBasic[] = listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [];
 
-  const sortedListings = useMemo(() => {
-    if (listingsSort === 'default') return listings;
-    const arr = [...listings];
-    switch (listingsSort) {
-      case 'price-asc':
-        return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-      case 'price-desc':
-        return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-      case 'beds-desc':
-        return arr.sort((a, b) => (b.bedroomsTotal ?? 0) - (a.bedroomsTotal ?? 0));
-      case 'baths-desc':
-        return arr.sort((a, b) => (b.bathroomsTotal ?? 0) - (a.bathroomsTotal ?? 0));
-      case 'size-desc':
-        return arr.sort((a, b) => (b.sizeSqm ?? 0) - (a.sizeSqm ?? 0));
-      default:
-        return arr;
-    }
-  }, [listings, listingsSort]);
-
-  /** Browse list shows nearby listings (50 km of user location by default; follows map when panned/zoomed). */
-  const browseListings = useMemo(() => {
-    const arr = [...(nearbyListings as ListingBasic[])];
-    if (listingsSort === 'default') return arr;
-    switch (listingsSort) {
-      case 'price-asc':
-        return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-      case 'price-desc':
-        return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-      case 'beds-desc':
-        return arr.sort((a, b) => (b.bedroomsTotal ?? 0) - (a.bedroomsTotal ?? 0));
-      case 'baths-desc':
-        return arr.sort((a, b) => (b.bathroomsTotal ?? 0) - (a.bathroomsTotal ?? 0));
-      case 'size-desc':
-        return arr.sort((a, b) => (b.sizeSqm ?? 0) - (a.sizeSqm ?? 0));
-      default:
-        return arr;
-    }
-  }, [nearbyListings, listingsSort]);
+  const sortedListings = useMemo(
+    () => sortListings(listings, listingsSort as ListingSortValue),
+    [listings, listingsSort]
+  );
 
   const { data: pinkarooTeam = [], isLoading: pinkarooLoading } = useQuery({
     queryKey: ['realtors-pinkaroo'],
     queryFn: async () => {
-      try {
-        const res = await fetch(API.REALTORS_PINKAROO);
-        if (res.ok) return res.json();
-        return getMockPinkarooTeam();
-      } catch {
-        return getMockPinkarooTeam();
-      }
+      const res = await fetch(API.REALTORS_PINKAROO);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     staleTime: STALE_TIME_5_MIN,
   });
 
+  /** Exclude reserved path segments that are not listing IDs (e.g. "new" for /listings/new). */
+  const recentListingIds = useMemo(
+    () => recentIds.filter((id: string) => id !== 'new' && id.trim().length > 0),
+    [recentIds]
+  );
   const recentListingsQueries = useQueries({
-    queries: recentIds.map((id: string) => ({
+    queries: recentListingIds.map((id: string) => ({
       queryKey: ['listing', id],
       queryFn: async () => {
-        try {
-          const res = await fetch(`${API.LISTINGS}/${id}`);
-          if (res.ok) return res.json();
-          return getMockListing(id);
-        } catch {
-          return getMockListing(id);
-        }
+        const res = await fetch(`${API.LISTINGS}/${id}`);
+        if (!res.ok) return undefined;
+        return res.json();
       },
       staleTime: STALE_TIME_5_MIN,
     })),
   });
 
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (loadMoreInView && hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [loadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="page-container flex flex-col">
@@ -343,7 +295,7 @@ export default function Home() {
                         aria-labelledby="listings-sort-button"
                         className="absolute right-0 top-full mt-2 min-w-[12rem] rounded-xl border border-slate-200 bg-white shadow-lg py-2 z-50"
                       >
-                        {SORT_OPTIONS.map((opt) => (
+                        {LISTING_SORT_OPTIONS.map((opt) => (
                           <li key={opt.value} role="option" aria-selected={listingsSort === opt.value}>
                             <button
                               type="button"
@@ -363,7 +315,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {browseListings.map((listing) => (
+                {sortedListings.map((listing) => (
                   <ListingCard
                     key={listing.id}
                     listing={listing}
@@ -373,25 +325,26 @@ export default function Home() {
                   />
                 ))}
               </div>
-              {mapView && canExpandNearby ? (
-                <div ref={ref} className="flex flex-col items-center justify-center py-12">
-                  {isNearbyFetching ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="relative w-10 h-10" aria-hidden>
-                        <div className="absolute inset-0 rounded-full border-2 border-slate-200" />
-                        <div className="absolute inset-0 rounded-full border-2 border-accent-500 border-t-transparent animate-spin" />
-                      </div>
-                      <p className="text-slate-500 text-sm font-medium">{UI.LOADING_MORE}</p>
-                    </div>
-                  ) : (
-                    <span className="h-4" aria-hidden />
-                  )}
+              {hasNextPage ? (
+                <div
+                  ref={loadMoreRef}
+                  className="flex flex-col items-center justify-center min-h-[120px] py-8"
+                  aria-hidden
+                >
+                  {isFetchingNextPage ? <LoadingMore label={UI.LOADING_MORE} /> : <span className="h-4" />}
                 </div>
               ) : null}
-              {browseListings.length === 0 && !isNearbyFetching && (
-                <p className="text-slate-500 py-10 text-center">
-                  No listings within this area. Pan or zoom the map to explore, or try a different location.
-                </p>
+              {mapView && canExpandNearby ? (
+                <div
+                  ref={ref}
+                  className="flex flex-col items-center justify-center min-h-[120px] py-8"
+                  aria-hidden
+                >
+                  {isNearbyFetching ? <LoadingMore label={UI.LOADING_MORE} /> : <span className="h-4" />}
+                </div>
+              ) : null}
+              {sortedListings.length === 0 && !isListingsFetching && (
+                <EmptyState message="No listings match your filters. Try adjusting your search." />
               )}
             </section>
 
@@ -402,7 +355,7 @@ export default function Home() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {recentListingsQueries.map((query, i) => {
-                  const id = recentIds[i];
+                  const id = recentListingIds[i];
                   const listing = query.data as ListingBasic | undefined;
                   return (
                     <ListingCard
@@ -416,10 +369,8 @@ export default function Home() {
                   );
                 })}
               </div>
-              {recentIds.length === 0 && (
-                <p className="text-slate-500 py-10 text-center">
-                  No recently viewed listings yet. Browse listings to get started.
-                </p>
+              {recentListingIds.length === 0 && (
+                <EmptyState message="No recently viewed listings yet. Browse listings to get started." />
               )}
             </section>
           </div>
@@ -434,12 +385,10 @@ export default function Home() {
                 View all →
               </Link>
               <ul className="space-y-3">
-                {favorites.map((f) => (
-                  <li key={f.id}>
-                    <Link
-                      href={'/listings/' + (f.listing?.id ?? '#')}
-                      className="flex gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
-                    >
+                {favorites.map((f) => {
+                  const listingUrl = getListingPageUrl(f.listing?.id);
+                  const itemContent = (
+                    <>
                       <div className="w-16 h-12 shrink-0 rounded overflow-hidden bg-slate-200">
                         <SafeListingImage src={f.listing?.images?.[0]} placeholder="" />
                       </div>
@@ -451,12 +400,23 @@ export default function Home() {
                           {f.listing?.price != null ? formatPrice(f.listing.price) : ''}
                         </p>
                       </div>
-                    </Link>
-                  </li>
-                ))}
+                    </>
+                  );
+                  return (
+                    <li key={f.id}>
+                      {listingUrl ? (
+                        <Link href={listingUrl} className="flex gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group">
+                          {itemContent}
+                        </Link>
+                      ) : (
+                        <div className="flex gap-3 p-2 rounded-lg">{itemContent}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
               {favorites.length === 0 && (
-                <p className="text-slate-500 text-sm py-4">No favourites yet. Save listings to see them here.</p>
+                <EmptyState message="No favourites yet. Save listings to see them here." className="text-sm py-4" />
               )}
             </div>
 
