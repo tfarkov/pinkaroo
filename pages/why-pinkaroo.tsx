@@ -97,7 +97,7 @@ function MapleLeafIcon() {
 }
 
 export default function WhyPinkarooPage() {
-  const { isSystemAdmin, isOfficeAdmin, isRealtor, isBroker } = useAuth();
+  const { isAuthenticated, isSystemAdmin, isOfficeAdmin, isRealtor, isBroker } = useAuth();
   const canViewAdminMarketingMaterials = isSystemAdmin || isOfficeAdmin;
   const canAccessMLS = isSystemAdmin || isOfficeAdmin || isRealtor || isBroker;
   const title = 'Why Pinkaroo | Local-first Real Estate Platform';
@@ -345,7 +345,7 @@ export default function WhyPinkarooPage() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/#listings" className="btn-primary">Find a Home</Link>
-              <Link href="/signin" className="btn-secondary">Sign in</Link>
+              {!isAuthenticated && <Link href="/signin" className="btn-secondary">Sign in</Link>}
             </div>
           </section>
         </main>
