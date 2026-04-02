@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
           <p className="text-white font-bold text-base tracking-tight shrink-0">Pinkaroo</p>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 sm:justify-end">
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-1.5 sm:justify-end">
             <Link href="/" className="text-white/70 hover:text-white text-sm transition-colors">Find a Home</Link>
             <Link href="/why-pinkaroo" className="text-white/70 hover:text-white text-sm transition-colors">Why Pinkaroo</Link>
             <Link href="/mls-search" className="text-white/70 hover:text-white text-sm transition-colors">MLS Search</Link>
@@ -23,15 +23,15 @@ export default function Footer() {
             <Link href="/terms" className="text-white/70 hover:text-white text-sm transition-colors">Terms</Link>
             <Link href="/privacy" className="text-white/70 hover:text-white text-sm transition-colors">Privacy</Link>
             <Link href="/cookie-policy" className="text-white/70 hover:text-white text-sm transition-colors">Cookies</Link>
-          </div>
+          </nav>
         </div>
 
         {/* Bottom bar */}
         <div className="border-t border-white/10 pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-          <p className="text-white/40 text-xs">
+          <p className="text-white/70 text-xs">
             &copy; {new Date().getFullYear()} Pinkaroo Real Estate Inc. All rights reserved.
           </p>
-          <p className="text-white/30 text-xs">
+          <p className="text-white/70 text-xs">
             Listing data sourced from MLS&reg; &mdash; not guaranteed. Personal, non-commercial use only.
           </p>
         </div>

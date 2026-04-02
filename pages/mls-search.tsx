@@ -50,6 +50,7 @@ export default function MLSSearch() {
     },
     enabled: !!searchParams,
   });
+  const resultCount = Array.isArray(mlsListings) ? mlsListings.length : 0;
 
   const onSubmit = (data: SearchFormData) => {
     const params = new URLSearchParams();
@@ -74,7 +75,9 @@ export default function MLSSearch() {
     return (
       <div className="page-container">
         <Header />
-        <main className="content-width flex items-center justify-center min-h-[40vh]"><p className="text-slate-500">{UI.SEARCHING_MLS}</p></main>
+        <main id="main-content" tabIndex={-1} className="content-width flex items-center justify-center min-h-[40vh]">
+          <p className="text-slate-500" role="status" aria-live="polite">{UI.SEARCHING_MLS}</p>
+        </main>
         <BottomNav />
       </div>
     );
@@ -98,7 +101,7 @@ export default function MLSSearch() {
         <meta name="twitter:image" content={ogImage} />
       </Head>
       <Header />
-      <main role="main" aria-labelledby="mls-title" className="flex-1 content-width max-w-5xl pb-14">
+      <main id="main-content" role="main" tabIndex={-1} aria-labelledby="mls-title" className="flex-1 content-width max-w-5xl pb-14">
         <h1 id="mls-title" className="text-3xl font-bold text-slate-900 py-8">{UI.SEARCH_CANADIAN_MLS}</h1>
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -172,6 +175,11 @@ export default function MLSSearch() {
           </form>
         </div>
         {error && <p role="alert" className="text-red-600 mb-4">{error}</p>}
+        {!!searchParams && !error && (
+          <p className="text-sm text-slate-600 mb-4" role="status" aria-live="polite">
+            {resultCount === 1 ? '1 listing found.' : `${resultCount} listings found.`}
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="MLS search results">
           {mlsListings?.map((listing: any) => (
             <article key={listing.ListingKey} role="listitem">

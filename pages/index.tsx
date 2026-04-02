@@ -277,7 +277,7 @@ export default function Home() {
         <meta name="twitter:image" content={ogImage} />
       </Head>
       <Header />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         {/* Hero with background image */}
         <section className="relative min-h-[320px] md:min-h-[420px] flex items-center justify-center text-white overflow-hidden">
           {heroImageError ? (

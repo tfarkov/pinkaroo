@@ -69,13 +69,16 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       </Head>
       <div className={dmSans.variable} style={{ minHeight: '100vh', width: '100%' }}>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <SessionProvider session={session}>
-        <QueryClientProvider client={queryClient}>
-          <UnitProvider>
-            <Component {...pageProps} />
-          </UnitProvider>
-        </QueryClientProvider>
-      </SessionProvider>
+          <QueryClientProvider client={queryClient}>
+            <UnitProvider>
+              <Component {...pageProps} />
+            </UnitProvider>
+          </QueryClientProvider>
+        </SessionProvider>
       </div>
     </>
   );

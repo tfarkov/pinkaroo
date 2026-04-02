@@ -59,7 +59,7 @@ export default function Header() {
           </div>
           <span className="font-bold text-lg hidden sm:inline">Pinkaroo</span>
         </Link>
-        <nav className="hidden md:flex items-center gap-0">
+        <nav aria-label="Primary" className="hidden md:flex items-center gap-0">
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}
@@ -70,6 +70,7 @@ export default function Header() {
             </Link>
           ))}
           <button
+            type="button"
             onClick={toggleUnit}
             className="ml-1 px-3 py-1.5 rounded-md text-white/80 hover:bg-white/10 text-sm font-medium"
             title={isMetric ? 'Switch to Imperial (sq ft)' : 'Switch to Metric (m²)'}
@@ -99,9 +100,12 @@ export default function Header() {
         <div className="flex md:hidden items-center gap-2">
           {isAuthenticated && <NotificationsDropdown />}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-md text-white hover:bg-white/10"
             aria-label="Menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-primary-menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
@@ -110,7 +114,7 @@ export default function Header() {
         </div>
       </div>
       {mobileMenuOpen && (
-        <div className="md:hidden bg-header-light border-t border-white/10 px-4 py-4">
+        <div id="mobile-primary-menu" className="md:hidden bg-header-light border-t border-white/10 px-4 py-4">
           <div className="flex flex-col gap-0">
             {navLinks.map(({ href, label }) => (
               <Link
@@ -122,7 +126,7 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-            <button onClick={toggleUnit} className="px-3 py-3 text-left text-white/90 hover:bg-white/10 rounded-md font-medium">
+            <button type="button" onClick={toggleUnit} className="px-3 py-3 text-left text-white/90 hover:bg-white/10 rounded-md font-medium">
               Units: {isMetric ? 'Metric' : 'Imperial'}
             </button>
             {isAuthenticated ? (

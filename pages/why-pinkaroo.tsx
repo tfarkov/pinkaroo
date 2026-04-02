@@ -90,7 +90,7 @@ export default function WhyPinkarooPage() {
       </Head>
       <div className="page-container flex flex-col">
         <Header />
-        <main className="flex-1 content-width max-w-6xl py-8 pb-20">
+        <main id="main-content" tabIndex={-1} className="flex-1 content-width max-w-6xl py-8 pb-20">
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">Why Pinkaroo</h1>
             <p className="text-slate-600 text-lg max-w-3xl">
@@ -137,21 +137,32 @@ export default function WhyPinkarooPage() {
             </div>
           </section>
 
-          <section className="bg-emerald-50 border border-emerald-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <h2 className="text-2xl font-bold text-emerald-900 mb-3">Eco-Rating and sustainability, built in</h2>
-            <p className="text-emerald-900/90 mb-4">
-              Pinkaroo believes better real estate decisions should support both families and the future of our communities. Our Eco-Rating helps people
-              understand a home's sustainability signals early in the search process, so they can ask smarter questions and prioritize long-term efficiency.
+          <section className="bg-white border border-slate-300 rounded-lg shadow-card p-6 md:p-8 mb-8">
+            <div className="inline-flex items-center rounded-full bg-slate-900 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+              Eco-Rating Focus
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">Eco-Rating and sustainable practices that actually help decisions</h2>
+            <p className="text-slate-700 mb-4">
+              Pinkaroo believes better real estate decisions should support both families and the long-term health of our communities. Our Eco-Rating helps
+              people understand sustainability signals earlier in the search process, so they can ask better questions before making big commitments.
             </p>
-            <p className="text-emerald-900/90 mb-4">
-              We are building Pinkaroo with the same mindset: responsible growth, practical tools that reduce wasted effort, and sustainable business
-              practices that create long-term value for buyers, realtors, brokers, and the neighborhoods they serve.
+            <p className="text-slate-700 mb-6">
+              We run the business the same way: practical product choices, responsible growth, and long-term value over short-term hype.
             </p>
-            <ul className="list-disc pl-5 text-emerald-900/90 text-sm space-y-1">
-              <li>Eco-Rating visibility where users make decisions.</li>
-              <li>Product choices focused on durability and real local impact.</li>
-              <li>A long-term operating approach over short-term hype.</li>
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Decision-ready visibility</h3>
+                <p className="text-sm text-slate-700">Eco-Rating context appears where users are already evaluating homes and comparing options.</p>
+              </article>
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Practical sustainability</h3>
+                <p className="text-sm text-slate-700">We prioritize durable product improvements that reduce waste and improve everyday workflows.</p>
+              </article>
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Long-term operating mindset</h3>
+                <p className="text-sm text-slate-700">Our team is committed to sustainable business practices that strengthen trust over time.</p>
+              </article>
+            </div>
           </section>
 
           {canViewAdminMarketingMaterials && (
@@ -161,13 +172,14 @@ export default function WhyPinkarooPage() {
                 <p className="text-slate-600 mb-4">Example monthly media split using a CAD $3,000 starter budget.</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
+                    <caption className="sr-only">Simcoe-first marketing channel budget and KPI plan</caption>
                     <thead>
                       <tr className="text-left text-slate-500 border-b border-slate-200">
-                        <th className="py-2 pr-3">Channel</th>
-                        <th className="py-2 pr-3">Allocation</th>
-                        <th className="py-2 pr-3">Monthly</th>
-                        <th className="py-2 pr-3">Goal</th>
-                        <th className="py-2">Primary KPI</th>
+                        <th scope="col" className="py-2 pr-3">Channel</th>
+                        <th scope="col" className="py-2 pr-3">Allocation</th>
+                        <th scope="col" className="py-2 pr-3">Monthly</th>
+                        <th scope="col" className="py-2 pr-3">Goal</th>
+                        <th scope="col" className="py-2">Primary KPI</th>
                       </tr>
                     </thead>
                     <tbody>
