@@ -1,5 +1,9 @@
 # Pinkaroo Real Estate Portal
 
+## Product Documentation
+
+- Feature reference by role: [`docs/FEATURES-BY-ROLE.md`](docs/FEATURES-BY-ROLE.md)
+
 ## Features
 
 ### Public / Guest
