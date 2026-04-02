@@ -109,7 +109,9 @@ export default function Dashboard() {
     datasets: [{
       label: 'Client Status Distribution',
       data: CLIENT_STATUSES.map(status => (clients ?? []).filter((c: { status?: string }) => c.status === status).length),
-      backgroundColor: 'rgba(236, 72, 153, 0.6)',
+      backgroundColor: ['rgba(236, 72, 153, 0.75)', 'rgba(244, 114, 182, 0.75)', 'rgba(217, 70, 239, 0.75)', 'rgba(14, 165, 233, 0.75)', 'rgba(99, 102, 241, 0.75)'],
+      borderRadius: 8,
+      maxBarThickness: 42,
     }],
   }), [clients]);
 
@@ -120,13 +122,53 @@ export default function Dashboard() {
       datasets: [{
         label: 'Interactions Over Time',
         data: list.length > 0 ? list.map(() => 1) : [0],
-        borderColor: 'rgba(236, 72, 153, 1)',
-        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
         fill: true,
-        tension: 0.3,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: 'rgba(219, 39, 119, 1)',
       }],
     };
   }, [interactions]);
+
+  const chartOptionsBase = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 10,
+          boxHeight: 10,
+          color: '#334155',
+          font: { size: 12, weight: 600 as const },
+        },
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', precision: 0 },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+    },
+  };
 
   const handleAvailabilitySave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -281,11 +323,7 @@ export default function Dashboard() {
             <div className="h-[280px] min-h-0 w-full">
               <Bar
                 data={clientChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: true } },
-                }}
+                options={chartOptionsBase}
               />
             </div>
           </div>
@@ -295,15 +333,7 @@ export default function Dashboard() {
               <div className="h-[280px] min-h-0 w-full">
                 <Line
                   data={interactionChartData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: true } },
-                    scales: {
-                      x: { display: true },
-                      y: { display: true, beginAtZero: true },
-                    },
-                  }}
+                  options={chartOptionsBase}
                 />
               </div>
             </div>

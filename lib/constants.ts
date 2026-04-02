@@ -76,7 +76,9 @@ export const API = {
   ADMIN_BROKERS: '/api/admin/brokers',
   ADMIN_USERS: '/api/admin/users',
   ADMIN_ASSIGN_BROKER: '/api/admin/assign-broker',
+  ADMIN_WEEKLY_KPIS: '/api/admin/weekly-kpis',
   BROKER_STATS: '/api/broker/stats',
+  BROKER_WEEKLY_KPIS: '/api/broker/weekly-kpis',
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
   BROKER_TEAMS: '/api/broker/teams',            // List: index; single: /api/broker/teams/[id]

@@ -1,0 +1,43 @@
+---
+description: Quality gates for testing, commit readiness, and safe delivery
+alwaysApply: true
+---
+
+# Agent Quality Gates
+
+Apply these gates before any commit or push.
+Use `docs/agent-templates.md` as the canonical format for release-note snippets and post-merge verification checklists.
+
+## Test Agent Requirements
+- Run checks relevant to changed scope:
+  - Lint for touched files/modules
+  - Targeted tests for changed behavior
+  - Build/type-check when change impact is broad
+- Prefer targeted test selection over full-suite runs when appropriate.
+- Report:
+  - Commands executed
+  - Pass/fail status
+  - Failing test names and likely root cause (if any)
+
+## Commit Readiness Policy
+- Commits are allowed only after required checks pass.
+- If checks fail:
+  - Prefer fix-first and re-run checks
+  - Do not commit unless user explicitly approves bypassing
+- Include test evidence in delivery summary for each commit.
+
+## Git Safety
+- Never commit secrets (`.env`, credentials, private keys, tokens).
+- Exclude unrelated personal/non-code files unless user explicitly requests inclusion.
+- Use clear commit messages describing intent and user-visible impact.
+
+## Documentation Gate
+- If behavior, setup, or operations changed, update `README.md` and/or relevant docs in same delivery cycle.
+
+## Release Notes Snippet (mandatory)
+- Delivery agent must produce a short user-facing changelog entry for every commit/push.
+- Use the "Release Notes Snippet" template in `docs/agent-templates.md`.
+
+## Post-Merge Verification (mandatory)
+- After push/merge, confirm and report:
+  - Use the "Post-Merge Verification" template in `docs/agent-templates.md`.

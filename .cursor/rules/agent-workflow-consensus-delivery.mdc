@@ -1,0 +1,64 @@
+---
+description: Multi-agent workflow orchestration from research consensus to delivery
+alwaysApply: true
+---
+
+# Agent Workflow: Consensus -> Design -> Implement -> Test -> Deliver
+
+Use `docs/agent-templates.md` as the canonical format for consensus and delivery artifacts.
+
+## Workflow Routing
+- **Small/low-risk tasks:** use default behavior (direct implementer -> test -> delivery). Do not run multi-agent workflow.
+- **Medium-to-large tasks:** ask the user which mode they want before proceeding:
+  - Full workflow (Dual Research -> Consensus -> Designer -> Implementer -> Test -> Delivery), or
+  - Default behavior (direct implementation path)
+- If the user does not explicitly choose workflow on medium/large tasks, continue with default behavior.
+
+## 1) Dual Research (parallel)
+- Launch two independent researcher agents in parallel.
+- Each researcher must produce concise output with:
+  - Problem framing and assumptions
+  - Evidence from codebase/docs
+  - Risks, constraints, and edge cases
+  - Recommended approach
+
+## 2) Consensus Gate
+- Compare both research outputs.
+- If they disagree, resolve conflicts before proceeding.
+- Produce one merged, one-page "Consensus Brief" using the template in `docs/agent-templates.md`.
+
+## 3) Designer/Architect Agent
+- Pass the Consensus Brief to a designer agent.
+- Designer must:
+  - Fit the feature into existing architecture
+  - Identify impacted modules/files
+  - Propose implementation plan and sequencing
+  - Suggest 2-4 useful adjacent feature improvements
+
+## 4) Implementer Agent
+- Pass the approved design plan to implementer.
+- Implementer must:
+  - Make code changes with minimal scope creep
+  - Run targeted validation (lint/tests/build where relevant)
+  - Report changed files and rationale
+
+## 5) Test Agent (mandatory before commit)
+- Pass implementer output to a dedicated test agent.
+- Test details and pass/fail policy are defined in `agent-quality-gates.mdc`.
+
+## 6) Delivery Agent (Git + Docs)
+- A delivery agent stages intended files, writes a clear commit message, commits, pushes, and updates README/docs for user-visible behavior or setup changes.
+- Git safety and delivery quality requirements are defined in `agent-quality-gates.mdc`.
+
+## Handoff Contract (mandatory)
+- Every stage outputs a short, structured handoff:
+  - Inputs received
+  - Decisions made
+  - Artifacts produced
+  - Next-stage instructions
+
+## Stop Conditions
+- Pause and ask the user when:
+  - Requirements are conflicting or incomplete
+  - A destructive migration/risky change is required
+  - Production/security impact needs explicit approval

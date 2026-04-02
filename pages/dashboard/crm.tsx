@@ -130,7 +130,13 @@ export default function CRM() {
     const data = CLIENT_STATUSES.map((s) => dist[s] ?? 0);
     return {
       labels,
-      datasets: [{ label: 'Clients by status', data, backgroundColor: 'rgba(236, 72, 153, 0.6)' }],
+      datasets: [{
+        label: 'Clients by status',
+        data,
+        backgroundColor: ['rgba(236, 72, 153, 0.75)', 'rgba(244, 114, 182, 0.75)', 'rgba(217, 70, 239, 0.75)', 'rgba(14, 165, 233, 0.75)', 'rgba(99, 102, 241, 0.75)'],
+        borderRadius: 8,
+        maxBarThickness: 42,
+      }],
     };
   }, [stats?.statusDistribution]);
 
@@ -141,13 +147,52 @@ export default function CRM() {
       datasets: [{
         label: 'Interactions',
         data: byMonth.map((x) => x.count),
-        borderColor: 'rgba(236, 72, 153, 1)',
-        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
         fill: true,
-        tension: 0.3,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       }],
     };
   }, [stats?.interactionsByMonth]);
+
+  const chartOptionsBase = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 10,
+          boxHeight: 10,
+          color: '#334155',
+          font: { size: 12, weight: 600 as const },
+        },
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', precision: 0 },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+    },
+  };
 
   const clientForm = useForm<ClientFormData>({
     defaultValues: { name: '', email: '', phone: '', notes: '', status: 'LEAD' },
@@ -267,12 +312,7 @@ export default function CRM() {
             <div className="h-[240px]">
               <Bar
                 data={statusChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: { y: { beginAtZero: true } },
-                }}
+                options={chartOptionsBase}
               />
             </div>
           </div>
@@ -281,12 +321,7 @@ export default function CRM() {
             <div className="h-[240px]">
               <Line
                 data={interactionsOverTimeChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: { x: { display: true }, y: { beginAtZero: true } },
-                }}
+                options={chartOptionsBase}
               />
             </div>
           </div>

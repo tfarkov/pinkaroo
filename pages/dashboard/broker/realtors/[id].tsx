@@ -56,7 +56,9 @@ export default function BrokerRealtorDashboardPage() {
           data?.summary.statusCounts.APPROVED ?? 0,
           data?.summary.statusCounts.REJECTED ?? 0,
         ],
-        backgroundColor: ['rgba(14, 165, 233, 0.6)', 'rgba(234, 179, 8, 0.6)', 'rgba(34, 197, 94, 0.6)', 'rgba(239, 68, 68, 0.6)'],
+        backgroundColor: ['rgba(14, 165, 233, 0.78)', 'rgba(234, 179, 8, 0.78)', 'rgba(34, 197, 94, 0.78)', 'rgba(239, 68, 68, 0.78)'],
+        borderRadius: 8,
+        maxBarThickness: 46,
       },
     ],
   }), [data?.summary.statusCounts]);
@@ -67,21 +69,62 @@ export default function BrokerRealtorDashboardPage() {
       {
         label: 'Listings activity',
         data: data?.charts.listingActivity ?? [],
-        borderColor: 'rgba(236, 72, 153, 1)',
-        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
         fill: true,
-        tension: 0.3,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
       {
         label: 'Interactions activity',
         data: data?.charts.interactionActivity ?? [],
         borderColor: 'rgba(99, 102, 241, 1)',
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        backgroundColor: 'rgba(99, 102, 241, 0.14)',
         fill: true,
-        tension: 0.3,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
     ],
   }), [data?.charts]);
+
+  const chartOptionsBase = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 10,
+          boxHeight: 10,
+          color: '#334155',
+          font: { size: 12, weight: 600 as const },
+        },
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', precision: 0 },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+    },
+  };
 
   if (status === 'loading' || isLoading) {
     return (
@@ -144,9 +187,8 @@ export default function BrokerRealtorDashboardPage() {
             <Bar
               data={progressChartData}
               options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                ...chartOptionsBase,
+                plugins: { ...chartOptionsBase.plugins, legend: { ...chartOptionsBase.plugins.legend, display: false } },
               }}
             />
           </div>
@@ -156,12 +198,7 @@ export default function BrokerRealtorDashboardPage() {
           <div className="h-[280px]">
             <Line
               data={activityChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: true } },
-                scales: { y: { beginAtZero: true } },
-              }}
+              options={chartOptionsBase}
             />
           </div>
         </div>

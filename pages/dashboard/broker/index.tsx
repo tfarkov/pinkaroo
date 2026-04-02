@@ -60,6 +60,14 @@ export default function BrokerDashboard() {
       return res.json();
     },
   });
+  const { data: weeklyKpis } = useQuery({
+    queryKey: ['broker-weekly-kpis'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_WEEKLY_KPIS, { credentials: 'include' });
+      if (!res.ok) return { labels: [], newListings: [], interactions: [], approvalsResolved: [] };
+      return res.json();
+    },
+  });
 
   const listingsChartData = useMemo(() => {
     const realtors = teamStats?.realtors ?? [];
@@ -70,7 +78,9 @@ export default function BrokerDashboard() {
       datasets: [{
         label: UI.LISTINGS_PER_REALTOR,
         data,
-        backgroundColor: 'rgba(236, 72, 153, 0.6)',
+        backgroundColor: 'rgba(236, 72, 153, 0.75)',
+        borderRadius: 8,
+        maxBarThickness: 42,
       }],
     };
   }, [teamStats]);
@@ -83,7 +93,9 @@ export default function BrokerDashboard() {
         teamStats?.pending ?? 0,
         teamStats?.rejected ?? 0,
       ],
-      backgroundColor: ['rgba(34,197,94,0.6)', 'rgba(234,179,8,0.6)', 'rgba(239,68,68,0.6)'],
+      backgroundColor: ['rgba(34,197,94,0.78)', 'rgba(234,179,8,0.78)', 'rgba(239,68,68,0.78)'],
+      borderColor: ['rgba(21,128,61,1)', 'rgba(161,98,7,1)', 'rgba(185,28,28,1)'],
+      borderWidth: 1,
     }],
   }), [teamStats]);
 
@@ -95,10 +107,13 @@ export default function BrokerDashboard() {
       datasets: [{
         label: 'Revenue Over Time',
         data: revenue.length > 0 ? revenue : [0],
-        borderColor: 'rgba(236, 72, 153, 1)',
-        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
         fill: true,
-        tension: 0.3,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: 'rgba(219, 39, 119, 1)',
       }],
     };
   }, [teamStats]);
@@ -111,16 +126,93 @@ export default function BrokerDashboard() {
         {
           label: 'Listings',
           data: realtors.length > 0 ? realtors.map((r: { listingsCount?: number }) => r.listingsCount ?? 0) : [0],
-          backgroundColor: 'rgba(236, 72, 153, 0.6)',
+          backgroundColor: 'rgba(236, 72, 153, 0.75)',
+          borderRadius: 8,
+          maxBarThickness: 36,
         },
         {
           label: 'Interactions',
           data: realtors.length > 0 ? realtors.map((r: { interactionsCount?: number }) => r.interactionsCount ?? 0) : [0],
-          backgroundColor: 'rgba(99, 102, 241, 0.6)',
+          backgroundColor: 'rgba(99, 102, 241, 0.75)',
+          borderRadius: 8,
+          maxBarThickness: 36,
         },
       ],
     };
   }, [teamStats]);
+
+  const weeklyKpiChartData = useMemo(() => ({
+    labels: weeklyKpis?.labels ?? [],
+    datasets: [
+      {
+        label: 'New listings',
+        data: weeklyKpis?.newListings ?? [],
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Interactions',
+        data: weeklyKpis?.interactions ?? [],
+        borderColor: 'rgba(99, 102, 241, 1)',
+        backgroundColor: 'rgba(99, 102, 241, 0.14)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Approvals resolved',
+        data: weeklyKpis?.approvalsResolved ?? [],
+        borderColor: 'rgba(14, 165, 233, 1)',
+        backgroundColor: 'rgba(14, 165, 233, 0.12)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+    ],
+  }), [weeklyKpis]);
+
+  const cartesianChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle' as const,
+          boxWidth: 10,
+          boxHeight: 10,
+          color: '#334155',
+          font: { size: 12, weight: 600 as const },
+        },
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', precision: 0 },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+    },
+  };
 
   const teams = (teamStats?.teams ?? []) as { id: string; name: string; _count?: { members?: number } }[];
   const availableRealtors = (teamStats?.availableRealtors ?? []) as { id: string; name?: string; email?: string }[];
@@ -237,16 +329,17 @@ export default function BrokerDashboard() {
 
         <div className="space-y-8">
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Weekly KPI trend</h2>
+            <div className="h-[280px] min-h-0 w-full">
+              <Line data={weeklyKpiChartData} options={cartesianChartOptions} />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
             <h2 className="text-xl font-bold text-slate-900 mb-4">Realtor progress</h2>
             <div className="h-[280px] min-h-0 w-full">
               <Bar
                 data={realtorProgressChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: true } },
-                  scales: { y: { beginAtZero: true } },
-                }}
+                options={cartesianChartOptions}
               />
             </div>
           </div>
@@ -257,12 +350,7 @@ export default function BrokerDashboard() {
             <div className="h-[280px] min-h-0 w-full">
               <Bar
                 data={listingsChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: true } },
-                  scales: { y: { beginAtZero: true } },
-                }}
+                options={cartesianChartOptions}
               />
             </div>
           </div>
@@ -273,7 +361,27 @@ export default function BrokerDashboard() {
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  plugins: { legend: { display: true, position: 'bottom' } },
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'bottom',
+                      labels: {
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        color: '#334155',
+                        font: { size: 12, weight: 600 },
+                      },
+                    },
+                    tooltip: {
+                      backgroundColor: '#0f172a',
+                      titleColor: '#f8fafc',
+                      bodyColor: '#e2e8f0',
+                      padding: 10,
+                      cornerRadius: 8,
+                    },
+                  },
                 }}
               />
             </div>
@@ -282,15 +390,7 @@ export default function BrokerDashboard() {
             <div className="h-[280px] min-h-0 w-full">
               <Line
                 data={revenueChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: true } },
-                  scales: {
-                    x: { display: true },
-                    y: { display: true, beginAtZero: true },
-                  },
-                }}
+                options={cartesianChartOptions}
               />
             </div>
           </div>

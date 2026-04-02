@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useMemo } from 'react';
+import { Line } from 'react-chartjs-2';
+import 'chart.js/auto';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
@@ -26,6 +29,88 @@ export default function OfficeAdminDashboardPage() {
     },
     enabled: isOfficeAdmin,
   });
+  const { data: weeklyKpis } = useQuery({
+    queryKey: ['office-admin-weekly-kpis'],
+    queryFn: async () => {
+      const res = await fetch(API.ADMIN_WEEKLY_KPIS, { credentials: 'include' });
+      if (!res.ok) return { labels: [], newBrokers: [], newRealtors: [], assignmentUpdates: [] };
+      return res.json();
+    },
+    enabled: isOfficeAdmin,
+  });
+
+  const weeklyKpiChartData = useMemo(() => ({
+    labels: weeklyKpis?.labels ?? [],
+    datasets: [
+      {
+        label: 'New brokers',
+        data: weeklyKpis?.newBrokers ?? [],
+        borderColor: 'rgba(99, 102, 241, 1)',
+        backgroundColor: 'rgba(99, 102, 241, 0.14)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'New realtors',
+        data: weeklyKpis?.newRealtors ?? [],
+        borderColor: 'rgba(219, 39, 119, 1)',
+        backgroundColor: 'rgba(219, 39, 119, 0.14)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Assignment updates',
+        data: weeklyKpis?.assignmentUpdates ?? [],
+        borderColor: 'rgba(14, 165, 233, 1)',
+        backgroundColor: 'rgba(14, 165, 233, 0.12)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+    ],
+  }), [weeklyKpis]);
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          usePointStyle: true as const,
+          pointStyle: 'circle' as const,
+          boxWidth: 10,
+          boxHeight: 10,
+          color: '#334155',
+          font: { size: 12, weight: 600 as const },
+        },
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', precision: 0 },
+        grid: { color: 'rgba(148, 163, 184, 0.15)', drawBorder: false },
+      },
+    },
+  };
 
   if (!isOfficeAdmin) {
     return (
@@ -52,6 +137,13 @@ export default function OfficeAdminDashboardPage() {
           <Link href="/admin" className="text-accent-600 hover:text-accent-700 font-medium text-sm">Open management →</Link>
         </div>
       </div>
+
+      <section className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Weekly KPI trend</h2>
+        <div className="h-[280px] min-h-0 w-full mb-2">
+          <Line data={weeklyKpiChartData} options={chartOptions} />
+        </div>
+      </section>
 
       <section className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
         <h2 className="text-xl font-bold text-slate-900 mb-3">Brokers overview</h2>

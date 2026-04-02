@@ -4,6 +4,7 @@ import { useInView } from 'react-intersection-observer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION, NEARBY_POOL_RADIUS_KM, getListingPageUrl } from '../lib/constants';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
@@ -57,6 +58,7 @@ const HERO_PHRASES = [
  * /api/listings/public. User position from geolocation with fallback to Barrie, ON.
  */
 export default function Home() {
+  const router = useRouter();
   const position = useGeolocation(); // Barrie, ON when geolocation unavailable or denied
   const { isMetric } = useUnitToggle();
   const recentIds = useRecentlyViewed();
@@ -67,6 +69,7 @@ export default function Home() {
   const [filters, setFilters] = useState<FilterParams>({ province: DEFAULT_PROVINCE });
   const [listingsSort, setListingsSort] = useState<string>('default');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const [showSignedOutMessage, setShowSignedOutMessage] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const { ref, inView } = useInView({ rootMargin: '200px', threshold: 0 });
   /** IntersectionObserver: prefetch next page when sentinel is ~300px from viewport for smoother infinite scroll. */
@@ -243,6 +246,12 @@ export default function Home() {
     setHeroPhraseIndex(Math.floor(Math.random() * HERO_PHRASES.length));
   }, []);
 
+  useEffect(() => {
+    if (router.query.signedOut !== '1') return;
+    setShowSignedOutMessage(true);
+    router.replace('/', undefined, { shallow: true });
+  }, [router]);
+
   return (
     <div className="page-container flex flex-col">
       <Header />
@@ -282,6 +291,19 @@ export default function Home() {
 
         <div className="content-width flex flex-col lg:flex-row gap-8 py-10">
           <div className="flex-1 min-w-0">
+            {showSignedOutMessage && (
+              <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm flex items-start justify-between gap-3">
+                <span>You have been signed out successfully. Thanks for visiting Pinkaroo.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSignedOutMessage(false)}
+                  className="text-emerald-700 hover:text-emerald-900 font-semibold"
+                  aria-label="Dismiss signed out message"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
             {/* Map */}
             <section aria-labelledby="nearby-title" className="pb-10">
               <h2 id="nearby-title" className="text-2xl font-bold text-slate-900 mb-6">

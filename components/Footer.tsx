@@ -13,6 +13,7 @@ export default function Footer() {
 
           <div className="flex flex-wrap gap-x-5 gap-y-1.5 sm:justify-end">
             <Link href="/" className="text-white/70 hover:text-white text-sm transition-colors">Find a Home</Link>
+            <Link href="/why-pinkaroo" className="text-white/70 hover:text-white text-sm transition-colors">Why Pinkaroo</Link>
             <Link href="/mls-search" className="text-white/70 hover:text-white text-sm transition-colors">MLS Search</Link>
             <Link href="/favorites" className="text-white/70 hover:text-white text-sm transition-colors">Favourites</Link>
             {isAuthenticated && (

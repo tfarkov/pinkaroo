@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { signOut } from 'next-auth/react';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import NotificationsDropdown from './NotificationsDropdown';
@@ -18,9 +19,11 @@ export default function Header() {
   const { isMetric, toggleUnit } = useUnitToggle();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const navLinks = [
     { href: '/', label: 'Find a Home' },
+    { href: '/why-pinkaroo', label: 'Why Pinkaroo' },
     ...(isAuthenticated ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
     ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
     ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
@@ -29,6 +32,12 @@ export default function Header() {
     { href: '/mls-search', label: 'MLS Search' },
     { href: '/favorites', label: 'Favourites' },
   ];
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    await signOut({ callbackUrl: '/?signedOut=1' });
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-header shadow-nav">
@@ -73,9 +82,14 @@ export default function Header() {
             </div>
           )}
           {isAuthenticated ? (
-            <Link href="/api/auth/signout" className="ml-3 px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md text-sm font-medium">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="ml-3 px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-md text-sm font-medium disabled:opacity-60"
+            >
               Sign out
-            </Link>
+            </button>
           ) : (
             <Link href="/signin" className="ml-3 bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-md text-sm transition-colors">
               Sign In
@@ -112,9 +126,17 @@ export default function Header() {
               Units: {isMetric ? 'Metric' : 'Imperial'}
             </button>
             {isAuthenticated ? (
-              <Link href="/api/auth/signout" onClick={() => setMobileMenuOpen(false)} className="px-3 py-3 text-white/90 font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  void handleSignOut();
+                }}
+                disabled={isSigningOut}
+                className="px-3 py-3 text-white/90 font-medium text-left disabled:opacity-60"
+              >
                 Sign out
-              </Link>
+              </button>
             ) : (
               <Link href="/signin" onClick={() => setMobileMenuOpen(false)} className="mt-2 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-md text-center">
                 Sign In
