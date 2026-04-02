@@ -6,7 +6,36 @@ alwaysApply: true
 # Agent Quality Gates
 
 Apply these gates before any commit or push.
-Use `docs/agent-templates.md` as the canonical format for release-note snippets and post-merge verification checklists.
+Use `docs/agent-templates.md` as the canonical format for accessibility/responsiveness checks, release-note snippets, and post-merge verification checklists.
+
+## Accessibility Agent Requirements
+- For UI-impacting changes, run an accessibility pass on changed scope:
+  - Keyboard navigation and visible focus states
+  - Landmark/semantic structure and heading hierarchy
+  - Form labels, status/error messaging, and ARIA usage
+  - Color contrast and readable text treatment
+- Report:
+  - Surfaces reviewed (pages/components)
+  - Issues found/fixed
+  - Remaining risks (if any)
+- Use the "Accessibility Check" template in `docs/agent-templates.md`.
+- If any issues are found, Implementer must fix them and Accessibility Agent must re-validate before proceeding.
+
+## Responsiveness Agent Requirements
+- For UI-impacting changes, validate changed scope on:
+  - Mobile (~360-430px width)
+  - Tablet (~768-1024px width)
+  - Desktop (>=1280px width)
+- Check for:
+  - Overflow/clipping, broken wrapping, and spacing collapse
+  - Touch target usability and control reachability
+  - Layout regressions at breakpoints
+- Report:
+  - Breakpoints tested
+  - Issues found/fixed
+  - Remaining risks (if any)
+- Use the "Responsiveness Check" template in `docs/agent-templates.md`.
+- If any issues are found, Implementer must fix them and Responsiveness Agent must re-validate before proceeding.
 
 ## Test Agent Requirements
 - Run checks relevant to changed scope:
@@ -21,8 +50,9 @@ Use `docs/agent-templates.md` as the canonical format for release-note snippets 
 
 ## Commit Readiness Policy
 - Commits are allowed only after required checks pass.
+- Required checks include Accessibility Agent and Responsiveness Agent sign-off for UI-impacting changes.
 - If checks fail:
-  - Prefer fix-first and re-run checks
+  - Implementer must fix findings and re-run failed checks
   - Do not commit unless user explicitly approves bypassing
 - Include test evidence in delivery summary for each commit.
 

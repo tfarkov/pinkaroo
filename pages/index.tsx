@@ -32,7 +32,7 @@ import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
   loading: () => (
-    <div className="h-[420px] bg-slate-200 animate-pulse rounded-lg flex items-center justify-center text-slate-500">
+    <div className="h-[320px] sm:h-[420px] bg-slate-200 animate-pulse rounded-lg flex items-center justify-center text-slate-500">
       Loading map…
     </div>
   ),
@@ -102,10 +102,6 @@ export default function Home() {
     };
   }, [sortDropdownOpen]);
 
-  const handleFavoriteClick = (listingId: string, listing?: ListingBasic) => {
-    toggleFavorite(listingId, listing ? { id: listing.id, title: listing.title, price: listing.price, images: listing.images } : undefined);
-  };
-
   const mapCenter = mapView?.center ?? position ?? DEFAULT_LOCATION;
   const mapZoom = mapView?.zoom ?? 12;
   const nearbyRadiusKm = radiusKmFromZoom(mapZoom);
@@ -130,7 +126,9 @@ export default function Home() {
     retry: 1,
   });
 
-  /** Pins: filter pool by current map center + zoom radius only (no refetch). */
+  /** Pins: filter pool by current center + effective radius only (no refetch). */
+  const mapFilterRadiusKm =
+    mapView == null ? nearbyRadiusKm : Math.min(NEARBY_POOL_RADIUS_KM, Math.max(nearbyRadiusKm, mapExpandedRadiusKm ?? nearbyRadiusKm));
   const mapListings = useMemo(() => {
     const list = nearbyPool as (ListingWithCoords & { latitude?: number; longitude?: number })[];
     if (list.length === 0) return list as ListingWithCoords[];
@@ -140,11 +138,11 @@ export default function Home() {
       (l) =>
         l.latitude != null &&
         l.longitude != null &&
-        distanceKm({ lat: l.latitude, lng: l.longitude }, { lat, lng }) <= nearbyRadiusKm
+        distanceKm({ lat: l.latitude, lng: l.longitude }, { lat, lng }) <= mapFilterRadiusKm
     ) as ListingWithCoords[];
-  }, [nearbyPool, mapCenter.lat, mapCenter.lng, nearbyRadiusKm]);
+  }, [nearbyPool, mapCenter.lat, mapCenter.lng, mapFilterRadiusKm]);
 
-  /** Browse list uses expanded radius when user scrolls (still no refetch; filter more of the pool). */
+  /** Expand map pin radius on scroll when map is active (still no refetch; only pool filtering changes). */
   const effectiveNearbyRadiusKm =
     mapView == null
       ? DEFAULT_NEARBY_RADIUS_KM
@@ -196,7 +194,10 @@ export default function Home() {
     retry: 1,
   });
 
-  const listings: ListingBasic[] = listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [];
+  const listings: ListingBasic[] = useMemo(
+    () => listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [],
+    [listingsData]
+  );
 
   const sortedListings = useMemo(
     () => sortListings(listings, listingsSort as ListingSortValue),
@@ -255,6 +256,29 @@ export default function Home() {
     const sortedWithListing = sortListings(withListing, defaultSortValue);
     return [...sortedWithListing.map((listing) => listing.id), ...withoutListing];
   }, [recentListingIds, recentListingsById, defaultSortValue]);
+  const handleFilterChange = useCallback((data: FilterParams) => {
+    setFilters({ ...data });
+  }, []);
+  const listingById = useMemo(() => {
+    const byId = new Map<string, ListingBasic>();
+    listings.forEach((listing) => {
+      byId.set(listing.id, listing);
+    });
+    recentListingsById.forEach((entry, id) => {
+      if (entry.listing) byId.set(id, entry.listing);
+    });
+    return byId;
+  }, [listings, recentListingsById]);
+  const handleFavoriteClick = useCallback(
+    (listingId: string) => {
+      const listing = listingById.get(listingId);
+      toggleFavorite(
+        listingId,
+        listing ? { id: listing.id, title: listing.title, price: listing.price, images: listing.images } : undefined
+      );
+    },
+    [toggleFavorite, listingById]
+  );
 
   useEffect(() => {
     if (loadMoreInView && hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -335,7 +359,11 @@ export default function Home() {
         <div className="content-width flex flex-col lg:flex-row gap-8 py-10">
           <div className="flex-1 min-w-0">
             {showSignedOutMessage && (
-              <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm flex items-start justify-between gap-3">
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm flex items-start justify-between gap-3"
+              >
                 <span>You have been signed out successfully. Thanks for visiting Pinkaroo.</span>
                 <button
                   type="button"
@@ -381,7 +409,7 @@ export default function Home() {
                       variant="recent"
                       imagePlaceholder={entry?.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
                       isFavorited={isFavorited(id)}
-                      onFavoriteClick={(listingId) => handleFavoriteClick(listingId, listing ?? undefined)}
+                      onFavoriteClick={handleFavoriteClick}
                     />
                   );
                 })}
@@ -404,7 +432,6 @@ export default function Home() {
                       onClick={() => setSortDropdownOpen((open) => !open)}
                       className="inline-flex h-10 w-full sm:w-auto sm:min-w-[11rem] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 shadow-sm text-slate-600 hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 transition-all"
                       aria-label="Sort listings"
-                      aria-haspopup="listbox"
                       aria-expanded={sortDropdownOpen}
                       aria-controls="listings-sort-listbox"
                       id="listings-sort-button"
@@ -418,12 +445,12 @@ export default function Home() {
                     {sortDropdownOpen && (
                       <ul
                         id="listings-sort-listbox"
-                        role="listbox"
                         aria-labelledby="listings-sort-button"
+                        aria-label="Sort options"
                         className="absolute left-0 right-0 sm:left-auto sm:right-0 top-full mt-2 w-full sm:min-w-[14rem] rounded-xl border border-slate-200 bg-white shadow-lg py-2 max-h-72 overflow-y-auto z-50"
                       >
                         {LISTING_SORT_OPTIONS.map((opt) => (
-                          <li key={opt.value} role="option" aria-selected={listingsSort === opt.value}>
+                          <li key={opt.value}>
                             <button
                               type="button"
                               onClick={() => {
@@ -442,7 +469,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mb-6" aria-label="Search filters">
-                <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
+                <AdvancedFilters onFilter={handleFilterChange} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {sortedListings.map((listing) => (
@@ -451,15 +478,16 @@ export default function Home() {
                     listing={listing}
                     isMetric={isMetric}
                     isFavorited={isFavorited(listing.id)}
-                    onFavoriteClick={(id) => handleFavoriteClick(id, listing)}
+                    onFavoriteClick={handleFavoriteClick}
                   />
                 ))}
               </div>
               {hasNextPage ? (
                 <div
                   ref={loadMoreRef}
+                  role={isFetchingNextPage ? 'status' : undefined}
+                  aria-live={isFetchingNextPage ? 'polite' : undefined}
                   className="flex flex-col items-center justify-center min-h-[120px] py-8"
-                  aria-hidden
                 >
                   {isFetchingNextPage ? <LoadingMore label={UI.LOADING_MORE} /> : <span className="h-4" />}
                 </div>
@@ -467,8 +495,9 @@ export default function Home() {
               {mapView && canExpandNearby ? (
                 <div
                   ref={ref}
+                  role={isNearbyFetching ? 'status' : undefined}
+                  aria-live={isNearbyFetching ? 'polite' : undefined}
                   className="flex flex-col items-center justify-center min-h-[120px] py-8"
-                  aria-hidden
                 >
                   {isNearbyFetching ? <LoadingMore label={UI.LOADING_MORE} /> : <span className="h-4" />}
                 </div>

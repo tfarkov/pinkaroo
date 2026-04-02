@@ -20,7 +20,25 @@ Use these templates for consistent handoffs and delivery quality.
 
 ---
 
-## 2) Release Notes Snippet (Per Commit/Push)
+## 2) Accessibility Check
+
+- **Scope reviewed:** <pages/components touched>
+- **Key checks:** <keyboard/focus/semantics/contrast/forms>
+- **Issues fixed:** <bullet list>
+- **Remaining risks:** <none or list>
+
+---
+
+## 3) Responsiveness Check
+
+- **Breakpoints covered:** <mobile/tablet/desktop sizes>
+- **Surfaces reviewed:** <pages/components touched>
+- **Issues fixed:** <bullet list>
+- **Remaining risks:** <none or list>
+
+---
+
+## 4) Release Notes Snippet (Per Commit/Push)
 
 - **What changed:** <plain-language summary>
 - **Who is affected:** <users/roles/systems impacted>
@@ -28,7 +46,7 @@ Use these templates for consistent handoffs and delivery quality.
 
 ---
 
-## 3) Post-Merge Verification
+## 5) Post-Merge Verification
 
 - **Branch/worktree clean:** <yes/no + evidence>
 - **CI status:** <green/failing + link>

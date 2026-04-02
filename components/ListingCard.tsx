@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Link from 'next/link';
 import { UI, getListingPageUrl } from '../lib/constants';
 import { formatPrice, formatArea } from '../lib/format';
@@ -23,17 +24,7 @@ function HeartIcon({ filled }: { filled: boolean }) {
   );
 }
 
-/** Tree leaf icon for eco-friendly listings (7+). Rounded leaf with stem. */
-function EcoLeafIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M11 20a7 7 0 0 1-1.2-13.9C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" fill="currentColor" stroke="none" />
-      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.5 11 12 17 8" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-export default function ListingCard(props: ListingCardProps) {
+function ListingCard(props: ListingCardProps) {
   const { listing, isMetric = false, variant = 'default', imagePlaceholder, isFavorited = false, onFavoriteClick } = props;
   const listingUrl = getListingPageUrl(listing.id);
   const showPrice = variant === 'default' && listing.price != null;
@@ -49,11 +40,8 @@ export default function ListingCard(props: ListingCardProps) {
       {showPrice && (
         <p className="text-xl font-bold text-accent-600">{formatPrice(listing.price ?? 0)}</p>
       )}
-      <h3 className="mt-1 font-semibold text-slate-900 group-hover:text-accent-600 transition-colors line-clamp-2 flex items-center gap-1.5">
-        <span>{listing.title ?? 'Listing'}</span>
-        {listing.ecoRatingScore != null && listing.ecoRatingScore >= 7 && (
-          <EcoLeafIcon className="w-5 h-5 flex-shrink-0 text-green-600 ml-0.5" aria-hidden />
-        )}
+      <h3 className="mt-1 font-semibold text-slate-900 group-hover:text-accent-600 transition-colors line-clamp-2">
+        {listing.title ?? 'Listing'}
       </h3>
       {variant === 'default' && (
         <p className="mt-2 text-sm text-slate-600">
@@ -75,13 +63,7 @@ export default function ListingCard(props: ListingCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group relative">
       <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden relative">
-        {listingUrl ? (
-          <Link href={listingUrl} className="block w-full h-full">
-            <SafeListingImage src={listing.images?.[0]} placeholder={imagePlaceholder} />
-          </Link>
-        ) : (
-          imageBlock
-        )}
+        {imageBlock}
         {onFavoriteClick != null && (
           <button
             type="button"
@@ -90,7 +72,7 @@ export default function ListingCard(props: ListingCardProps) {
               e.stopPropagation();
               onFavoriteClick(listing.id);
             }}
-            className={`absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center transition-colors z-10 ${isFavorited ? 'text-red-500 hover:text-red-600' : 'text-slate-700 hover:text-accent-600'}`}
+            className={`absolute top-2 right-2 w-11 h-11 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center transition-colors z-10 ${isFavorited ? 'text-red-500 hover:text-red-600' : 'text-slate-700 hover:text-accent-600'}`}
             aria-label={isFavorited ? 'Remove from favourites' : 'Add to favourites'}
           >
             <HeartIcon filled={isFavorited} />
@@ -107,3 +89,5 @@ export default function ListingCard(props: ListingCardProps) {
     </div>
   );
 }
+
+export default memo(ListingCard);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/router';
 import type { ParsedUrlQueryInput } from 'querystring';
@@ -22,25 +22,44 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
   const router = useRouter();
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
-  const debouncedFilter = debounce((data: FilterData) => {
-    onFilter(data);
-    const query: ParsedUrlQueryInput = Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, v === undefined || v === '' ? undefined : String(v)])
-    );
-    router.push({ query }, undefined, { shallow: true }); // Shareable URL params
-  }, 300);
+  const debouncedFilter = useMemo(
+    () =>
+      debounce((data: FilterData) => {
+        // Keep onFilter referentially stable from parent for consistent debounce behavior.
+        onFilter(data);
+        const query: ParsedUrlQueryInput = Object.fromEntries(
+          Object.entries(data).map(([k, v]) => [k, v === undefined || v === '' ? undefined : String(v)])
+        );
+        router.push({ query }, undefined, { shallow: true }); // Shareable URL params
+      }, 300),
+    [onFilter, router]
+  );
 
   useEffect(() => {
-    // Load from URL params
-    Object.entries(router.query).forEach(([key, value]) => setValue(key as keyof FilterData, value as any));
     const subscription = watch((data) => debouncedFilter(data as FilterData));
-    return () => subscription.unsubscribe();
-  }, [watch, router.query]);
+    return () => {
+      subscription.unsubscribe();
+      debouncedFilter.cancel();
+    };
+  }, [watch, debouncedFilter]);
+
+  useEffect(() => {
+    // Load from URL params without re-subscribing watch on each route query update.
+    Object.entries(router.query).forEach(([key, value]) => setValue(key as keyof FilterData, value as any));
+  }, [router.query, setValue]);
 
   return (
     <div className="mb-6">
-      <button onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="md:hidden btn-primary w-full mb-4">{UI.FILTERS}</button>
-      <div className={`${isAccordionOpen ? 'block' : 'hidden'} md:block`}>
+      <button
+        type="button"
+        onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+        className="md:hidden btn-primary w-full mb-4"
+        aria-expanded={isAccordionOpen}
+        aria-controls="advanced-filters-panel"
+      >
+        {UI.FILTERS}
+      </button>
+      <div id="advanced-filters-panel" className={`${isAccordionOpen ? 'block' : 'hidden'} md:block`}>
         <form onSubmit={handleSubmit(onFilter)} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-end">
             <div className="w-full">
@@ -57,40 +76,40 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
               <input id="filters-city" {...register('city')} type="text" placeholder="e.g. Barrie" className="input-field" />
             </div>
             <div className="w-full">
-              <label className="label">{UI.MIN_PRICE}</label>
-              <select {...register('minPrice')} className="input-field text-sm leading-tight">
+              <label htmlFor="filters-min-price" className="label">{UI.MIN_PRICE}</label>
+              <select id="filters-min-price" {...register('minPrice')} className="input-field text-sm leading-tight">
                 {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
                   <option key={value || 'any'} value={value}>{label}</option>
                 ))}
               </select>
             </div>
             <div className="w-full">
-              <label className="label">{UI.MAX_PRICE}</label>
-              <select {...register('maxPrice')} className="input-field text-sm leading-tight">
+              <label htmlFor="filters-max-price" className="label">{UI.MAX_PRICE}</label>
+              <select id="filters-max-price" {...register('maxPrice')} className="input-field text-sm leading-tight">
                 {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
                   <option key={value || 'any'} value={value}>{label}</option>
                 ))}
               </select>
             </div>
             <div className="w-full">
-              <label className="label">{UI.BEDROOMS}</label>
-              <select {...register('bedrooms')} className="input-field text-sm leading-tight">
+              <label htmlFor="filters-bedrooms" className="label">{UI.BEDROOMS}</label>
+              <select id="filters-bedrooms" {...register('bedrooms')} className="input-field text-sm leading-tight">
                 {FILTER_BEDROOM_OPTIONS.map(({ value, label }) => (
                   <option key={value || 'any'} value={value}>{label}</option>
                 ))}
               </select>
             </div>
             <div className="w-full">
-              <label className="label">{UI.BATHROOMS}</label>
-              <select {...register('bathrooms')} className="input-field text-sm leading-tight">
+              <label htmlFor="filters-bathrooms" className="label">{UI.BATHROOMS}</label>
+              <select id="filters-bathrooms" {...register('bathrooms')} className="input-field text-sm leading-tight">
                 {FILTER_BATHROOM_OPTIONS.map(({ value, label }) => (
                   <option key={value || 'any'} value={value}>{label}</option>
                 ))}
               </select>
             </div>
             <div className="w-full">
-              <label className="label">{UI.ANY_TYPE}</label>
-              <select {...register('propertyType')} className="input-field text-sm leading-tight">
+              <label htmlFor="filters-property-type" className="label">{UI.ANY_TYPE}</label>
+              <select id="filters-property-type" {...register('propertyType')} className="input-field text-sm leading-tight">
                 <option value="">All</option>
                 {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>

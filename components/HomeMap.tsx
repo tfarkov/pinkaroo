@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { DEFAULT_LOCATION, getListingPageUrl, MAP_NO_KEY_MESSAGE } from '../lib/constants';
@@ -51,7 +51,7 @@ function DefaultMap({ center, apiKey }: { center: { lat: number; lng: number }; 
 
   if (imgFailed) {
     return (
-      <div className="h-[420px] bg-slate-200 flex flex-col items-center justify-center gap-3 text-slate-600">
+      <div className="h-[320px] sm:h-[420px] bg-slate-200 flex flex-col items-center justify-center gap-3 text-slate-600">
         <p className="text-sm">Map could not be loaded.</p>
         <a href={mapsLink} target="_blank" rel="noopener noreferrer" className="text-accent-600 font-semibold hover:underline">
           Open in Google Maps →
@@ -60,10 +60,10 @@ function DefaultMap({ center, apiKey }: { center: { lat: number; lng: number }; 
     );
   }
   return (
-    <a href={mapsLink} target="_blank" rel="noopener noreferrer" className="block h-[420px] w-full bg-slate-200">
+    <a href={mapsLink} target="_blank" rel="noopener noreferrer" className="block h-[320px] sm:h-[420px] w-full bg-slate-200">
       <img
         src={staticUrl}
-        alt="Map"
+        alt="Map of nearby listings in the current search area"
         className="w-full h-full object-cover"
         onError={() => setImgFailed(true)}
       />
@@ -77,9 +77,10 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const [loadError, setLoadError] = useState(false);
+  const lastViewRef = useRef<MapView | null>(null);
   if (!apiKey) {
     return (
-      <div className="h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
+      <div className="h-[320px] sm:h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
         {MAP_NO_KEY_MESSAGE}
       </div>
     );
@@ -92,15 +93,25 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   }
 
   /** On map load: subscribe to idle events so parent gets center/zoom on pan or zoom. */
-  const handleLoad = (map: google.maps.Map) => {
+  const handleLoad = useCallback((map: google.maps.Map) => {
     if (onMapChange) {
       map.addListener('idle', () => {
         const c = map.getCenter();
         const z = map.getZoom();
-        if (c && z != null) onMapChange({ center: { lat: c.lat(), lng: c.lng() }, zoom: z });
+        if (!c || z == null) return;
+        const nextView: MapView = { center: { lat: c.lat(), lng: c.lng() }, zoom: z };
+        const prevView = lastViewRef.current;
+        const centerUnchanged =
+          prevView != null &&
+          Math.abs(prevView.center.lat - nextView.center.lat) < 0.0001 &&
+          Math.abs(prevView.center.lng - nextView.center.lng) < 0.0001;
+        const zoomUnchanged = prevView != null && prevView.zoom === nextView.zoom;
+        if (centerUnchanged && zoomUnchanged) return;
+        lastViewRef.current = nextView;
+        onMapChange(nextView);
       });
     }
-  };
+  }, [onMapChange]);
 
   const mapOptions: google.maps.MapOptions = {
     zoomControl: true,
@@ -111,18 +122,22 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
     scaleControl: true,
   };
 
-  const markersWithPos = listings
-    .map((listing) => ({ listing, pos: getMarkerPosition(listing) }))
-    .filter((entry): entry is { listing: MapListing; pos: { lat: number; lng: number } } => entry.pos != null)
-    .slice(0, 500);
+  const markersWithPos = useMemo(
+    () =>
+      listings
+        .map((listing) => ({ listing, pos: getMarkerPosition(listing) }))
+        .filter((entry): entry is { listing: MapListing; pos: { lat: number; lng: number } } => entry.pos != null)
+        .slice(0, 500),
+    [listings]
+  );
 
   return (
-    <div role="region" aria-label="Map of nearby listings" className="w-full h-full min-h-[420px]">
+    <div role="region" aria-label="Map of nearby listings" className="w-full h-[320px] sm:h-[420px]">
       <LoadScript
         googleMapsApiKey={apiKey}
         onError={() => setLoadError(true)}
         loadingElement={
-          <div className="h-[420px] bg-slate-100 animate-pulse flex items-center justify-center text-slate-500">
+          <div role="status" aria-live="polite" className="h-[320px] sm:h-[420px] bg-slate-100 animate-pulse flex items-center justify-center text-slate-500">
             Loading map…
           </div>
         }
@@ -130,7 +145,7 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
         <GoogleMap
           center={center}
           zoom={zoom}
-          mapContainerStyle={{ height: '420px', width: '100%' }}
+          mapContainerStyle={{ height: '100%', width: '100%' }}
           options={mapOptions}
           onLoad={handleLoad}
         >
@@ -148,6 +163,22 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
           ))}
         </GoogleMap>
       </LoadScript>
+      {markersWithPos.length > 0 && (
+        <div className="sr-only">
+          <p>Listings shown on map</p>
+          <ul>
+            {markersWithPos.map(({ listing }) => {
+              const url = getListingPageUrl(listing.id);
+              if (!url) return null;
+              return (
+                <li key={`map-link-${listing.id}`}>
+                  <a href={url} tabIndex={-1}>{listing.title ?? `Listing ${listing.id}`}</a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

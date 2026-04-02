@@ -3,14 +3,14 @@ description: Multi-agent workflow orchestration from research consensus to deliv
 alwaysApply: true
 ---
 
-# Agent Workflow: Consensus -> Design -> Implement -> Test -> Deliver
+# Agent Workflow: Consensus -> Design -> Implement -> Accessibility -> Responsiveness -> Test -> Deliver
 
 Use `docs/agent-templates.md` as the canonical format for consensus and delivery artifacts.
 
 ## Workflow Routing
 - **Small/low-risk tasks:** use default behavior (direct implementer -> test -> delivery). Do not run multi-agent workflow.
 - **Medium-to-large tasks:** ask the user which mode they want before proceeding:
-  - Full workflow (Dual Research -> Consensus -> Designer -> Implementer -> Test -> Delivery), or
+  - Full workflow (Dual Research -> Consensus -> Designer -> Implementer -> Accessibility -> Responsiveness -> Test -> Delivery), or
   - Default behavior (direct implementation path)
 - If the user does not explicitly choose workflow on medium/large tasks, continue with default behavior.
 
@@ -42,11 +42,27 @@ Use `docs/agent-templates.md` as the canonical format for consensus and delivery
   - Run targeted validation (lint/tests/build where relevant)
   - Report changed files and rationale
 
-## 5) Test Agent (mandatory before commit)
-- Pass implementer output to a dedicated test agent.
+## 5) Accessibility Agent (mandatory before commit)
+- Pass implementer output to a dedicated accessibility agent.
+- Accessibility agent must:
+  - Check WCAG-focused semantics, keyboard/focus behavior, contrast, form labeling, and assistive text for changed UI
+  - Identify issues and severity in changed scope
+  - Produce a short accessibility handoff using templates in `docs/agent-templates.md`
+- If accessibility issues are found, hand back to Implementer for fixes, then re-run Accessibility Agent.
+
+## 6) Responsiveness Agent (mandatory before commit)
+- Pass accessibility-cleared output to a dedicated responsiveness agent.
+- Responsiveness agent must:
+  - Verify mobile/tablet/desktop behavior for changed UI
+  - Validate layout stability, overflow handling, touch-target usability, and control visibility
+  - Produce a short responsiveness handoff using templates in `docs/agent-templates.md`
+- If responsiveness issues are found, hand back to Implementer for fixes, then re-run Responsiveness Agent.
+
+## 7) Test Agent (mandatory before commit)
+- Pass accessibility- and responsiveness-cleared output to a dedicated test agent.
 - Test details and pass/fail policy are defined in `agent-quality-gates.mdc`.
 
-## 6) Delivery Agent (Git + Docs)
+## 8) Delivery Agent (Git + Docs)
 - A delivery agent stages intended files, writes a clear commit message, commits, pushes, and updates README/docs for user-visible behavior or setup changes.
 - Git safety and delivery quality requirements are defined in `agent-quality-gates.mdc`.
 
