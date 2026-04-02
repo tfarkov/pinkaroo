@@ -1,14 +1,15 @@
 import { useForm } from 'react-hook-form';
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import ReactGA from 'react-ga';
-import { API, CONTENT_TYPE, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
+import { API, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { getMockMLSResults } from '../lib/mockData';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
-import SafeListingImage from '../components/ui/SafeListingImage';
+import ListingCard from '../components/ListingCard';
+import type { ListingBasic } from '../lib/types';
 
 interface SearchFormData {
   province: string;
@@ -42,11 +43,6 @@ export default function MLSSearch() {
     },
     enabled: !!searchParams,
   });
-  const mutation = useMutation({
-    mutationFn: (mlsData: any) => fetch(API.MLS_SEARCH, { method: 'POST', body: JSON.stringify({ mlsData }), headers: { 'Content-Type': CONTENT_TYPE.JSON } }),
-    onSuccess: () => ReactGA.event({ category: GA.MLS, action: GA.MLS_IMPORT_SUCCESS }),
-    onError: () => ReactGA.event({ category: GA.MLS, action: GA.MLS_IMPORT_FAILURE }),
-  });
 
   const onSubmit = (data: SearchFormData) => {
     const params = new URLSearchParams();
@@ -65,11 +61,6 @@ export default function MLSSearch() {
     setSearchParams(params.toString());
     setError(null);
     ReactGA.event({ category: GA.MLS, action: GA.MLS_SEARCH, label: data.province });
-  };
-
-  const importListing = (mlsData: any) => {
-    mutation.mutate(mlsData);
-    ReactGA.event({ category: GA.MLS, action: GA.MLS_IMPORT_ATTEMPT, label: mlsData.ListingKey });
   };
 
   if (isLoading) {
@@ -161,16 +152,21 @@ export default function MLSSearch() {
         {error && <p role="alert" className="text-red-600 mb-4">{error}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="MLS search results">
           {mlsListings?.map((listing: any) => (
-            <article key={listing.ListingKey} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden" role="listitem">
-              <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                <SafeListingImage src={listing.Media?.[0]?.MediaURL} alt={UI.IMAGE_OF_MLS_LISTING} />
-              </div>
-              <div className="p-4">
-                <h2 className="font-bold text-slate-900">{listing.PropertyType} in {listing.City}</h2>
-                <p className="text-sm text-slate-600 mt-1">{listing.StateOrProvince} ({listing.PostalCode})</p>
-                <p className="text-sm text-slate-600 mt-2 line-clamp-2">{listing.PublicRemarks?.substring(0, 100)}...</p>
-                <button type="button" onClick={() => importListing(listing)} className="btn-primary w-full mt-3">{UI.IMPORT_TO_MY_LISTINGS}</button>
-              </div>
+            <article key={listing.ListingKey} role="listitem">
+              <ListingCard
+                listing={{
+                  id: '',
+                  title: `${listing.PropertyType ?? 'Property'} in ${listing.City ?? 'Unknown city'}`,
+                  price: typeof listing.ListPrice === 'number' ? listing.ListPrice : undefined,
+                  location: [listing.StateOrProvince, listing.PostalCode].filter(Boolean).join(' '),
+                  images: listing.Media?.[0]?.MediaURL ? [listing.Media[0].MediaURL] : [],
+                  bedroomsTotal: listing.BedroomsTotal,
+                  bathroomsTotal: listing.BathroomsTotalInteger,
+                  sizeSqm: listing.LivingArea,
+                } as ListingBasic}
+                isMetric={isMetric}
+                imagePlaceholder={UI.IMAGE_OF_MLS_LISTING}
+              />
             </article>
           ))}
         </div>
