@@ -67,20 +67,20 @@ const MARKETING_HERO_IMAGES = [
 const WHO_IT_IS_FOR = [
   {
     audience: 'Buyers',
-    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412745/pinkaroo/mock-assets/bb4d1ea69adec350.jpg',
-    alt: 'Home buyers exploring listings on a tablet',
+    src: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1400&q=80',
+    alt: 'Buyers standing in front of a modern home',
     description: 'Find and compare listings quickly with local filters, map browsing, favourites, and Eco-Rating context.',
   },
   {
     audience: 'Realtors',
-    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
-    alt: 'Realtor presenting home options to clients',
+    src: 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=1400&q=80',
+    alt: 'Realtor discussing listing options with clients',
     description: 'Showcase listings, manage client touchpoints, and stay responsive through one platform.',
   },
   {
     audience: 'Brokers',
-    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412748/pinkaroo/mock-assets/2c65c0cb8f88046a.jpg',
-    alt: 'Broker reviewing team performance metrics',
+    src: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1400&q=80',
+    alt: 'Broker reviewing team performance metrics on a laptop',
     description: 'Monitor team outcomes, assignments, approvals, and weekly KPI trends with less friction.',
   },
 ];
