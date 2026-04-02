@@ -20,6 +20,11 @@ const AD_COPY_EXAMPLES = [
     body: 'Browse local listings with map-first search, smart filters, and favourites so you can compare homes in minutes.',
   },
   {
+    audience: 'Eco-conscious buyers',
+    headline: 'Find Greener Homes with Eco-Rating',
+    body: 'Use Pinkaroo Eco-Rating insights to spot homes with stronger sustainability potential before you book a showing.',
+  },
+  {
     audience: 'Buyers',
     headline: 'Search Barrie and Simcoe with Confidence',
     body: 'Stop scrolling random listings. Pinkaroo helps you discover homes by city, budget, beds, baths, and map area.',
@@ -39,7 +44,7 @@ const AD_COPY_EXAMPLES = [
 export default function WhyPinkarooPage() {
   const title = 'Why Pinkaroo | Local-first Real Estate Platform';
   const description =
-    'See how Pinkaroo helps buyers, realtors, and brokers with practical search tools, Simcoe-first growth strategy, and measurable weekly KPIs.';
+    'See how Pinkaroo helps buyers, realtors, and brokers with practical search tools, Eco-Rating insights, Simcoe-first growth strategy, and measurable weekly KPIs.';
   const canonical = canonicalUrl('/why-pinkaroo');
   const ogImage = toAbsoluteUrl(SEO.ogImagePath);
   const structuredData = {
@@ -93,7 +98,7 @@ export default function WhyPinkarooPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="border border-slate-200 rounded-md p-4">
                 <h3 className="font-semibold text-slate-900 mb-2">Buyers</h3>
-                <p className="text-sm text-slate-600">Find and compare listings quickly with local filters, map browsing, and favourites.</p>
+                <p className="text-sm text-slate-600">Find and compare listings quickly with local filters, map browsing, favourites, and Eco-Rating context.</p>
               </div>
               <div className="border border-slate-200 rounded-md p-4">
                 <h3 className="font-semibold text-slate-900 mb-2">Realtors</h3>
@@ -104,6 +109,23 @@ export default function WhyPinkarooPage() {
                 <p className="text-sm text-slate-600">Monitor team outcomes, assignments, approvals, and weekly KPI trends with less friction.</p>
               </div>
             </div>
+          </section>
+
+          <section className="bg-emerald-50 border border-emerald-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+            <h2 className="text-2xl font-bold text-emerald-900 mb-3">Eco-Rating and sustainability, built in</h2>
+            <p className="text-emerald-900/90 mb-4">
+              Pinkaroo believes better real estate decisions should support both families and the future of our communities. Our Eco-Rating helps people
+              understand a home's sustainability signals early in the search process, so they can ask smarter questions and prioritize long-term efficiency.
+            </p>
+            <p className="text-emerald-900/90 mb-4">
+              We are building Pinkaroo with the same mindset: responsible growth, practical tools that reduce wasted effort, and sustainable business
+              practices that create long-term value for buyers, realtors, brokers, and the neighborhoods they serve.
+            </p>
+            <ul className="list-disc pl-5 text-emerald-900/90 text-sm space-y-1">
+              <li>Eco-Rating visibility where users make decisions.</li>
+              <li>Product choices focused on durability and real local impact.</li>
+              <li>A long-term operating approach over short-term hype.</li>
+            </ul>
           </section>
 
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
@@ -137,6 +159,9 @@ export default function WhyPinkarooPage() {
 
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Ad copy examples</h2>
+            <p className="text-slate-600 mb-4">
+              Use these as starting points across search ads, social campaigns, landing pages, and broker outreach.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {AD_COPY_EXAMPLES.map((copy) => (
                 <article key={copy.headline} className="border border-slate-200 rounded-md p-4">

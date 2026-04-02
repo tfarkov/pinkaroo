@@ -313,6 +313,25 @@ export default function Home() {
 
         <div className="content-width flex flex-col lg:flex-row gap-8 py-10">
           <div className="flex-1 min-w-0">
+            <section
+              aria-labelledby="eco-callout-title"
+              className="mb-8 rounded-lg border border-emerald-200 bg-emerald-50 p-5 md:p-6"
+            >
+              <h2 id="eco-callout-title" className="text-xl md:text-2xl font-bold text-emerald-900 mb-2">
+                Eco-Rating: helping buyers make greener home decisions
+              </h2>
+              <p className="text-emerald-900/90 text-sm md:text-base mb-4">
+                We care deeply about the environment and sustainable business practices. Pinkaroo highlights Eco-Rating
+                insights so buyers can compare homes with long-term efficiency and community impact in mind.
+              </p>
+              <Link
+                href="/why-pinkaroo"
+                className="inline-flex items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors"
+              >
+                Learn about our sustainability approach
+              </Link>
+            </section>
+
             {showSignedOutMessage && (
               <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm flex items-start justify-between gap-3">
                 <span>You have been signed out successfully. Thanks for visiting Pinkaroo.</span>
