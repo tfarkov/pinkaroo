@@ -212,24 +212,6 @@ export default function WhyPinkarooPage() {
             </div>
           </section>
 
-          <section className="bg-white border border-red-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <div className="inline-flex items-center rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
-              Proudly Canadian
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-3 flex items-center gap-2">
-              <MapleLeafIcon />
-              Canadian owned and operated
-            </h2>
-            <p className="text-slate-700 mb-4">
-              Pinkaroo is a Canadian company, built and run here to serve local communities with practical, trustworthy real estate technology.
-              We focus on Canadian market realities, local partnerships, and long-term value for buyers, realtors, and brokers.
-            </p>
-            <p className="text-slate-700">
-              Our commitment is simple: keep improving the platform in a way that supports Canadian families, local professionals, and sustainable business growth.
-            </p>
-          </section>
-
-
           <section className="bg-white border border-slate-300 rounded-lg shadow-card p-6 md:p-8 mb-8">
             <div className="inline-flex items-center rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
               Eco-Rating Focus
@@ -338,6 +320,23 @@ export default function WhyPinkarooPage() {
               </section>
             </>
           )}
+
+          <section className="bg-white border border-red-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+            <div className="inline-flex items-center rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+              Proudly Canadian
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <MapleLeafIcon />
+              Canadian owned and operated
+            </h2>
+            <p className="text-slate-700 mb-4">
+              Pinkaroo is a Canadian company, built and run here to serve local communities with practical, trustworthy real estate technology.
+              We focus on Canadian market realities, local partnerships, and long-term value for buyers, realtors, and brokers.
+            </p>
+            <p className="text-slate-700">
+              Our commitment is simple: keep improving the platform in a way that supports Canadian families, local professionals, and sustainable business growth.
+            </p>
+          </section>
 
           <section className="bg-header text-white rounded-lg p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-2">Ready to explore Pinkaroo?</h2>
