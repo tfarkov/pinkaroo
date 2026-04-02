@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { useAuth } from '../lib/hooks/useAuth';
 
 export default function Footer() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isRealtor, isBroker, isSystemAdmin, isOfficeAdmin } = useAuth();
+  const canAccessMLS = isRealtor || isBroker || isSystemAdmin || isOfficeAdmin;
   return (
     <footer className="bg-header text-white mt-auto">
       <div className="content-width py-5">
@@ -14,7 +15,9 @@ export default function Footer() {
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-1.5 sm:justify-end">
             <Link href="/" className="text-white/70 hover:text-white text-sm transition-colors">Find a Home</Link>
             <Link href="/why-pinkaroo" className="text-white/70 hover:text-white text-sm transition-colors">Why Pinkaroo</Link>
-            <Link href="/mls-search" className="text-white/70 hover:text-white text-sm transition-colors">MLS Search</Link>
+            {canAccessMLS && (
+              <Link href="/mls-search" className="text-white/70 hover:text-white text-sm transition-colors">MLS Search</Link>
+            )}
             <Link href="/favorites" className="text-white/70 hover:text-white text-sm transition-colors">Favourites</Link>
             {isAuthenticated && (
               <Link href="/profile" className="text-white/70 hover:text-white text-sm transition-colors">Profile</Link>

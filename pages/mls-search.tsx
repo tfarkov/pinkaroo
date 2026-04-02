@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactGA from 'react-ga';
 import Head from 'next/head';
+import Link from 'next/link';
 import { API, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
+import { useAuth } from '../lib/hooks/useAuth';
 import { getMockMLSResults } from '../lib/mockData';
 import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 import Header from '../components/Header';
@@ -34,7 +36,9 @@ export default function MLSSearch() {
   const canonical = canonicalUrl('/mls-search');
   const ogImage = toAbsoluteUrl(SEO.ogImagePath);
   const { register, handleSubmit, formState: { errors } } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' }, mode: 'onBlur' });
+  const { status, isAuthenticated, isRealtor, isBroker, isSystemAdmin, isOfficeAdmin } = useAuth();
   const { isMetric } = useUnitToggle();
+  const canAccessMLS = isRealtor || isBroker || isSystemAdmin || isOfficeAdmin;
   const [searchParams, setSearchParams] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { data: mlsListings, isLoading } = useQuery({
@@ -48,11 +52,12 @@ export default function MLSSearch() {
         return getMockMLSResults();
       }
     },
-    enabled: !!searchParams,
+    enabled: canAccessMLS && !!searchParams,
   });
   const resultCount = Array.isArray(mlsListings) ? mlsListings.length : 0;
 
   const onSubmit = (data: SearchFormData) => {
+    if (!canAccessMLS) return;
     const params = new URLSearchParams();
     const payload = { ...data };
     if (!isMetric) {
@@ -78,6 +83,44 @@ export default function MLSSearch() {
         <main id="main-content" tabIndex={-1} className="content-width flex items-center justify-center min-h-[40vh]">
           <p className="text-slate-500" role="status" aria-live="polite">{UI.SEARCHING_MLS}</p>
         </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (status === 'loading') {
+    return (
+      <div className="page-container">
+        <Header />
+        <main id="main-content" tabIndex={-1} className="content-width flex items-center justify-center min-h-[40vh]">
+          <p className="text-slate-500" role="status" aria-live="polite">Loading access...</p>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !canAccessMLS) {
+    return (
+      <div className="page-container flex flex-col">
+        <Header />
+        <main id="main-content" role="main" tabIndex={-1} className="flex-1 content-width max-w-3xl pb-14">
+          <section className="bg-white rounded-lg shadow-card border border-slate-200 p-6 md:p-8 mt-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">MLS Search is role-restricted</h1>
+            <p className="text-slate-700 mb-6">
+              MLS Search is available only to signed-in realtors, brokers, and admin users.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {!isAuthenticated ? (
+                <Link href="/signin" className="btn-primary">Sign in</Link>
+              ) : (
+                <Link href="/dashboard" className="btn-primary">Go to Dashboard</Link>
+              )}
+              <Link href="/" className="btn-secondary">Back to Home</Link>
+            </div>
+          </section>
+        </main>
+        <Footer />
         <BottomNav />
       </div>
     );

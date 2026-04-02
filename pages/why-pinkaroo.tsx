@@ -89,16 +89,17 @@ function MapleLeafIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-6 h-6 text-red-600" aria-hidden="true">
       <path
-        fill="currentColor"
-        d="M12 2.5l1.8 3.6 3.2-1.4-.8 3.5 3.6 1.1-2.9 2.2 2.2 2.6-3.4.4.4 3.2L12 16.1l-4.1 2.1.4-3.2-3.4-.4 2.2-2.6L4.2 9.8l3.6-1.1-.8-3.5 3.2 1.4L12 2.5zm-.9 14.2h1.8V22h-1.8v-5.3z"
+        fill="#dc2626"
+        d="M12 1.75l1.22 4.46 2.96-1.72-.78 3.37 3.45.46-2.7 2.23 2.33 2.06-3.22 1 .82 3.82L12.5 16v6.25h-1V16l-3.58 1.43.82-3.82-3.22-1 2.33-2.06-2.7-2.23 3.45-.46-.78-3.37 2.96 1.72L12 1.75z"
       />
     </svg>
   );
 }
 
 export default function WhyPinkarooPage() {
-  const { isSystemAdmin, isOfficeAdmin } = useAuth();
+  const { isSystemAdmin, isOfficeAdmin, isRealtor, isBroker } = useAuth();
   const canViewAdminMarketingMaterials = isSystemAdmin || isOfficeAdmin;
+  const canAccessMLS = isSystemAdmin || isOfficeAdmin || isRealtor || isBroker;
   const title = 'Why Pinkaroo | Local-first Real Estate Platform';
   const description =
     'See how Pinkaroo helps buyers, realtors, and brokers with practical search tools, Eco-Rating insights, Simcoe-first growth strategy, and measurable weekly KPIs.';
@@ -146,7 +147,7 @@ export default function WhyPinkarooPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/#listings" className="btn-primary">Start Searching</Link>
-              <Link href="/mls-search" className="btn-secondary">Explore MLS Search</Link>
+              {canAccessMLS && <Link href="/mls-search" className="btn-secondary">Explore MLS Search</Link>}
             </div>
           </section>
 

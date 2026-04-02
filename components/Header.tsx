@@ -15,11 +15,13 @@ function LogoIcon({ className }: { className?: string }) {
 }
 
 export default function Header() {
-  const { isAuthenticated, isRealtor, isBroker, isAdmin } = useAuth();
+  const { isAuthenticated, isRealtor, isBroker, isAdmin, isSystemAdmin, isOfficeAdmin } = useAuth();
   const { isMetric, toggleUnit } = useUnitToggle();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const canAccessMLS = isRealtor || isBroker || isAdmin || isSystemAdmin || isOfficeAdmin;
 
   const navLinks = [
     { href: '/', label: 'Find a Home' },
@@ -29,7 +31,7 @@ export default function Header() {
     ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
     ...((isRealtor || isBroker || isAdmin) ? [{ href: '/dashboard/crm', label: 'CRM' }] : []),
-    { href: '/mls-search', label: 'MLS Search' },
+    ...(canAccessMLS ? [{ href: '/mls-search', label: 'MLS Search' }] : []),
     { href: '/favorites', label: 'Favourites' },
   ];
 

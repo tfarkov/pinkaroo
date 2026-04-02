@@ -3,13 +3,16 @@ import { getSession } from '../../../lib/session';
 import { searchMLS, importListingFromMLS, buildMLSFilter } from '../../../lib/mls';
 import { API_MESSAGES } from '../../../lib/constants';
 import { parseQueryNum } from '../../../lib/utils/parse';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { requireMethod, requireRole, sendError } from '../../../lib/apiHelpers';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET', 'POST'])) return;
   const session = await getSession(req, res);
   if (!session) {
     sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
+    return;
+  }
+  if (!requireRole(res, session.user.role, ['REALTOR', 'BROKER', 'OFFICE_ADMIN', 'SYSTEM_ADMIN'])) {
     return;
   }
   try {
