@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic';
+import Head from 'next/head';
 import { useQuery, useInfiniteQuery, useQueries } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -26,6 +27,7 @@ import ContactRealtorCard from '../components/ContactRealtorCard';
 import AdvancedFilters from '../components/AdvancedFilters';
 import LoadingMore from '../components/ui/LoadingMore';
 import EmptyState from '../components/ui/EmptyState';
+import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
@@ -59,6 +61,11 @@ const HERO_PHRASES = [
  */
 export default function Home() {
   const router = useRouter();
+  const title = 'Find Homes in Simcoe and Beyond | Pinkaroo';
+  const description =
+    'Map-first home search with advanced filters, recently viewed homes, and favourites to help buyers find the right property faster.';
+  const canonical = canonicalUrl('/');
+  const ogImage = toAbsoluteUrl(SEO.ogImagePath);
   const position = useGeolocation(); // Barrie, ON when geolocation unavailable or denied
   const { isMetric } = useUnitToggle();
   const recentIds = useRecentlyViewed();
@@ -254,6 +261,21 @@ export default function Home() {
 
   return (
     <div className="page-container flex flex-col">
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={SEO.siteName} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogImage} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImage} />
+      </Head>
       <Header />
       <main className="flex-1">
         {/* Hero with background image */}

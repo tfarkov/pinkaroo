@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -36,14 +37,41 @@ const AD_COPY_EXAMPLES = [
 ];
 
 export default function WhyPinkarooPage() {
+  const title = 'Why Pinkaroo | Local-first Real Estate Platform';
+  const description =
+    'See how Pinkaroo helps buyers, realtors, and brokers with practical search tools, Simcoe-first growth strategy, and measurable weekly KPIs.';
+  const canonical = canonicalUrl('/why-pinkaroo');
+  const ogImage = toAbsoluteUrl(SEO.ogImagePath);
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: 'Why Pinkaroo',
+    url: canonical,
+    description,
+    publisher: {
+      '@type': 'Organization',
+      name: SEO.siteName,
+      url: canonicalUrl('/'),
+    },
+  };
+
   return (
     <>
       <Head>
-        <title>Why Pinkaroo | Pinkaroo</title>
-        <meta
-          name="description"
-          content="Learn why Pinkaroo is building a simpler local-first real estate platform for buyers, realtors, and brokers."
-        />
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:type" content="article" />
+        <meta property="og:site_name" content={SEO.siteName} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogImage} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImage} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       </Head>
       <div className="page-container flex flex-col">
         <Header />

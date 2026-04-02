@@ -2,9 +2,11 @@ import { useForm } from 'react-hook-form';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactGA from 'react-ga';
+import Head from 'next/head';
 import { API, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { getMockMLSResults } from '../lib/mockData';
+import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -26,6 +28,11 @@ interface SearchFormData {
 }
 
 export default function MLSSearch() {
+  const title = 'Canadian MLS Search | Pinkaroo';
+  const description =
+    'Search Canadian MLS listings by city, postal code, property type, price, size, beds, and baths with a clean local-first experience.';
+  const canonical = canonicalUrl('/mls-search');
+  const ogImage = toAbsoluteUrl(SEO.ogImagePath);
   const { register, handleSubmit, formState: { errors } } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' }, mode: 'onBlur' });
   const { isMetric } = useUnitToggle();
   const [searchParams, setSearchParams] = useState('');
@@ -75,6 +82,21 @@ export default function MLSSearch() {
 
   return (
     <div className="page-container flex flex-col">
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={SEO.siteName} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogImage} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImage} />
+      </Head>
       <Header />
       <main role="main" aria-labelledby="mls-title" className="flex-1 content-width max-w-5xl pb-14">
         <h1 id="mls-title" className="text-3xl font-bold text-slate-900 py-8">{UI.SEARCH_CANADIAN_MLS}</h1>

@@ -1,15 +1,32 @@
-﻿import Head from 'next/head';
+import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
+import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 
 export default function Terms() {
+  const title = 'Terms of Use | Pinkaroo';
+  const description = 'Pinkaroo Terms of Use governing your use of our real estate portal.';
+  const canonical = canonicalUrl('/terms');
+  const ogImage = toAbsoluteUrl(SEO.ogImagePath);
+
   return (
     <div className="page-container flex flex-col">
       <Head>
-        <title>Terms of Use | Pinkaroo</title>
-        <meta name="description" content="Pinkaroo Terms of Use governing your use of our real estate portal." />
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <meta property="og:type" content="article" />
+        <meta property="og:site_name" content={SEO.siteName} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={ogImage} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImage} />
       </Head>
       <Header />
       <main className="flex-1 content-width py-10 pb-14">
