@@ -29,6 +29,16 @@ import LoadingMore from '../components/ui/LoadingMore';
 import EmptyState from '../components/ui/EmptyState';
 import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
 
+type HomeFilterData = {
+  province: string;
+  city: string;
+  minPrice: string | number;
+  maxPrice: string | number;
+  bedrooms: string | number;
+  bathrooms: string | number;
+  propertyType: string;
+};
+
 const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ssr: false,
   loading: () => (
@@ -256,8 +266,8 @@ export default function Home() {
     const sortedWithListing = sortListings(withListing, defaultSortValue);
     return [...sortedWithListing.map((listing) => listing.id), ...withoutListing];
   }, [recentListingIds, recentListingsById, defaultSortValue]);
-  const handleFilterChange = useCallback((data: FilterParams) => {
-    setFilters({ ...data });
+  const handleFilterChange = useCallback((data: HomeFilterData) => {
+    setFilters({ ...data } as FilterParams);
   }, []);
   const listingById = useMemo(() => {
     const byId = new Map<string, ListingBasic>();
