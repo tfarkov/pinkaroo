@@ -234,6 +234,27 @@ export default function Home() {
       staleTime: STALE_TIME_5_MIN,
     })),
   });
+  const defaultSortValue: ListingSortValue = LISTING_SORT_OPTIONS[0].value;
+  const recentListingsById = useMemo(() => {
+    const byId = new Map<string, { listing?: ListingBasic; isLoading: boolean }>();
+    recentListingsQueries.forEach((query, index) => {
+      const id = recentListingIds[index];
+      if (!id) return;
+      byId.set(id, { listing: query.data as ListingBasic | undefined, isLoading: query.isLoading });
+    });
+    return byId;
+  }, [recentListingsQueries, recentListingIds]);
+  const sortedRecentListingIds = useMemo(() => {
+    const withListing: ListingBasic[] = [];
+    const withoutListing: string[] = [];
+    recentListingIds.forEach((id) => {
+      const entry = recentListingsById.get(id);
+      if (entry?.listing) withListing.push(entry.listing);
+      else withoutListing.push(id);
+    });
+    const sortedWithListing = sortListings(withListing, defaultSortValue);
+    return [...sortedWithListing.map((listing) => listing.id), ...withoutListing];
+  }, [recentListingIds, recentListingsById, defaultSortValue]);
 
   useEffect(() => {
     if (loadMoreInView && hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -350,15 +371,15 @@ export default function Home() {
                 {UI.RECENTLY_VIEWED_TITLE}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {recentListingsQueries.map((query, i) => {
-                  const id = recentListingIds[i];
-                  const listing = query.data as ListingBasic | undefined;
+                {sortedRecentListingIds.map((id) => {
+                  const entry = recentListingsById.get(id);
+                  const listing = entry?.listing;
                   return (
                     <ListingCard
                       key={id}
                       listing={listing ?? { id }}
                       variant="recent"
-                      imagePlaceholder={query.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
+                      imagePlaceholder={entry?.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
                       isFavorited={isFavorited(id)}
                       onFavoriteClick={(listingId) => handleFavoriteClick(listingId, listing ?? undefined)}
                     />
