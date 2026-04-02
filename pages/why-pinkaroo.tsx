@@ -1,6 +1,8 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
+import { useAuth } from '../lib/hooks/useAuth';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
@@ -41,7 +43,15 @@ const AD_COPY_EXAMPLES = [
   },
 ];
 
+const WHY_PINKAROO_STOCK_IMAGES = [
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412745/pinkaroo/mock-assets/bb4d1ea69adec350.jpg',
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412747/pinkaroo/mock-assets/f2d742c9dc41d29e.jpg',
+];
+
 export default function WhyPinkarooPage() {
+  const { isSystemAdmin, isOfficeAdmin } = useAuth();
+  const canViewAdminMarketingMaterials = isSystemAdmin || isOfficeAdmin;
   const title = 'Why Pinkaroo | Local-first Real Estate Platform';
   const description =
     'See how Pinkaroo helps buyers, realtors, and brokers with practical search tools, Eco-Rating insights, Simcoe-first growth strategy, and measurable weekly KPIs.';
@@ -93,6 +103,22 @@ export default function WhyPinkarooPage() {
             </div>
           </section>
 
+          <section className="bg-white border border-slate-200 rounded-lg shadow-card p-4 md:p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {WHY_PINKAROO_STOCK_IMAGES.map((src, idx) => (
+                <div key={src} className="relative h-48 md:h-56 rounded-lg overflow-hidden">
+                  <Image
+                    src={src}
+                    alt={`Pinkaroo sustainability and local real estate visual ${idx + 1}`}
+                    fill
+                    sizes="(min-width: 768px) 33vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Who it is for</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -128,50 +154,54 @@ export default function WhyPinkarooPage() {
             </ul>
           </section>
 
-          <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Simcoe-first channel mix</h2>
-            <p className="text-slate-600 mb-4">Example monthly media split using a CAD $3,000 starter budget.</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-500 border-b border-slate-200">
-                    <th className="py-2 pr-3">Channel</th>
-                    <th className="py-2 pr-3">Allocation</th>
-                    <th className="py-2 pr-3">Monthly</th>
-                    <th className="py-2 pr-3">Goal</th>
-                    <th className="py-2">Primary KPI</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {CHANNEL_MIX.map((item) => (
-                    <tr key={item.channel} className="border-b border-slate-100">
-                      <td className="py-2 pr-3 font-medium text-slate-900">{item.channel}</td>
-                      <td className="py-2 pr-3 text-slate-700">{item.allocation}</td>
-                      <td className="py-2 pr-3 text-slate-700">{item.monthly}</td>
-                      <td className="py-2 pr-3 text-slate-700">{item.goal}</td>
-                      <td className="py-2 text-slate-700">{item.kpi}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          {canViewAdminMarketingMaterials && (
+            <>
+              <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">Simcoe-first channel mix</h2>
+                <p className="text-slate-600 mb-4">Example monthly media split using a CAD $3,000 starter budget.</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-500 border-b border-slate-200">
+                        <th className="py-2 pr-3">Channel</th>
+                        <th className="py-2 pr-3">Allocation</th>
+                        <th className="py-2 pr-3">Monthly</th>
+                        <th className="py-2 pr-3">Goal</th>
+                        <th className="py-2">Primary KPI</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CHANNEL_MIX.map((item) => (
+                        <tr key={item.channel} className="border-b border-slate-100">
+                          <td className="py-2 pr-3 font-medium text-slate-900">{item.channel}</td>
+                          <td className="py-2 pr-3 text-slate-700">{item.allocation}</td>
+                          <td className="py-2 pr-3 text-slate-700">{item.monthly}</td>
+                          <td className="py-2 pr-3 text-slate-700">{item.goal}</td>
+                          <td className="py-2 text-slate-700">{item.kpi}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
 
-          <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Ad copy examples</h2>
-            <p className="text-slate-600 mb-4">
-              Use these as starting points across search ads, social campaigns, landing pages, and broker outreach.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {AD_COPY_EXAMPLES.map((copy) => (
-                <article key={copy.headline} className="border border-slate-200 rounded-md p-4">
-                  <p className="text-xs uppercase tracking-wide text-accent-700 font-semibold mb-2">{copy.audience}</p>
-                  <h3 className="font-semibold text-slate-900 mb-2">{copy.headline}</h3>
-                  <p className="text-sm text-slate-600">{copy.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+              <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">Ad copy examples</h2>
+                <p className="text-slate-600 mb-4">
+                  Use these as starting points across search ads, social campaigns, landing pages, and broker outreach.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {AD_COPY_EXAMPLES.map((copy) => (
+                    <article key={copy.headline} className="border border-slate-200 rounded-md p-4">
+                      <p className="text-xs uppercase tracking-wide text-accent-700 font-semibold mb-2">{copy.audience}</p>
+                      <h3 className="font-semibold text-slate-900 mb-2">{copy.headline}</h3>
+                      <p className="text-sm text-slate-600">{copy.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
 
           <section className="bg-header text-white rounded-lg p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-2">Ready to explore Pinkaroo?</h2>
