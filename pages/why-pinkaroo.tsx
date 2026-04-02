@@ -229,6 +229,37 @@ export default function WhyPinkarooPage() {
             </div>
           </section>
 
+          <section className="bg-white border border-indigo-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+            <div className="inline-flex items-center rounded-full bg-indigo-700 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+              Accessibility Commitment
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">Accessible by design, not as an afterthought</h2>
+            <p className="text-slate-700 mb-4">
+              At Pinkaroo, we believe everyone should be able to search, compare, and evaluate homes with confidence.
+              We build with accessibility in mind from the start, so buyers, realtors, and brokers can use the platform
+              with keyboard navigation, readable interfaces, and clear content structure.
+            </p>
+            <p className="text-slate-700 mb-6">
+              Our team treats accessibility as an ongoing product standard. We continuously improve usability across
+              devices and assistive technologies because inclusive experiences are part of building a better, more
+              trustworthy real estate platform.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Keyboard-friendly flows</h3>
+                <p className="text-sm text-slate-700">Core journeys are designed to work without a mouse.</p>
+              </article>
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Readable, high-contrast UI</h3>
+                <p className="text-sm text-slate-700">Content and controls prioritize legibility and clarity.</p>
+              </article>
+              <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-semibold text-slate-900 mb-1">Continuous improvement</h3>
+                <p className="text-sm text-slate-700">Accessibility and responsiveness checks are part of our workflow.</p>
+              </article>
+            </div>
+          </section>
+
           {canViewAdminMarketingMaterials && (
             <>
               <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
