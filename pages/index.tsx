@@ -35,12 +35,13 @@ const HomeMap = dynamic(() => import('../components/HomeMap'), {
   ),
 });
 
-const HERO_IMAGES = [
-  'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1920&q=80',
-  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1920&q=80',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1920&q=80',
-  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1920&q=80',
+const HERO_IMAGE_SOURCES = [
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412745/pinkaroo/mock-assets/bb4d1ea69adec350.jpg',
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412747/pinkaroo/mock-assets/f2d742c9dc41d29e.jpg',
+  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412748/pinkaroo/mock-assets/2c65c0cb8f88046a.jpg',
 ];
+const HERO_IMAGES = HERO_IMAGE_SOURCES;
 
 const HERO_PHRASES = [
   'Find a House. Make It a Home.',
@@ -116,6 +117,7 @@ export default function Home() {
       return Array.isArray(data) ? data : [];
     },
     staleTime: STALE_TIME_5_MIN,
+    retry: 1,
   });
 
   /** Pins: filter pool by current map center + zoom radius only (no refetch). */
@@ -169,6 +171,7 @@ export default function Home() {
     hasNextPage,
     isFetchingNextPage,
     isFetching: isListingsFetching,
+    isError: isListingsError,
   } = useInfiniteQuery({
     queryKey: ['listings-public', filters],
     queryFn: async ({ pageParam }) => {
@@ -180,6 +183,7 @@ export default function Home() {
     initialPageParam: 0,
     getNextPageParam: (lastPage: { nextPage?: number | null }) => lastPage.nextPage ?? undefined,
     staleTime: STALE_TIME_5_MIN,
+    retry: 1,
   });
 
   const listings: ListingBasic[] = listingsData?.pages.flatMap((p: { listings?: ListingBasic[] }) => p.listings ?? []) ?? [];
@@ -276,13 +280,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Full-width filters under hero */}
-        <section className="w-full border-b border-slate-200 bg-white shadow-sm" aria-label="Search filters">
-          <div className="px-4 py-4 md:px-6 md:py-5">
-            <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
-          </div>
-        </section>
-
         <div className="content-width flex flex-col lg:flex-row gap-8 py-10">
           <div className="flex-1 min-w-0">
             {/* Map */}
@@ -297,6 +294,42 @@ export default function Home() {
                   listings={mapListings}
                   onMapChange={handleMapChange}
                 />
+              </div>
+              {mapListings.length === 0 && (
+                <p className="mt-3 text-sm text-slate-500">No mappable listings found in the current view.</p>
+              )}
+            </section>
+
+            {/* Recently Viewed */}
+            <section aria-labelledby="recent-title" className="py-10 pb-14">
+              <h2 id="recent-title" className="text-2xl font-bold text-slate-900 mb-6">
+                {UI.RECENTLY_VIEWED_TITLE}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {recentListingsQueries.map((query, i) => {
+                  const id = recentListingIds[i];
+                  const listing = query.data as ListingBasic | undefined;
+                  return (
+                    <ListingCard
+                      key={id}
+                      listing={listing ?? { id }}
+                      variant="recent"
+                      imagePlaceholder={query.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
+                      isFavorited={isFavorited(id)}
+                      onFavoriteClick={(listingId) => handleFavoriteClick(listingId, listing ?? undefined)}
+                    />
+                  );
+                })}
+              </div>
+              {recentListingIds.length === 0 && (
+                <EmptyState message="No recently viewed listings yet. Browse listings to get started." />
+              )}
+            </section>
+
+            {/* Filters */}
+            <section className="w-full border border-slate-200 bg-white shadow-sm rounded-lg mb-10" aria-label="Search filters">
+              <div className="px-4 py-4 md:px-6 md:py-5">
+                <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
               </div>
             </section>
 
@@ -379,34 +412,11 @@ export default function Home() {
                   {isNearbyFetching ? <LoadingMore label={UI.LOADING_MORE} /> : <span className="h-4" />}
                 </div>
               ) : null}
-              {sortedListings.length === 0 && !isListingsFetching && (
+              {isListingsError && !isListingsFetching ? (
+                <EmptyState message="Unable to load listings right now. Please refresh and try again." />
+              ) : null}
+              {sortedListings.length === 0 && !isListingsFetching && !isListingsError && (
                 <EmptyState message="No listings match your filters. Try adjusting your search." />
-              )}
-            </section>
-
-            {/* Recently Viewed */}
-            <section aria-labelledby="recent-title" className="py-10 pb-14">
-              <h2 id="recent-title" className="text-2xl font-bold text-slate-900 mb-6">
-                {UI.RECENTLY_VIEWED_TITLE}
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {recentListingsQueries.map((query, i) => {
-                  const id = recentListingIds[i];
-                  const listing = query.data as ListingBasic | undefined;
-                  return (
-                    <ListingCard
-                      key={id}
-                      listing={listing ?? { id }}
-                      variant="recent"
-                      imagePlaceholder={query.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
-                      isFavorited={isFavorited(id)}
-                      onFavoriteClick={(listingId) => handleFavoriteClick(listingId, listing ?? undefined)}
-                    />
-                  );
-                })}
-              </div>
-              {recentListingIds.length === 0 && (
-                <EmptyState message="No recently viewed listings yet. Browse listings to get started." />
               )}
             </section>
           </div>

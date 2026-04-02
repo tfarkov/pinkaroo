@@ -3,6 +3,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useNotifications } from '../hooks/useNotifications';
 
+jest.mock('next-auth/react', () => ({
+  useSession: jest.fn(() => ({ status: 'authenticated' })),
+}));
+
 jest.mock('socket.io-client', () => ({
   default: jest.fn(() => ({ on: jest.fn(), emit: jest.fn(), disconnect: jest.fn() })),
 }));

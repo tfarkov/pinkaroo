@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { API, CONTENT_TYPE } from '../constants';
 import { getMockNotifications } from '../mockData';
 
@@ -26,9 +27,12 @@ const fetchOptions: RequestInit = { credentials: 'include' };
 
 export function useNotifications() {
   const queryClient = useQueryClient();
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
+      if (!isAuthenticated) return [];
       try {
         const res = await fetch(API.NOTIFICATIONS, fetchOptions);
         if (res.ok) return res.json();
@@ -37,6 +41,7 @@ export function useNotifications() {
         return getMockNotifications();
       }
     },
+    enabled: isAuthenticated,
   });
   const updateMutation = useMutation({
     mutationFn: (payload: { id: string; read?: boolean; replyText?: string; flagged?: boolean }) =>

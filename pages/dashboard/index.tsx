@@ -1,10 +1,10 @@
 import { useAuth } from '../../lib/hooks/useAuth';
-import { API, CLIENT_STATUSES, UI } from '../../lib/constants';
+import { API, CLIENT_STATUSES, CONTENT_TYPE, UI } from '../../lib/constants';
 import { getMockClients, getMockInteractions } from '../../lib/mockData';
 import { Bar, Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useFavorites } from '../../lib/hooks/useFavorites';
@@ -21,14 +21,23 @@ type DashboardListing = {
 };
 
 export default function Dashboard() {
-  const { role, user } = useAuth();
-  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'ADMIN';
+  const { role, user, isAuthenticated } = useAuth();
+  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN';
+  const [availableHours, setAvailableHours] = useState('');
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState('');
+  const [availabilitySuccess, setAvailabilitySuccess] = useState('');
+  const availabilityInitialized = useRef(false);
   const { favorites } = useFavorites();
   const { notifications } = useNotifications();
   const userNotifications = useMemo(
     () => notifications.filter((n) => n.fromUser?.role === 'REALTOR' || n.fromUser?.role === 'BROKER').slice(0, 5),
     [notifications]
   );
+  const formatDateTime = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Unknown time' : date.toLocaleString();
+  };
 
   const { data: myListingsData } = useQuery({
     queryKey: ['my-listings-dashboard', role, user?.email ?? 'anonymous'],
@@ -37,7 +46,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Failed to load my listings');
       return res.json();
     },
-    enabled: role === 'USER',
+    enabled: isAuthenticated && role === 'USER',
   });
   const myListings = ((myListingsData?.listings as DashboardListing[] | undefined) ?? []).slice(0, 5);
 
@@ -52,6 +61,7 @@ export default function Dashboard() {
         return getMockClients();
       }
     },
+    enabled: isAuthenticated && (role === 'REALTOR' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN'),
   });
   const { data: interactionsRaw } = useQuery({
     queryKey: ['interactions', 0],
@@ -64,7 +74,7 @@ export default function Dashboard() {
         return getMockInteractions();
       }
     },
-    enabled: role === 'REALTOR',
+    enabled: isAuthenticated && role === 'REALTOR',
   });
   const interactions = Array.isArray(interactionsRaw) ? interactionsRaw : (interactionsRaw?.interactions ?? []);
 
@@ -75,8 +85,24 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Failed to load broker stats');
       return res.json();
     },
-    enabled: role === 'BROKER',
+    enabled: isAuthenticated && role === 'BROKER',
   });
+
+  const { data: profileUser } = useQuery({
+    queryKey: ['dashboard-user', (user as { id?: string } | undefined)?.id ?? 'unknown'],
+    queryFn: async () => {
+      const res = await fetch(`${API.USERS}/${(user as { id?: string } | undefined)?.id}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load profile');
+      return res.json();
+    },
+    enabled: isAuthenticated && role === 'REALTOR' && !!(user as { id?: string } | undefined)?.id,
+  });
+
+  useEffect(() => {
+    if (!profileUser || availabilityInitialized.current) return;
+    availabilityInitialized.current = true;
+    setAvailableHours(profileUser.availableHours ?? '');
+  }, [profileUser]);
 
   const clientChartData = useMemo(() => ({
     labels: [...CLIENT_STATUSES],
@@ -101,6 +127,30 @@ export default function Dashboard() {
       }],
     };
   }, [interactions]);
+
+  const handleAvailabilitySave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const userId = (user as { id?: string } | undefined)?.id;
+    if (!userId) return;
+    setAvailabilityError('');
+    setAvailabilitySuccess('');
+    setSavingAvailability(true);
+    try {
+      const res = await fetch(`${API.USERS}/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ availableHours: availableHours.trim() || null }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAvailabilitySuccess(UI.PROFILE_SAVED);
+      setTimeout(() => setAvailabilitySuccess(''), 3000);
+    } catch {
+      setAvailabilityError('Failed to save. Try again.');
+    } finally {
+      setSavingAvailability(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -196,7 +246,7 @@ export default function Dashboard() {
                   <li key={notification.id} className="border border-slate-200 rounded-md p-3">
                     <p className="font-medium text-slate-900 line-clamp-2">{notification.message}</p>
                     <p className="text-sm text-slate-500 mt-1">
-                      From {notification.fromUser?.name || notification.fromUser?.email || 'Realtor'} · {new Date(notification.createdAt).toLocaleString()}
+                      From {notification.fromUser?.name || notification.fromUser?.email || 'Realtor'} · {formatDateTime(notification.createdAt)}
                     </p>
                   </li>
                 ))}
@@ -206,8 +256,26 @@ export default function Dashboard() {
         </>
       )}
 
-      {(role === 'REALTOR' || role === 'ADMIN') && (
+      {(role === 'REALTOR' || role === 'SYSTEM_ADMIN' || role === 'OFFICE_ADMIN') && (
         <>
+          {role === 'REALTOR' && (
+            <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">{UI.AVAILABLE_HOURS}</h2>
+              <form onSubmit={handleAvailabilitySave} className="space-y-3">
+                <input
+                  value={availableHours}
+                  onChange={(event) => setAvailableHours(event.target.value)}
+                  className="input-field w-full"
+                  placeholder="e.g. Mon–Fri 9am–5pm"
+                />
+                {availabilitySuccess && <p className="text-green-600 text-sm font-medium">{availabilitySuccess}</p>}
+                {availabilityError && <p className="text-red-600 text-sm">{availabilityError}</p>}
+                <button type="submit" className="btn-primary" disabled={savingAvailability}>
+                  {savingAvailability ? UI.LOADING : UI.SAVE_PROFILE}
+                </button>
+              </form>
+            </div>
+          )}
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Client status distribution</h2>
             <div className="h-[280px] min-h-0 w-full">
@@ -316,7 +384,7 @@ export default function Dashboard() {
                   <li key={notification.id} className="rounded-md border border-slate-200 p-3">
                     <p className="font-medium text-slate-900 line-clamp-2">{notification.message}</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {formatDateTime(notification.createdAt)}
                     </p>
                   </li>
                 ))}

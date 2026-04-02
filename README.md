@@ -3,7 +3,7 @@
 ## Features
 
 ### Public / Guest
-- **Home** – Hero with tagline “find a house. make it a home”, Find a Home CTA, nearby listings map (Google Maps), browse listings with infinite scroll, recently viewed section (from localStorage) with listing images and links.
+- **Home** – Hero with tagline “find a house. make it a home”, Find a Home CTA, then in the main column (before the sidebar): **nearby listings map** (Google Maps), **Recently viewed** (from localStorage) with listing images and links, **advanced filters** in a card-style block, then **browse listings** with infinite scroll. (Filters apply to the listings API and map pool as before; only the visual order changed.)
 - **Find a Home (Listings)** – Public listing search with map, **advanced filters** (province, city, min/max price, bedrooms, bathrooms, property type) that apply to both API and **mock results** when the API is unavailable; infinite scroll with a styled loading spinner; listing cards with image, price, beds/baths, size (m² or sq ft), link to detail.
 - **Listing detail** – Full listing view: gallery, price, location, description, details (beds, baths, size, type, postal code), agent profile card, mortgage calculator, map, favourite button.
 - **Favourites** – Saved listings (per user when signed in; mock/IndexedDB fallback), grid of favourite cards with image and link to listing; **heart icon turns red** on listing cards when a listing is in favourites.
@@ -13,6 +13,7 @@
 
 ### Authentication
 - **Sign in / Sign out** – NextAuth session; Sign In and Sign Out in header and mobile menu.
+- **Dashboard & notifications for guests** – Dashboard links (header, mobile bottom nav, hamburger) appear only when signed in. Visiting any `/dashboard` route while signed out redirects to sign-in. The notifications hook does not fetch data until the session is authenticated, so anonymous users do not trigger dashboard-style notification loading. Dashboard index data queries (my listings, clients, broker stats, etc.) run only when authenticated.
 - **Credentials** – Email/password login with bcrypt; optional registration API.
 - **OAuth** (when env configured) – Google, GitHub, Facebook, Apple.
 - **Roles** – USER, REALTOR, BROKER, ADMIN; nav and features vary by role.
@@ -169,7 +170,7 @@ Open **http://localhost:3000** in your browser.
 
 - Do **not** click “Sign In”. Use the app as a guest.
 - You can: browse the home page, use filters, open listing details, use the map, see “Contact a Realtor”, view MLS Search, Profile (limited), etc.
-- You will **not** see: the **Favourites** sidebar on the home page, **heart (favourite) buttons** on listing thumbnails, **Profile** link (footer/bottom nav), Dashboard, Add Listing, Admin, or Broker areas. Favourites, Profile, and those features are only available when signed in.
+- You will **not** see: the **Favourites** sidebar on the home page, **heart (favourite) buttons** on listing thumbnails, **Profile** link (footer/bottom nav), **Dashboard** in the nav, Add Listing, Admin, or Broker areas. Favourites, Profile, and those features are only available when signed in. Typing a dashboard URL directly sends you to sign-in; notifications are not loaded for anonymous sessions.
 
 ### 3. Use the app as a **signed-in user**
 
