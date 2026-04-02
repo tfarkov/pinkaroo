@@ -231,7 +231,7 @@ export default function WhyPinkarooPage() {
 
 
           <section className="bg-white border border-slate-300 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <div className="inline-flex items-center rounded-full bg-slate-900 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+            <div className="inline-flex items-center rounded-full bg-green-600 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
               Eco-Rating Focus
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-3">Eco-Rating and sustainable practices that actually help decisions</h2>
