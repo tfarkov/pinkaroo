@@ -2,14 +2,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../lib/constants';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { canManageBrokersAndRealtors, requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET'])) return;
   const session = await getSession(req, res);
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session || !canManageBrokersAndRealtors(session.user.role)) {
     sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
     return;
   }

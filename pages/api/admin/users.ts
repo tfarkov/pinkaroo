@@ -1,8 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
-import { API_MESSAGES } from '../../../lib/constants';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { canManageBrokersAndRealtors, parseFiniteInt, requireAuth, requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 const DEFAULT_PAGE_SIZE = 50;
@@ -14,13 +13,14 @@ const DEFAULT_PAGE_SIZE = 50;
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET'])) return;
   const session = await getSession(req, res);
-  if (!session || session.user.role !== 'ADMIN') {
-    sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
+  if (!requireAuth(res, session)) return;
+  if (!canManageBrokersAndRealtors(session.user.role)) {
+    sendError(res, 403, 'Forbidden');
     return;
   }
   try {
-    const page = Math.max(0, parseInt(String(req.query.page), 10) || 0);
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit), 10) || DEFAULT_PAGE_SIZE));
+    const page = parseFiniteInt(req.query.page, { min: 0 }) ?? 0;
+    const limit = parseFiniteInt(req.query.limit, { min: 1, max: 100 }) ?? DEFAULT_PAGE_SIZE;
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: {},

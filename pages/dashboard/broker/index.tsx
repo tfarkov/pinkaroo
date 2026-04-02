@@ -20,6 +20,46 @@ export default function BrokerDashboard() {
       }
     },
   });
+  const { data: performanceData } = useQuery({
+    queryKey: ['broker-performance'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_PERFORMANCE, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load performance');
+      return res.json();
+    },
+  });
+  const { data: workloadData } = useQuery({
+    queryKey: ['broker-workload'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_WORKLOAD, { credentials: 'include' });
+      if (!res.ok) return { assignments: [], capacity: [] };
+      return res.json();
+    },
+  });
+  const { data: clientOversight } = useQuery({
+    queryKey: ['broker-client-oversight'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_CLIENT_OVERSIGHT, { credentials: 'include' });
+      if (!res.ok) return { stalled: [] };
+      return res.json();
+    },
+  });
+  const { data: commsData } = useQuery({
+    queryKey: ['broker-comms'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_COMMS, { credentials: 'include' });
+      if (!res.ok) return { broadcasts: [] };
+      return res.json();
+    },
+  });
+  const { data: adminControlData } = useQuery({
+    queryKey: ['broker-admin-controls'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_ADMIN_CONTROLS, { credentials: 'include' });
+      if (!res.ok) return { auditLogs: [] };
+      return res.json();
+    },
+  });
 
   const listingsChartData = useMemo(() => {
     const realtors = teamStats?.realtors ?? [];
@@ -84,6 +124,12 @@ export default function BrokerDashboard() {
 
   const teams = (teamStats?.teams ?? []) as { id: string; name: string; _count?: { members?: number } }[];
   const availableRealtors = (teamStats?.availableRealtors ?? []) as { id: string; name?: string; email?: string }[];
+  const openAssignments = ((workloadData?.assignments as { status?: string }[] | undefined) ?? []).filter((item) => item.status !== 'DONE').length;
+  const atRiskClients = ((clientOversight?.stalled as unknown[] | undefined) ?? []).length;
+  const broadcastCount = ((commsData?.broadcasts as unknown[] | undefined) ?? []).length;
+  const auditEventCount = ((adminControlData?.auditLogs as unknown[] | undefined) ?? []).length;
+  const teamPerformance = ((performanceData?.teamPerformance as { actual?: { revenue?: number }; targets?: { revenue?: number } }[] | undefined) ?? []);
+  const teamsMeetingRevenueTarget = teamPerformance.filter((item) => (item.actual?.revenue ?? 0) >= (item.targets?.revenue ?? 0)).length;
 
   return (
     <DashboardLayout>
@@ -102,6 +148,43 @@ export default function BrokerDashboard() {
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
             <p className="text-sm text-slate-500">Pending approvals</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{teamStats?.pending ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Open assignments</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{openAssignments}</p>
+            <Link href="/dashboard/broker/workload" className="text-sm text-accent-600 hover:text-accent-700">Manage workload →</Link>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">At-risk clients</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{atRiskClients}</p>
+            <Link href="/dashboard/broker/client-oversight" className="text-sm text-accent-600 hover:text-accent-700">Open oversight →</Link>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Recent broadcasts</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{broadcastCount}</p>
+            <Link href="/dashboard/broker/communications" className="text-sm text-accent-600 hover:text-accent-700">Open comms →</Link>
+          </div>
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <p className="text-sm text-slate-500">Teams hitting revenue targets</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{teamsMeetingRevenueTarget}/{teamPerformance.length || 0}</p>
+            <Link href="/dashboard/broker/admin-controls" className="text-sm text-accent-600 hover:text-accent-700">Review controls →</Link>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h2 className="text-lg font-bold text-slate-900">Management center</h2>
+            <span className="text-sm text-slate-500">{auditEventCount} audit events logged</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/broker/performance" className="btn-secondary">Performance</Link>
+            <Link href="/dashboard/broker/workload" className="btn-secondary">Workload</Link>
+            <Link href="/dashboard/broker/client-oversight" className="btn-secondary">Client oversight</Link>
+            <Link href="/dashboard/broker/communications" className="btn-secondary">Communications</Link>
+            <Link href="/dashboard/broker/admin-controls" className="btn-secondary">Admin controls</Link>
           </div>
         </div>
 

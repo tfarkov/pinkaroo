@@ -5,7 +5,8 @@
  * ┌─────────────────────────┬────────────┬───────────────┬─────────────────────────────────────┐
  * │ Email                   │ Password   │ Name          │ Role                                 │
  * ├─────────────────────────┼────────────┼───────────────┼─────────────────────────────────────┤
- * │ admin@example.com       │ password   │ Morgan Blake  │ Admin                                │
+ * │ admin@example.com       │ password   │ Morgan Blake  │ System Admin                         │
+ * │ officeadmin@example.com │ password   │ Avery Cole    │ Office Admin                         │
  * │ broker@example.com      │ password   │ Jordan Lee    │ Broker                               │
  * │ broker2@example.com     │ password   │ Riley Scott   │ Broker                               │
  * │ realtor@example.com     │ password   │ Sam Chen      │ Realtor (team lead, under Jordan)    │
@@ -25,6 +26,7 @@ import { MOCK_LISTINGS } from '../lib/mockData';
 const prisma = new PrismaClient();
 const TEST_PASSWORD = 'password';
 const ADMIN_EMAIL = 'admin@example.com';
+const OFFICE_ADMIN_EMAIL = 'officeadmin@example.com';
 const WELCOME_NOTIFICATION = 'Welcome to Pinkaroo';
 
 async function main() {
@@ -33,7 +35,7 @@ async function main() {
     where: { email: ADMIN_EMAIL },
     update: {
       password: hashedPassword,
-      role: 'ADMIN',
+      role: 'SYSTEM_ADMIN',
       name: 'Morgan Blake',
       bio: 'Admin bio',
       ratings: 4.5,
@@ -41,10 +43,28 @@ async function main() {
     create: {
       email: ADMIN_EMAIL,
       password: hashedPassword,
-      role: 'ADMIN',
+      role: 'SYSTEM_ADMIN',
       name: 'Morgan Blake',
       bio: 'Admin bio',
       ratings: 4.5,
+    },
+  });
+  await prisma.user.upsert({
+    where: { email: OFFICE_ADMIN_EMAIL },
+    update: {
+      password: hashedPassword,
+      role: 'OFFICE_ADMIN',
+      name: 'Avery Cole',
+      bio: 'Office admin for brokerage operations.',
+      ratings: 4.3,
+    },
+    create: {
+      email: OFFICE_ADMIN_EMAIL,
+      password: hashedPassword,
+      role: 'OFFICE_ADMIN',
+      name: 'Avery Cole',
+      bio: 'Office admin for brokerage operations.',
+      ratings: 4.3,
     },
   });
   const broker = await prisma.user.upsert({

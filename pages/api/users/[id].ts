@@ -2,9 +2,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../lib/constants';
-import { requireMethod, requireIdParam, sendError } from '../../../lib/apiHelpers';
+import { SAFE_USER_SELECT, applyRateLimit, canManageBrokersAndRealtors, requireMethod, requireIdParam, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
+const SAFE_USER_RESPONSE_SELECT = {
+  ...SAFE_USER_SELECT,
+  broker: { select: { id: true, name: true } },
+  team: { select: { id: true, name: true } },
+} as const;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET', 'PUT'])) return;
@@ -17,15 +22,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   try {
   if (req.method === 'GET') {
-    const user = await prisma.user.findUnique({ where: { id }, include: { listings: true, teamMembers: true, broker: true } });
-    if (!user) {
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: SAFE_USER_RESPONSE_SELECT,
+    });
+    if (!targetUser) {
       sendError(res, 404, API_MESSAGES.USER_NOT_FOUND);
       return;
     }
-    res.json(user);
+    const isSelf = session.user.id === id;
+    const role = session.user.role;
+    const isAdmin = canManageBrokersAndRealtors(role);
+    const isBrokerEditor = role === 'BROKER' && targetUser.brokerId === session.user.id;
+    const isTeamLeadEditor = role === 'REALTOR' && !!session.user.isTeamLead && !!session.user.brokerId && targetUser.brokerId === session.user.brokerId;
+    if (!isSelf && !isAdmin && !isBrokerEditor && !isTeamLeadEditor) {
+      sendError(res, 403, API_MESSAGES.FORBIDDEN);
+      return;
+    }
+    res.json(targetUser);
     return;
   }
   if (req.method === 'PUT') {
+    if (!applyRateLimit(req, res, 'users-update', { max: 60, windowMs: 60_000 })) return;
     const targetId = id;
     const isSelf = session.user.id === targetId;
 
@@ -35,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (const key of allowedSelf) {
         if (req.body && key in req.body) data[key] = req.body[key];
       }
-      const updated = await prisma.user.update({ where: { id: targetId }, data });
+      const updated = await prisma.user.update({ where: { id: targetId }, data, select: SAFE_USER_RESPONSE_SELECT });
       res.json(updated);
       return;
     }
@@ -55,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let canEdit = false;
     let allowedKeys: readonly string[] = [];
 
-    if (editor.role === 'ADMIN') {
+    if (canManageBrokersAndRealtors(editor.role as string | undefined)) {
       canEdit = true;
       allowedKeys = ['name', 'email', 'bio', 'image', 'phone', 'availableHours', 'brokerId', 'isTeamLead'];
     } else if (editor.role === 'BROKER' && target.brokerId === session.user.id) {
@@ -87,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       data.teamId = teamId;
     }
-    const updated = await prisma.user.update({ where: { id: targetId }, data });
+    const updated = await prisma.user.update({ where: { id: targetId }, data, select: SAFE_USER_RESPONSE_SELECT });
     res.json(updated);
   }
   } catch (err) {

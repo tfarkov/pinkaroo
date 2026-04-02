@@ -117,7 +117,8 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
 
   const markersWithPos = listings
     .map((listing) => ({ listing, pos: getMarkerPosition(listing) }))
-    .filter((entry): entry is { listing: MapListing; pos: { lat: number; lng: number } } => entry.pos != null);
+    .filter((entry): entry is { listing: MapListing; pos: { lat: number; lng: number } } => entry.pos != null)
+    .slice(0, 500);
 
   return (
     <div role="region" aria-label="Map of nearby listings" className="w-full h-full min-h-[420px]">

@@ -6,10 +6,28 @@ export function useAuth() {
   const isAuthenticated = status === 'authenticated';
   const u = session?.user as { role?: Role; brokerId?: string | null; isTeamLead?: boolean } | undefined;
   const role = u?.role;
-  const isAdmin = role === 'ADMIN';
+  const isSystemAdmin = role === 'SYSTEM_ADMIN';
+  const isOfficeAdmin = role === 'OFFICE_ADMIN';
+  const isAdmin = isSystemAdmin; // legacy alias
   const isRealtor = role === 'REALTOR';
   const isBroker = role === 'BROKER';
   const isTeamLead = !!(isRealtor && u?.isTeamLead);
-  const canEditRealtorProfiles = isAdmin || isBroker || isTeamLead;
-  return { isAuthenticated, role, isAdmin, isRealtor, isBroker, isTeamLead, canEditRealtorProfiles, user: session?.user, status };
+  const canManageBrokersRealtors = isSystemAdmin || isOfficeAdmin;
+  const canManageSystemSettings = isSystemAdmin;
+  const canEditRealtorProfiles = canManageBrokersRealtors || isBroker || isTeamLead;
+  return {
+    isAuthenticated,
+    role,
+    isSystemAdmin,
+    isOfficeAdmin,
+    isAdmin,
+    isRealtor,
+    isBroker,
+    isTeamLead,
+    canManageBrokersRealtors,
+    canManageSystemSettings,
+    canEditRealtorProfiles,
+    user: session?.user,
+    status,
+  };
 }

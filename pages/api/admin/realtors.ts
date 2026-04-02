@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../lib/constants';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { canManageBrokersAndRealtors, requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
   const role = session.user.role;
-  const isAdmin = role === 'ADMIN';
+  const isAdmin = canManageBrokersAndRealtors(role);
   const isBroker = role === 'BROKER';
   const isTeamLeadRealtor = role === 'REALTOR' && (session.user as { isTeamLead?: boolean }).isTeamLead;
   if (!isAdmin && !isBroker && !isTeamLeadRealtor) {

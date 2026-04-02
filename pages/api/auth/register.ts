@@ -2,28 +2,30 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { BCRYPT_ROUNDS } from './[...nextauth]';
-import { ROLES } from '../../../lib/constants';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { applyRateLimit, parseString, requireMethod, sendError } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['POST'])) return;
-  const { email, password, name, role = 'USER' } = req.body || {};
+  if (!applyRateLimit(req, res, 'auth-register', { max: 10, windowMs: 60_000 })) return;
+  const { email, password, name } = req.body || {};
   if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
     sendError(res, 400, 'Email and password required');
+    return;
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedName = parseString(name, { maxLength: 120, allowEmpty: true });
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    sendError(res, 400, 'Invalid email');
     return;
   }
   if (password.length < 8) {
     sendError(res, 400, 'Password must be at least 8 characters');
     return;
   }
-  if (!ROLES.includes(role)) {
-    sendError(res, 400, 'Invalid role');
-    return;
-  }
   try {
-  const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
     sendError(res, 400, 'Email already registered');
     return;
@@ -31,10 +33,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const user = await prisma.user.create({
     data: {
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password: hashed,
-      name: name?.trim() || null,
-      role,
+      name: normalizedName || null,
+      role: 'USER',
     },
     select: { id: true, email: true, name: true, role: true },
   });

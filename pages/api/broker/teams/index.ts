@@ -2,9 +2,9 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../../lib/session';
 import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES } from '../../../../lib/constants';
-import { requireMethod, sendError } from '../../../../lib/apiHelpers';
+import { applyRateLimit, requireMethod, sendError } from '../../../../lib/apiHelpers';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient() as any;
 
 /**
  * Broker Team Management: Brokers can create teams and assign/remove realtors (teamId on User).
@@ -28,6 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
   if (req.method === 'POST') {
+    if (!applyRateLimit(req, res, 'broker-team-create', { max: 20, windowMs: 60_000 })) return;
     const { name } = req.body ?? {};
     if (!name || typeof name !== 'string' || !name.trim()) {
       sendError(res, 400, 'name is required');
@@ -35,6 +36,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const team = await prisma.team.create({
       data: { name: name.trim(), brokerId: session.user.id },
+    });
+    await prisma.auditLog.create({
+      data: {
+        actorId: session.user.id,
+        brokerId: session.user.id,
+        action: 'TEAM_CREATED',
+        entityType: 'Team',
+        entityId: team.id,
+      },
     });
     res.json(team);
   }

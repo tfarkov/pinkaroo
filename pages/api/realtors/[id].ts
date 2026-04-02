@@ -21,7 +21,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        email: true,
+        phone: true,
+        availableHours: true,
+        image: true,
+        bio: true,
         broker: { select: { id: true, name: true } },
         listings: {
           where: { status: { in: ['ACTIVE', 'APPROVED'] } },

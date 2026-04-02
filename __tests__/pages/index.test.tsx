@@ -13,7 +13,7 @@ test('renders home with hero and map section', () => {
       <Home />
     </AllProviders>
   );
-  expect(screen.getByText(/find a house\. make it a home\./i)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   expect(screen.getByText(/Nearby Listings/i)).toBeInTheDocument();
 });
 
@@ -26,4 +26,14 @@ test('shows recently viewed section when localStorage has ids', () => {
   );
   expect(screen.getByText(/Recently Viewed/i)).toBeInTheDocument();
   expect(screen.getAllByText(/View Listing/i).length).toBeGreaterThanOrEqual(1);
+});
+
+test('shows empty recently viewed state when no ids in storage', () => {
+  localStorage.removeItem('recentlyViewed');
+  render(
+    <AllProviders>
+      <Home />
+    </AllProviders>
+  );
+  expect(screen.getByText(/No recently viewed listings yet/i)).toBeInTheDocument();
 });

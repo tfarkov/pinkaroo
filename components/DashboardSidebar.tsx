@@ -18,6 +18,11 @@ const REALTOR_LINKS = [
 
 const BROKER_LINKS = [
   { href: '/dashboard/broker', label: 'Broker Dashboard' },
+  { href: '/dashboard/broker/performance', label: UI.BROKER_PERFORMANCE },
+  { href: '/dashboard/broker/workload', label: UI.BROKER_WORKLOAD },
+  { href: '/dashboard/broker/client-oversight', label: UI.BROKER_CLIENT_OVERSIGHT },
+  { href: '/dashboard/broker/communications', label: UI.BROKER_COMMUNICATIONS },
+  { href: '/dashboard/broker/admin-controls', label: UI.BROKER_ADMIN_CONTROLS },
   { href: '/dashboard/broker/realtors', label: 'Realtor dashboards' },
   { href: '/dashboard/broker/team', label: UI.TEAM_MANAGEMENT },
   { href: '/dashboard/broker/approvals', label: UI.PENDING_APPROVALS },
@@ -25,21 +30,29 @@ const BROKER_LINKS = [
   { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
 ];
 
-const ADMIN_LINKS = [
-  { href: '/admin', label: 'Admin' },
+const OFFICE_ADMIN_LINKS = [
+  { href: '/dashboard/office-admin', label: UI.OFFICE_ADMIN_DASHBOARD },
+  { href: '/admin', label: 'Broker/Realtor Management' },
+  { href: '/dashboard/crm', label: 'CRM Oversight' },
+  { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
+];
+const SYSTEM_ADMIN_LINKS = [
+  { href: '/dashboard/system-admin', label: UI.ADMIN_DASHBOARD },
+  { href: '/admin', label: 'Admin Operations' },
   { href: '/dashboard/crm', label: 'CRM' },
   { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
 ];
 
 export default function DashboardSidebar() {
   const router = useRouter();
-  const { role, isRealtor, isBroker, isAdmin } = useAuth();
+  const { role, isRealtor, isBroker, isOfficeAdmin, isSystemAdmin } = useAuth();
 
   const sections: { title: string; links: { href: string; label: string }[] }[] = [];
   if (role === 'USER') sections.push({ title: 'User', links: USER_LINKS });
   if (isRealtor) sections.push({ title: 'Realtor', links: REALTOR_LINKS });
   if (isBroker) sections.push({ title: 'Broker', links: BROKER_LINKS });
-  if (isAdmin) sections.push({ title: 'Admin', links: ADMIN_LINKS });
+  if (isOfficeAdmin) sections.push({ title: 'Office Admin', links: OFFICE_ADMIN_LINKS });
+  if (isSystemAdmin) sections.push({ title: 'System Admin', links: SYSTEM_ADMIN_LINKS });
 
   if (sections.length === 0) return null;
 

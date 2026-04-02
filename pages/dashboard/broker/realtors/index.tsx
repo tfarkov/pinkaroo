@@ -49,15 +49,21 @@ export default function BrokerRealtorsIndexPage() {
   }
 
   const realtors = ((stats?.realtors as BrokerRealtor[] | undefined) ?? []);
+  const prioritized = [...realtors].sort((a, b) => (b.listingsCount ?? 0) - (a.listingsCount ?? 0));
 
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">Realtor dashboards</h1>
+      <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4 mb-6">
+        <p className="text-sm text-slate-600">
+          Workload prioritization: realtors are ordered by active listing volume to help identify where reassignment may reduce bottlenecks.
+        </p>
+      </div>
       {realtors.length === 0 ? (
         <p className="text-slate-500">No realtors found.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {realtors.map((realtor) => (
+          {prioritized.map((realtor) => (
             <article key={realtor.id} className="bg-white rounded-lg shadow-card border border-slate-200 p-5">
               <h2 className="font-semibold text-slate-900">{realtor.name ?? 'Unnamed realtor'}</h2>
               <p className="text-sm text-slate-500 mt-1">{realtor.email ?? 'No email'}</p>

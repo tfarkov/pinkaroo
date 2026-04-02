@@ -44,7 +44,7 @@ type ClientRecord = {
 export default function CRM() {
   const router = useRouter();
   const { role, status } = useAuth();
-  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'ADMIN';
+  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN';
   const queryClient = useQueryClient();
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
   const [editingClient, setEditingClient] = useState<ClientRecord | null>(null);

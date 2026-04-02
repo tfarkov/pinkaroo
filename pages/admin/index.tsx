@@ -13,7 +13,7 @@ type UserOption = { id: string; name: string | null; email: string; role: string
 export default function AdminPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isAdmin, canEditRealtorProfiles, status } = useAuth();
+  const { isSystemAdmin, isOfficeAdmin, canEditRealtorProfiles, status } = useAuth();
   const [messageUserId, setMessageUserId] = useState('');
   const [messageText, setMessageText] = useState('');
   const [messageSent, setMessageSent] = useState(false);
@@ -47,7 +47,7 @@ export default function AdminPanel() {
         return getMockBrokers();
       }
     },
-    enabled: isAdmin,
+    enabled: isSystemAdmin || isOfficeAdmin,
   });
   const { data: usersData } = useQuery<{ users: UserOption[]; nextPage: number | null; total: number }>({
     queryKey: ['admin-users', 0],
@@ -56,7 +56,7 @@ export default function AdminPanel() {
       if (!res.ok) return { users: [], nextPage: null, total: 0 };
       return res.json();
     },
-    enabled: isAdmin,
+    enabled: isSystemAdmin || isOfficeAdmin,
   });
   const allUsers = usersData?.users ?? [];
   const { register, handleSubmit, formState: { errors } } = useForm<{ realtorId: string; brokerId: string }>({ mode: 'onBlur' });
@@ -81,12 +81,12 @@ export default function AdminPanel() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['realtors'] }); queryClient.invalidateQueries({ queryKey: ['brokers'] }); },
   });
 
-  const showAdminOnlySections = isAdmin && status === 'authenticated';
+  const showSystemAdminSections = isSystemAdmin && status === 'authenticated';
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.ADMIN_DASHBOARD}</h1>
-        {showAdminOnlySections && (
+      <h1 className="text-3xl font-bold text-slate-900 py-8">{isSystemAdmin ? UI.ADMIN_DASHBOARD : UI.OFFICE_ADMIN_DASHBOARD}</h1>
+        {showSystemAdminSections && (
         <>
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Message user</h2>
@@ -187,7 +187,7 @@ export default function AdminPanel() {
             </tbody>
           </table>
         </div>
-        {showAdminOnlySections && (
+        {showSystemAdminSections && (
         <>
         <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">{UI.BROKERS_LIST}</h2>
         <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden">

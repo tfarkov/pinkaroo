@@ -2,19 +2,68 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '../../../lib/session';
 import { PrismaClient, type Province, type ListingStatus } from '@prisma/client';
 import { API_MESSAGES, NOTIFICATION_MESSAGES } from '../../../lib/constants';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import {
+  applyRateLimit,
+  isSafeId,
+  parseBoolean,
+  parseFiniteInt,
+  parseFiniteNumber,
+  parseString,
+  requireAuth,
+  requireMethod,
+  requireRole,
+  sendError,
+} from '../../../lib/apiHelpers';
 import { geocodeAddress } from '../../../lib/geocode';
 import { computeEcoRatingScore } from '../../../lib/ecoRating';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
+import os from 'os';
+import { unlink } from 'fs/promises';
 
 const prisma = new PrismaClient();
-const upload = multer({ dest: '/tmp' });
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new Error('Only image uploads are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
+const LISTING_MUTABLE_FIELDS = new Set([
+  'title',
+  'description',
+  'price',
+  'location',
+  'province',
+  'postalCode',
+  'sizeSqm',
+  'bedroomsTotal',
+  'bathroomsTotal',
+  'propertyType',
+  'latitude',
+  'longitude',
+  'images',
+  'streetAddress',
+  'unitNumber',
+  'yearBuilt',
+  'lotSizeSqm',
+  'heatingType',
+  'insulationQuality',
+  'hasRecentRenovations',
+  'roofAgeYears',
+  'appliancesAgeYears',
+]);
+const LISTING_PRIVILEGED_MUTABLE_FIELDS = new Set(['status', 'rejectionReason']);
+const LISTING_PROTECTED_FIELDS = new Set(['id', 'userId', 'approvedBy', 'approvedAt', 'createdAt', 'updatedAt']);
 
 export const config = {
   api: {
@@ -25,35 +74,26 @@ export const config = {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
   const session = await getSession(req, res);
-  if (!session) {
-    sendError(res, 401, API_MESSAGES.UNAUTHORIZED);
-    return;
-  }
-  const num = (v: unknown) => (v === '' || v == null ? undefined : Number(v));
-  const bool = (v: unknown): boolean | undefined => {
-    if (v === true || v === 'true') return true;
-    if (v === false || v === 'false') return false;
-    return undefined;
-  };
+  if (!requireAuth(res, session)) return;
   try {
   if (req.method === 'GET') {
-    const page = parseInt(req.query.page as string) || 0;
+    const page = parseFiniteInt(req.query.page, { min: 0 }) ?? 0;
     const filters = req.query;
     const where: Record<string, unknown> = {};
     const mine = filters.mine === '1' || filters.mine === 'true';
     if (mine) where.userId = session.user.id;
     if (filters.province && typeof filters.province === 'string') where.province = filters.province;
-    const city = typeof filters.city === 'string' ? filters.city.trim() : undefined;
+    const city = parseString(filters.city, { maxLength: 80, allowEmpty: true }) ?? undefined;
     if (city) where.location = { contains: city };
-    const minPrice = parseFloat(filters.minPrice as string);
-    const maxPrice = parseFloat(filters.maxPrice as string);
-    if (!isNaN(minPrice) || !isNaN(maxPrice)) {
-      where.price = { ...(!isNaN(minPrice) && { gte: minPrice }), ...(!isNaN(maxPrice) && { lte: maxPrice }) };
+    const minPrice = parseFiniteNumber(filters.minPrice, { min: 0 });
+    const maxPrice = parseFiniteNumber(filters.maxPrice, { min: 0 });
+    if (minPrice != null || maxPrice != null) {
+      where.price = { ...(minPrice != null && { gte: minPrice }), ...(maxPrice != null && { lte: maxPrice }) };
     }
-    const bedrooms = parseInt(filters.bedrooms as string, 10);
-    const bathrooms = parseInt(filters.bathrooms as string, 10);
-    if (!isNaN(bedrooms) && bedrooms > 0) where.bedroomsTotal = { gte: bedrooms };
-    if (!isNaN(bathrooms) && bathrooms > 0) where.bathroomsTotal = { gte: bathrooms };
+    const bedrooms = parseFiniteInt(filters.bedrooms, { min: 1, max: 20 });
+    const bathrooms = parseFiniteInt(filters.bathrooms, { min: 1, max: 20 });
+    if (bedrooms != null) where.bedroomsTotal = { gte: bedrooms };
+    if (bathrooms != null) where.bathroomsTotal = { gte: bathrooms };
     if (filters.propertyType && typeof filters.propertyType === 'string') where.propertyType = filters.propertyType;
     const PAGE_SIZE = 10;
     const listings = await prisma.listing.findMany({
@@ -66,8 +106,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (req.method === 'POST') {
     const role = session.user.role;
-    if (role !== 'REALTOR' && role !== 'BROKER' && role !== 'ADMIN') {
-      sendError(res, 403, API_MESSAGES.FORBIDDEN);
+    if (!requireRole(res, role, ['REALTOR', 'BROKER', 'OFFICE_ADMIN', 'SYSTEM_ADMIN'])) return;
+    if (!applyRateLimit(req, res, 'listings-create', { max: 20, windowMs: 60_000 })) return;
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      sendError(res, 503, 'Image upload service unavailable');
       return;
     }
     await new Promise<void>((resolve, reject) => upload.array('images')(req as any, res as any, (err) => {
@@ -76,15 +118,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }));
     const files = (req as { files?: Express.Multer.File[] }).files ?? [];
     const rawBody = (req as { body?: Record<string, unknown> }).body ?? {};
-    const images = await Promise.all((files as Express.Multer.File[]).map(async file => {
-      const result = await cloudinary.uploader.upload(file.path, { transformation: [{ width: 800, quality: 80, format: 'auto' }], secure: true });
-      return result.secure_url;
-    }));
+    const uploadedImages: string[] = [];
+    try {
+      for (const file of files as Express.Multer.File[]) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          transformation: [{ width: 800, quality: 80, format: 'auto' }],
+          secure: true,
+        });
+        uploadedImages.push(result.secure_url);
+      }
+    } finally {
+      await Promise.all((files as Express.Multer.File[]).map(async (file) => {
+        try {
+          await unlink(file.path);
+        } catch {
+          // best-effort temp cleanup
+        }
+      }));
+    }
+    const title = parseString(rawBody.title, { maxLength: 160 });
+    const description = parseString(rawBody.description, { maxLength: 5000 });
+    const location = parseString(rawBody.location, { maxLength: 180 });
+    const price = parseFiniteNumber(rawBody.price, { min: 0, max: 100_000_000 });
+    if (!title || !description || !location || price == null) {
+      sendError(res, 422, 'Invalid listing payload');
+      return;
+    }
     const province = ((rawBody.province as string) ?? 'ONTARIO') as Province;
     const status = (role === 'REALTOR' ? 'PENDING' : 'ACTIVE') as ListingStatus;
-    let latitude = num(rawBody.latitude) ?? null;
-    let longitude = num(rawBody.longitude) ?? null;
-    const locationStr = String(rawBody.location ?? '').trim();
+    let latitude = parseFiniteNumber(rawBody.latitude, { min: -90, max: 90 });
+    let longitude = parseFiniteNumber(rawBody.longitude, { min: -180, max: 180 });
+    const locationStr = location;
     if ((latitude == null || longitude == null) && locationStr) {
       const geocoded = await geocodeAddress(locationStr);
       if (geocoded) {
@@ -93,29 +157,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     const data = {
-      title: String(rawBody.title ?? ''),
-      description: String(rawBody.description ?? ''),
-      price: num(rawBody.price) ?? 0,
-      location: String(rawBody.location ?? ''),
+      title,
+      description,
+      price,
+      location,
       province,
       postalCode: rawBody.postalCode != null ? String(rawBody.postalCode) : null,
-      sizeSqm: num(rawBody.sizeSqm),
-      bedroomsTotal: num(rawBody.bedroomsTotal) ?? null,
-      bathroomsTotal: num(rawBody.bathroomsTotal) ?? null,
+      sizeSqm: parseFiniteNumber(rawBody.sizeSqm, { min: 0 }),
+      bedroomsTotal: parseFiniteInt(rawBody.bedroomsTotal, { min: 0, max: 20 }) ?? null,
+      bathroomsTotal: parseFiniteInt(rawBody.bathroomsTotal, { min: 0, max: 20 }) ?? null,
       propertyType: rawBody.propertyType != null ? String(rawBody.propertyType) : null,
       latitude,
       longitude,
-      images: images.length ? images : (rawBody.images as string[] | undefined) ?? [],
+      images: uploadedImages.length ? uploadedImages : (Array.isArray(rawBody.images) ? rawBody.images.filter((v): v is string => typeof v === 'string') : []),
       userId: session.user.id,
       status,
       streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
-      yearBuilt: num(rawBody.yearBuilt) ?? undefined,
-      lotSizeSqm: num(rawBody.lotSizeSqm) ?? undefined,
+      yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
+      lotSizeSqm: parseFiniteNumber(rawBody.lotSizeSqm, { min: 0 }) ?? undefined,
       heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
       insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
-      hasRecentRenovations: bool(rawBody.hasRecentRenovations),
-      roofAgeYears: num(rawBody.roofAgeYears) ?? null,
-      appliancesAgeYears: num(rawBody.appliancesAgeYears) ?? null,
+      hasRecentRenovations: parseBoolean(rawBody.hasRecentRenovations) ?? undefined,
+      roofAgeYears: parseFiniteInt(rawBody.roofAgeYears, { min: 0, max: 200 }) ?? null,
+      appliancesAgeYears: parseFiniteInt(rawBody.appliancesAgeYears, { min: 0, max: 100 }) ?? null,
     };
     const ecoScore = computeEcoRatingScore({
       yearBuilt: data.yearBuilt ?? undefined,
@@ -136,42 +200,250 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
   if (req.method === 'PUT') {
+    if (!applyRateLimit(req, res, 'listings-update', { max: 40, windowMs: 60_000 })) return;
     const { id, ...updateData } = (req.body ?? {}) as Record<string, unknown> & { id?: string };
-    if (!id || typeof id !== 'string') {
+    if (!isSafeId(id)) {
       sendError(res, 400, 'id is required');
       return;
     }
-    const locationStr = typeof updateData.location === 'string' ? updateData.location.trim() : '';
-    const hasLat = updateData.latitude != null && !Number.isNaN(Number(updateData.latitude));
-    const hasLng = updateData.longitude != null && !Number.isNaN(Number(updateData.longitude));
+    const existingListing = await prisma.listing.findUnique({ where: { id }, select: { userId: true } });
+    if (!existingListing) {
+      sendError(res, 404, 'Listing not found');
+      return;
+    }
+    const userRole = session.user.role;
+    const canManageAnyListing = userRole === 'SYSTEM_ADMIN' || userRole === 'OFFICE_ADMIN' || userRole === 'BROKER';
+    if (!canManageAnyListing && existingListing.userId !== session.user.id) {
+      sendError(res, 403, API_MESSAGES.FORBIDDEN);
+      return;
+    }
+    const allowedFields = new Set([
+      ...LISTING_MUTABLE_FIELDS,
+      ...(canManageAnyListing ? [...LISTING_PRIVILEGED_MUTABLE_FIELDS] : []),
+    ]);
+    const keys = Object.keys(updateData);
+    if (keys.length === 0) {
+      sendError(res, 400, 'No fields provided');
+      return;
+    }
+    for (const key of keys) {
+      if (LISTING_PROTECTED_FIELDS.has(key)) {
+        sendError(res, 403, `Field '${key}' cannot be updated`);
+        return;
+      }
+      if (!allowedFields.has(key)) {
+        sendError(res, 422, `Field '${key}' is not allowed`);
+        return;
+      }
+    }
+    const sanitized: Record<string, unknown> = {};
+    if (updateData.title !== undefined) {
+      const parsed = parseString(updateData.title, { maxLength: 160 });
+      if (!parsed) {
+        sendError(res, 422, 'Invalid title');
+        return;
+      }
+      sanitized.title = parsed;
+    }
+    if (updateData.description !== undefined) {
+      const parsed = parseString(updateData.description, { maxLength: 5000 });
+      if (!parsed) {
+        sendError(res, 422, 'Invalid description');
+        return;
+      }
+      sanitized.description = parsed;
+    }
+    if (updateData.price !== undefined) {
+      const parsed = parseFiniteNumber(updateData.price, { min: 0, max: 100_000_000 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid price');
+        return;
+      }
+      sanitized.price = parsed;
+    }
+    if (updateData.location !== undefined) {
+      const parsed = parseString(updateData.location, { maxLength: 180 });
+      if (!parsed) {
+        sendError(res, 422, 'Invalid location');
+        return;
+      }
+      sanitized.location = parsed;
+    }
+    if (updateData.province !== undefined) {
+      const parsed = parseString(updateData.province, { maxLength: 64 });
+      if (!parsed) {
+        sendError(res, 422, 'Invalid province');
+        return;
+      }
+      sanitized.province = parsed;
+    }
+    if (updateData.postalCode !== undefined) {
+      sanitized.postalCode = updateData.postalCode == null ? null : String(updateData.postalCode).trim() || null;
+    }
+    if (updateData.sizeSqm !== undefined) {
+      const parsed = parseFiniteNumber(updateData.sizeSqm, { min: 0 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid sizeSqm');
+        return;
+      }
+      sanitized.sizeSqm = parsed;
+    }
+    if (updateData.bedroomsTotal !== undefined) {
+      const parsed = parseFiniteInt(updateData.bedroomsTotal, { min: 0, max: 20 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid bedroomsTotal');
+        return;
+      }
+      sanitized.bedroomsTotal = parsed;
+    }
+    if (updateData.bathroomsTotal !== undefined) {
+      const parsed = parseFiniteInt(updateData.bathroomsTotal, { min: 0, max: 20 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid bathroomsTotal');
+        return;
+      }
+      sanitized.bathroomsTotal = parsed;
+    }
+    if (updateData.propertyType !== undefined) {
+      sanitized.propertyType = updateData.propertyType == null ? null : String(updateData.propertyType).trim() || null;
+    }
+    if (updateData.latitude !== undefined) {
+      const parsed = parseFiniteNumber(updateData.latitude, { min: -90, max: 90 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid latitude');
+        return;
+      }
+      sanitized.latitude = parsed;
+    }
+    if (updateData.longitude !== undefined) {
+      const parsed = parseFiniteNumber(updateData.longitude, { min: -180, max: 180 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid longitude');
+        return;
+      }
+      sanitized.longitude = parsed;
+    }
+    if (updateData.images !== undefined) {
+      if (!Array.isArray(updateData.images) || updateData.images.some((value) => typeof value !== 'string' || !value.trim())) {
+        sendError(res, 422, 'Invalid images');
+        return;
+      }
+      sanitized.images = updateData.images;
+    }
+    if (updateData.streetAddress !== undefined) {
+      sanitized.streetAddress = updateData.streetAddress == null ? null : String(updateData.streetAddress).trim() || null;
+    }
+    if (updateData.unitNumber !== undefined) {
+      sanitized.unitNumber = updateData.unitNumber == null ? null : String(updateData.unitNumber).trim() || null;
+    }
+    if (updateData.yearBuilt !== undefined) {
+      const parsed = parseFiniteInt(updateData.yearBuilt, { min: 1800, max: 2100 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid yearBuilt');
+        return;
+      }
+      sanitized.yearBuilt = parsed;
+    }
+    if (updateData.lotSizeSqm !== undefined) {
+      const parsed = parseFiniteNumber(updateData.lotSizeSqm, { min: 0 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid lotSizeSqm');
+        return;
+      }
+      sanitized.lotSizeSqm = parsed;
+    }
+    if (updateData.heatingType !== undefined) {
+      sanitized.heatingType = updateData.heatingType == null ? null : String(updateData.heatingType).trim() || null;
+    }
+    if (updateData.insulationQuality !== undefined) {
+      sanitized.insulationQuality = updateData.insulationQuality == null ? null : String(updateData.insulationQuality).trim() || null;
+    }
+    if (updateData.hasRecentRenovations !== undefined) {
+      const parsed = parseBoolean(updateData.hasRecentRenovations);
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid hasRecentRenovations');
+        return;
+      }
+      sanitized.hasRecentRenovations = parsed;
+    }
+    if (updateData.roofAgeYears !== undefined) {
+      const parsed = parseFiniteInt(updateData.roofAgeYears, { min: 0, max: 200 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid roofAgeYears');
+        return;
+      }
+      sanitized.roofAgeYears = parsed;
+    }
+    if (updateData.appliancesAgeYears !== undefined) {
+      const parsed = parseFiniteInt(updateData.appliancesAgeYears, { min: 0, max: 100 });
+      if (parsed == null) {
+        sendError(res, 422, 'Invalid appliancesAgeYears');
+        return;
+      }
+      sanitized.appliancesAgeYears = parsed;
+    }
+    if (updateData.status !== undefined) {
+      if (!canManageAnyListing) {
+        sendError(res, 403, 'status can only be updated by broker or admin');
+        return;
+      }
+      const parsed = parseString(updateData.status, { maxLength: 32 });
+      if (!parsed || !['ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'].includes(parsed)) {
+        sendError(res, 422, 'Invalid status');
+        return;
+      }
+      sanitized.status = parsed;
+    }
+    if (updateData.rejectionReason !== undefined) {
+      if (!canManageAnyListing) {
+        sendError(res, 403, 'rejectionReason can only be updated by broker or admin');
+        return;
+      }
+      sanitized.rejectionReason = updateData.rejectionReason == null ? null : parseString(updateData.rejectionReason, { maxLength: 2000, allowEmpty: true });
+    }
+    const locationStr = typeof sanitized.location === 'string' ? sanitized.location.trim() : '';
+    const hasLat = sanitized.latitude != null && !Number.isNaN(Number(sanitized.latitude));
+    const hasLng = sanitized.longitude != null && !Number.isNaN(Number(sanitized.longitude));
     if (locationStr && (!hasLat || !hasLng)) {
       const geocoded = await geocodeAddress(locationStr);
       if (geocoded) {
-        updateData.latitude = geocoded.lat;
-        updateData.longitude = geocoded.lng;
+        sanitized.latitude = geocoded.lat;
+        sanitized.longitude = geocoded.lng;
       }
     }
     const ecoKeys = ['yearBuilt', 'heatingType', 'insulationQuality', 'hasRecentRenovations', 'roofAgeYears', 'appliancesAgeYears'];
-    const hasEcoChange = ecoKeys.some((k) => updateData[k] !== undefined);
+    const hasEcoChange = ecoKeys.some((k) => sanitized[k] !== undefined);
     if (hasEcoChange) {
       const existing = await prisma.listing.findUnique({ where: { id }, select: { yearBuilt: true, heatingType: true, insulationQuality: true, hasRecentRenovations: true, roofAgeYears: true, appliancesAgeYears: true } });
-      const y = updateData.yearBuilt !== undefined ? num(updateData.yearBuilt) : existing?.yearBuilt ?? undefined;
-      const ht = updateData.heatingType !== undefined ? (updateData.heatingType != null && String(updateData.heatingType).trim() ? String(updateData.heatingType).trim() : null) : existing?.heatingType ?? undefined;
-      const iq = updateData.insulationQuality !== undefined ? (updateData.insulationQuality != null && String(updateData.insulationQuality).trim() ? String(updateData.insulationQuality).trim() : null) : existing?.insulationQuality ?? undefined;
-      const ren = updateData.hasRecentRenovations !== undefined ? bool(updateData.hasRecentRenovations) : existing?.hasRecentRenovations ?? undefined;
-      const roof = updateData.roofAgeYears !== undefined ? num(updateData.roofAgeYears) : existing?.roofAgeYears ?? undefined;
-      const app = updateData.appliancesAgeYears !== undefined ? num(updateData.appliancesAgeYears) : existing?.appliancesAgeYears ?? undefined;
+      const y = sanitized.yearBuilt !== undefined ? (sanitized.yearBuilt as number) : existing?.yearBuilt ?? undefined;
+      const ht = sanitized.heatingType !== undefined ? (sanitized.heatingType as string | null) : existing?.heatingType ?? undefined;
+      const iq = sanitized.insulationQuality !== undefined ? (sanitized.insulationQuality as string | null) : existing?.insulationQuality ?? undefined;
+      const ren = sanitized.hasRecentRenovations !== undefined ? (sanitized.hasRecentRenovations as boolean | null) : existing?.hasRecentRenovations ?? undefined;
+      const roof = sanitized.roofAgeYears !== undefined ? (sanitized.roofAgeYears as number | null) : existing?.roofAgeYears ?? undefined;
+      const app = sanitized.appliancesAgeYears !== undefined ? (sanitized.appliancesAgeYears as number | null) : existing?.appliancesAgeYears ?? undefined;
       const ecoScore = computeEcoRatingScore({ yearBuilt: y ?? null, heatingType: ht ?? null, insulationQuality: iq ?? null, hasRecentRenovations: ren ?? null, roofAgeYears: roof ?? null, appliancesAgeYears: app ?? null });
-      updateData.ecoRatingScore = ecoScore ?? null;
+      sanitized.ecoRatingScore = ecoScore ?? null;
     }
-    const updated = await prisma.listing.update({ where: { id }, data: updateData });
+    const updated = await prisma.listing.update({ where: { id }, data: sanitized });
     res.json(updated);
     return;
   }
   if (req.method === 'DELETE') {
+    if (!applyRateLimit(req, res, 'listings-delete', { max: 30, windowMs: 60_000 })) return;
     const { id } = req.body ?? {};
-    if (!id || typeof id !== 'string') {
+    if (!isSafeId(id)) {
       sendError(res, 400, 'id is required');
+      return;
+    }
+    const existingListing = await prisma.listing.findUnique({ where: { id }, select: { userId: true } });
+    if (!existingListing) {
+      sendError(res, 404, 'Listing not found');
+      return;
+    }
+    const userRole = session.user.role;
+    const canManageAnyListing = userRole === 'SYSTEM_ADMIN' || userRole === 'OFFICE_ADMIN' || userRole === 'BROKER';
+    if (!canManageAnyListing && existingListing.userId !== session.user.id) {
+      sendError(res, 403, API_MESSAGES.FORBIDDEN);
       return;
     }
     await prisma.listing.delete({ where: { id } });

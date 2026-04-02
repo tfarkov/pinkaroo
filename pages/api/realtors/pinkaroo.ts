@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { getMockPinkarooTeam } from '../../../lib/mockData';
-import { requireMethod } from '../../../lib/apiHelpers';
+import { SAFE_TEAM_MEMBER_SELECT, requireMethod } from '../../../lib/apiHelpers';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const broker = await prisma.user.findFirst({
       where: { role: 'BROKER', name: { contains: 'Pinkaroo' } },
+      select: SAFE_TEAM_MEMBER_SELECT,
     });
     if (!broker) {
       const team = getMockPinkarooTeam();
@@ -19,7 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const realtors = await prisma.user.findMany({
       where: { brokerId: broker.id, role: 'REALTOR' },
-      include: { broker: { select: { id: true, name: true } } },
+      select: {
+        ...SAFE_TEAM_MEMBER_SELECT,
+        broker: { select: { id: true, name: true } },
+      },
     });
 
     const team = [

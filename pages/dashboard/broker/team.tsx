@@ -53,6 +53,16 @@ export default function BrokerTeamPage() {
     enabled: isBroker,
   });
 
+  const { data: workloadData } = useQuery({
+    queryKey: ['broker-workload'],
+    queryFn: async () => {
+      const res = await fetch(API.BROKER_WORKLOAD, { credentials: 'include' });
+      if (!res.ok) return { assignments: [], capacity: [] };
+      return res.json();
+    },
+    enabled: isBroker,
+  });
+
   const teamList = (teams as Team[]) ?? [];
   const membersList = (teamMembers as TeamMember[]) ?? [];
   const usingMockTeams = !teamsLoading && !teamsError && teamList.length > 0 && teamList[0]?.id?.startsWith?.('mock-');
@@ -118,6 +128,20 @@ export default function BrokerTeamPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-team'] }),
   });
 
+  const rebalanceMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(API.BROKER_WORKLOAD, {
+        method: 'PUT',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'rebalance' }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-workload'] }),
+  });
+
   if (!isBroker) {
     return (
       <DashboardLayout>
@@ -151,6 +175,28 @@ export default function BrokerTeamPage() {
           Using mock data for testing (API unavailable or not signed in as broker).
         </div>
       )}
+
+      <section className="mb-10 bg-white rounded-lg shadow-card border border-slate-200 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 className="text-xl font-bold text-slate-900">Workload management</h2>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => rebalanceMutation.mutate()} className="btn-secondary" disabled={rebalanceMutation.isPending}>
+              {rebalanceMutation.isPending ? 'Rebalancing...' : 'Rebalance open assignments'}
+            </button>
+            <Link href="/dashboard/broker/workload" className="btn-primary">Open workload board</Link>
+          </div>
+        </div>
+        <ul className="space-y-2">
+          {((workloadData?.capacity as { id: string; name?: string; openAssignments?: number }[] | undefined) ?? []).slice(0, 8).map((item) => (
+            <li key={item.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700">
+              {item.name ?? 'Unnamed realtor'} · Open assignments: {item.openAssignments ?? 0}
+            </li>
+          ))}
+          {(!workloadData?.capacity || (workloadData.capacity as unknown[]).length === 0) && (
+            <li className="text-slate-500 text-sm">No workload data available yet.</li>
+          )}
+        </ul>
+      </section>
 
       {/* Teams */}
       <section className="mb-10">

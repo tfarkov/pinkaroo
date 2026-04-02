@@ -5,6 +5,7 @@ describe('getMarkerPosition', () => {
     expect(getMarkerPosition({ id: '1', latitude: null, longitude: null })).toBeNull();
     expect(getMarkerPosition({ id: '1', latitude: 44, longitude: undefined })).toBeNull();
     expect(getMarkerPosition({ id: '1', latitude: 0, longitude: 0 })).toBeNull();
+    expect(getMarkerPosition({ id: '1', latitude: 244, longitude: -279 })).toBeNull();
   });
 
   it('returns coords when already valid', () => {

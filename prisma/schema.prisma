@@ -29,6 +29,15 @@ model User {
   teamMembers   User[]    @relation("BrokerTeam")
   teams         Team[]    @relation("BrokerOwnsTeams") // Teams this user (broker) owns
   team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  brokerClients Client[]  @relation("BrokerClients")
+  brokerAssignments WorkloadAssignment[] @relation("BrokerAssignments")
+  realtorAssignments WorkloadAssignment[] @relation("RealtorAssignments")
+  assignedTasks WorkloadAssignment[] @relation("AssignedByUser")
+  brokerTemplates CommsTemplate[] @relation("BrokerCommsTemplates")
+  brokerBroadcasts BrokerBroadcast[] @relation("BrokerBroadcasts")
+  sentBroadcasts BrokerBroadcast[] @relation("BroadcastSender")
+  auditLogsAsActor AuditLog[] @relation("AuditActor")
+  auditLogsAsBroker AuditLog[] @relation("AuditBroker")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
@@ -72,7 +81,8 @@ model VerificationToken {
 }
 enum Role {
   USER
-  ADMIN
+  OFFICE_ADMIN
+  SYSTEM_ADMIN
   REALTOR
   BROKER
 }
@@ -101,6 +111,7 @@ model Listing {
   userId             String
   user               User         @relation(fields: [userId], references: [id])
   favorites          Favorite[]
+  assignments        WorkloadAssignment[]
   // MLS / DDF property attributes
   streetAddress      String?
   unitNumber         String?
@@ -155,9 +166,16 @@ model Client {
   updatedAt     DateTime     @updatedAt
   userId        String       
   user          User         @relation(fields: [userId], references: [id])
+  brokerId      String?
+  broker        User?        @relation("BrokerClients", fields: [brokerId], references: [id], onDelete: SetNull)
+  teamId        String?
+  team          Team?        @relation("TeamClients", fields: [teamId], references: [id], onDelete: SetNull)
+  assignments   WorkloadAssignment[]
   interactions  Interaction[]
   @@index([status])
   @@index([userId])
+  @@index([brokerId])
+  @@index([teamId])
 }
 enum ClientStatus {
   LEAD
@@ -202,8 +220,13 @@ model Team {
   id        String   @id @default(uuid())
   name      String
   brokerId  String
+  targetListings Int?   @default(0)
+  targetRevenue  Float? @default(0)
+  targetInteractions Int? @default(0)
   broker    User     @relation("BrokerOwnsTeams", fields: [brokerId], references: [id], onDelete: Cascade)
   members   User[]   @relation("TeamMembers")
+  clients   Client[] @relation("TeamClients")
+  broadcasts BrokerBroadcast[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([brokerId])
@@ -221,4 +244,79 @@ model Favorite {
   listing   Listing  @relation(fields: [listingId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
   @@unique([userId, listingId])
+}
+
+model WorkloadAssignment {
+  id          String           @id @default(uuid())
+  title       String
+  details     String?
+  priority    Int              @default(3)
+  status      AssignmentStatus @default(OPEN)
+  dueAt       DateTime?
+  brokerId    String
+  broker      User             @relation("BrokerAssignments", fields: [brokerId], references: [id], onDelete: Cascade)
+  realtorId   String
+  realtor     User             @relation("RealtorAssignments", fields: [realtorId], references: [id], onDelete: Cascade)
+  assignedById String?
+  assignedBy  User?            @relation("AssignedByUser", fields: [assignedById], references: [id], onDelete: SetNull)
+  clientId    String?
+  client      Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  listingId   String?
+  listing     Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@index([brokerId, status])
+  @@index([realtorId, status])
+  @@index([dueAt])
+}
+
+enum AssignmentStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+model CommsTemplate {
+  id        String   @id @default(uuid())
+  brokerId  String
+  broker    User     @relation("BrokerCommsTemplates", fields: [brokerId], references: [id], onDelete: Cascade)
+  name      String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  broadcasts BrokerBroadcast[]
+  @@index([brokerId])
+}
+
+model BrokerBroadcast {
+  id         String   @id @default(uuid())
+  brokerId   String
+  broker     User     @relation("BrokerBroadcasts", fields: [brokerId], references: [id], onDelete: Cascade)
+  teamId     String?
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  templateId String?
+  template   CommsTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sentById   String
+  sentBy     User     @relation("BroadcastSender", fields: [sentById], references: [id], onDelete: Cascade)
+  subject    String
+  message    String
+  createdAt  DateTime @default(now())
+  @@index([brokerId, createdAt])
+  @@index([teamId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  actor     User     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  brokerId  String?
+  broker    User?    @relation("AuditBroker", fields: [brokerId], references: [id], onDelete: SetNull)
+  action    String
+  entityType String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+  @@index([brokerId, createdAt])
+  @@index([actorId, createdAt])
 }

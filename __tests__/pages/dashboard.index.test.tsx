@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import DashboardPage from '../../pages/dashboard/index';
 
 const mockUseAuth = jest.fn();
@@ -73,6 +73,9 @@ describe('Dashboard role-based rendering', () => {
       if (key === 'broker-stats') {
         return { data: { teamCount: 2, availableRealtors: [{ id: 'r1' }], pending: 3 } };
       }
+      if (key === 'dashboard-user') {
+        return { data: { availableHours: 'Mon–Fri 9am–5pm' } };
+      }
       return { data: undefined };
     });
   });
@@ -107,6 +110,27 @@ describe('Dashboard role-based rendering', () => {
     expect(screen.getByText('Notifications & communications')).toBeInTheDocument();
   });
 
+  it('renders realtor availability editor and submits updates', () => {
+    mockUseAuth.mockReturnValue({
+      role: 'REALTOR',
+      user: { id: 'realtor-1' },
+    });
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, text: async () => '' });
+    (global as { fetch?: typeof fetch }).fetch = fetchMock as typeof fetch;
+
+    renderDashboard();
+
+    const input = screen.getByDisplayValue('Mon–Fri 9am–5pm');
+    fireEvent.change(input, { target: { value: 'Mon–Thu 10am–4pm' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/users/realtor-1', expect.objectContaining({
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify({ availableHours: 'Mon–Thu 10am–4pm' }),
+    }));
+  });
+
   it('renders BROKER summary cards and realtor dashboard links', () => {
     mockUseAuth.mockReturnValue({
       role: 'BROKER',
@@ -123,5 +147,24 @@ describe('Dashboard role-based rendering', () => {
     expect(screen.getByText('Notifications & communications')).toBeInTheDocument();
     expect(screen.getByText('Broker dashboard')).toBeInTheDocument();
     expect(screen.getByText('Realtor dashboards')).toBeInTheDocument();
+  });
+
+  it('renders safe fallback text for invalid notification timestamps', () => {
+    mockUseAuth.mockReturnValue({
+      role: 'USER',
+      user: { id: 'user-1' },
+    });
+    mockUseNotifications.mockReturnValue({
+      notifications: [
+        {
+          id: 'n1',
+          message: 'Malformed date message',
+          createdAt: 'invalid-date',
+          fromUser: { role: 'REALTOR', name: 'Rita', email: 'rita@example.com' },
+        },
+      ],
+    });
+    renderDashboard();
+    expect(screen.getByText(/Unknown time/i)).toBeInTheDocument();
   });
 });

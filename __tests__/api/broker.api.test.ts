@@ -8,14 +8,17 @@ const mockUserFindMany = jest.fn();
 const mockTeamFindMany = jest.fn();
 const mockListingGroupBy = jest.fn();
 const mockListingCount = jest.fn();
+const mockListingFindMany = jest.fn();
 const mockInteractionGroupBy = jest.fn();
 const mockListingFindUnique = jest.fn();
 const mockListingUpdate = jest.fn();
 const mockNotificationCreate = jest.fn();
+const mockAuditLogCreate = jest.fn();
 
 const mockTx = {
   listing: { update: mockListingUpdate },
   notification: { create: mockNotificationCreate },
+  auditLog: { create: mockAuditLogCreate },
 };
 
 jest.mock('@prisma/client', () => ({
@@ -25,6 +28,7 @@ jest.mock('@prisma/client', () => ({
     listing: {
       groupBy: mockListingGroupBy,
       count: mockListingCount,
+      findMany: mockListingFindMany,
       findUnique: mockListingFindUnique,
       update: mockListingUpdate,
     },
@@ -32,6 +36,7 @@ jest.mock('@prisma/client', () => ({
       groupBy: mockInteractionGroupBy,
     },
     notification: { create: mockNotificationCreate },
+    auditLog: { create: mockAuditLogCreate },
     $transaction: (fn: (tx: typeof mockTx) => Promise<void>) => fn(mockTx),
   })),
 }));
@@ -59,12 +64,21 @@ describe('GET /api/broker/stats', () => {
     expect(res._status).toBe(401);
   });
 
+  it('returns 403 when authenticated but not BROKER', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'u1', role: 'USER' } });
+    const req = createMockRequest({ method: 'GET' });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(403);
+  });
+
   it('returns 200 with teamCount and listings when BROKER', async () => {
     mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
     mockUserFindMany.mockResolvedValue([{ id: 'r1', name: 'R1', email: 'r1@test.com', listingsCount: 2, teamId: null, isTeamLead: false }]);
     mockTeamFindMany.mockResolvedValue([{ id: 't1', name: 'Team A', _count: { members: 1 } }]);
     mockListingGroupBy.mockResolvedValue([{ status: 'PENDING', _count: { id: 1 } }, { status: 'APPROVED', _count: { id: 3 } }]);
     mockListingCount.mockResolvedValue(4);
+    mockListingFindMany.mockResolvedValue([{ userId: 'r1', price: 100000, approvedAt: new Date(), updatedAt: new Date() }]);
     mockInteractionGroupBy.mockResolvedValue([{ userId: 'r1', _count: { id: 2 } }]);
     const req = createMockRequest({ method: 'GET' });
     const res = createMockResponse();

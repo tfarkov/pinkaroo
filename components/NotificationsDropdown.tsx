@@ -13,6 +13,11 @@ export default function NotificationsDropdown() {
   const dialogNotification = dialogNotificationId
     ? notifications.find((n) => n.id === dialogNotificationId) ?? null
     : null;
+  const visibleNotifications = Array.isArray(notifications) ? notifications.slice(0, 5) : [];
+  const formatTimestamp = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Unknown time' : date.toLocaleString();
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,7 +53,7 @@ export default function NotificationsDropdown() {
               View all
             </Link>
           </div>
-          {notifications.slice(0, 5).map((notif) => (
+          {visibleNotifications.map((notif) => (
             <button
               key={notif.id}
               type="button"
@@ -56,10 +61,13 @@ export default function NotificationsDropdown() {
               className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-0"
             >
               {notif.message}
-              <span className="block text-xs text-slate-500 mt-0.5">{new Date(notif.createdAt).toLocaleString()}</span>
+              <span className="block text-xs text-slate-500 mt-0.5">{formatTimestamp(notif.createdAt)}</span>
             </button>
           ))}
           {notifications.length === 0 && <p className="px-4 py-5 text-slate-500 text-sm">{UI.NO_NOTIFICATIONS}</p>}
+          {updateMutation.isError && (
+            <p className="px-4 pb-2 text-xs text-red-600">Unable to update notification. Please try again.</p>
+          )}
           {notifications.length > 5 && (
             <div className="px-4 py-2 border-t border-slate-100">
               <Link href="/dashboard/notifications" className="text-accent-600 hover:text-accent-700 text-sm font-medium" onClick={() => setIsOpen(false)}>

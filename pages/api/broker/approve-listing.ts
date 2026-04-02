@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { API_MESSAGES, NOTIFICATION_MESSAGES, NOTIFICATION_TYPES } from '../../../lib/constants';
 import { requireMethod, sendError } from '../../../lib/apiHelpers';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient() as any;
 
 /**
  * Listing Approval Workflow: Realtor listings are PENDING; brokers approve/reject with reason.
@@ -46,6 +46,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       await tx.notification.create({
         data: { message: NOTIFICATION_MESSAGES.LISTING_STATUS_UPDATED, type: NOTIFICATION_TYPES[0], userId: listingBefore.userId },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: session.user.id,
+          brokerId: session.user.id,
+          action: 'LISTING_STATUS_UPDATED',
+          entityType: 'Listing',
+          entityId: updated.id,
+          details: { status, rejectionReason: status === 'REJECTED' ? (rejectionReason ?? null) : null },
+        },
       });
       const io = (global as { io?: { to: (id: string) => { emit: (e: string, d: unknown) => void } } }).io;
       if (io) io.to(listingBefore.userId).emit('notification', { message: NOTIFICATION_MESSAGES.YOUR_LISTING_STATUS(status.toLowerCase()), id: updated.id });

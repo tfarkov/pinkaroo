@@ -1,17 +1,46 @@
 import { useAuth } from '../lib/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { UI, RECENTLY_VIEWED_LIMIT, getListingPageUrl } from '../lib/constants';
+import { useQuery } from '@tanstack/react-query';
+import { API, CONTENT_TYPE, UI, RECENTLY_VIEWED_LIMIT, getListingPageUrl } from '../lib/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
 
 export default function Profile() {
   const router = useRouter();
-  const { user, isAuthenticated, status } = useAuth();
+  const { user, isAuthenticated, status, isRealtor } = useAuth();
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
-  const userWithRole = user as { name?: string; email?: string; image?: string; role?: string } | undefined;
+  const userWithRole = user as {
+    id?: string;
+    name?: string;
+    email?: string;
+    image?: string;
+    role?: string;
+    availableHours?: string | null;
+  } | undefined;
+  const [availableHours, setAvailableHours] = useState('');
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState('');
+  const [availabilitySuccess, setAvailabilitySuccess] = useState('');
+  const availabilityInitialized = useRef(false);
+
+  const { data: profileUser } = useQuery({
+    queryKey: ['profile-user', userWithRole?.id ?? 'unknown'],
+    queryFn: async () => {
+      const res = await fetch(`${API.USERS}/${userWithRole?.id}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load profile');
+      return res.json();
+    },
+    enabled: !!userWithRole?.id && isRealtor,
+  });
+
+  useEffect(() => {
+    if (!profileUser || availabilityInitialized.current) return;
+    availabilityInitialized.current = true;
+    setAvailableHours(profileUser.availableHours ?? '');
+  }, [profileUser]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -20,6 +49,29 @@ export default function Profile() {
       return;
     }
   }, [status, isAuthenticated, router]);
+
+  const handleAvailabilitySave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!userWithRole?.id) return;
+    setAvailabilityError('');
+    setAvailabilitySuccess('');
+    setSavingAvailability(true);
+    try {
+      const res = await fetch(`${API.USERS}/${userWithRole.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ availableHours: availableHours.trim() || null }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAvailabilitySuccess(UI.PROFILE_SAVED);
+      setTimeout(() => setAvailabilitySuccess(''), 3000);
+    } catch {
+      setAvailabilityError('Failed to save. Try again.');
+    } finally {
+      setSavingAvailability(false);
+    }
+  };
 
   useEffect(() => {
     let viewed: string[] = [];
@@ -59,6 +111,27 @@ export default function Profile() {
             <dd className="font-semibold text-slate-900">{userWithRole?.role ?? '—'}</dd>
           </dl>
         </div>
+        {isRealtor && (
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-8">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">{UI.EDIT_REALTOR_PROFILE}</h2>
+            <form onSubmit={handleAvailabilitySave} className="space-y-3">
+              <div>
+                <label className="label">{UI.AVAILABLE_HOURS}</label>
+                <input
+                  value={availableHours}
+                  onChange={(event) => setAvailableHours(event.target.value)}
+                  className="input-field w-full"
+                  placeholder="e.g. Mon–Fri 9am–5pm"
+                />
+              </div>
+              {availabilitySuccess && <p className="text-green-600 text-sm font-medium">{availabilitySuccess}</p>}
+              {availabilityError && <p className="text-red-600 text-sm">{availabilityError}</p>}
+              <button type="submit" className="btn-primary" disabled={savingAvailability}>
+                {savingAvailability ? UI.LOADING : UI.SAVE_PROFILE}
+              </button>
+            </form>
+          </div>
+        )}
         <h2 className="text-xl font-bold text-slate-900 mb-4">{UI.RECENTLY_VIEWED_TITLE}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {recentlyViewed.filter((id): id is string => typeof id === 'string' && id.length > 0).map((id) => {

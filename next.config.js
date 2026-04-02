@@ -4,7 +4,6 @@ module.exports = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
       { protocol: 'https', hostname: 'maps.gstatic.com', pathname: '/**' },
       { protocol: 'https', hostname: 'pbs.twimg.com', pathname: '/**' },
     ],

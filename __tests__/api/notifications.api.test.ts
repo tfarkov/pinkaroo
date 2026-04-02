@@ -102,8 +102,8 @@ describe('/api/notifications authorization rules', () => {
     expect(res._status).toBe(201);
   });
 
-  it('allows ADMIN to message USER unsolicited', async () => {
-    mockGetSession.mockResolvedValue({ user: { id: 'a1', role: 'ADMIN' } });
+  it('allows SYSTEM_ADMIN to message USER unsolicited', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'a1', role: 'SYSTEM_ADMIN' } });
     mockUserFindUnique.mockResolvedValue({ role: 'USER' });
     const req = createMockRequest({ method: 'POST', body: { toUserId: 'u1', message: 'Admin announcement' } });
     const res = createMockResponse();
@@ -113,11 +113,28 @@ describe('/api/notifications authorization rules', () => {
   });
 
   it('returns 404 when recipient does not exist', async () => {
-    mockGetSession.mockResolvedValue({ user: { id: 'a1', role: 'ADMIN' } });
+    mockGetSession.mockResolvedValue({ user: { id: 'a1', role: 'SYSTEM_ADMIN' } });
     mockUserFindUnique.mockResolvedValue(null);
     const req = createMockRequest({ method: 'POST', body: { toUserId: 'missing', message: 'Ping' } });
     const res = createMockResponse();
     await runHandler(handler as any, req, res);
     expect(res._status).toBe(404);
+  });
+
+  it('returns 400 for invalid recipient id format', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'a1', role: 'SYSTEM_ADMIN' } });
+    const req = createMockRequest({ method: 'POST', body: { toUserId: '../bad', message: 'Ping' } });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(400);
+    expect(mockUserFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when user tries to message themselves', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'u1', role: 'USER' } });
+    const req = createMockRequest({ method: 'POST', body: { toUserId: 'u1', message: 'self' } });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(400);
   });
 });

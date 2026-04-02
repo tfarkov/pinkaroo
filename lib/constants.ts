@@ -1,4 +1,4 @@
-export const ROLES = ['USER', 'ADMIN', 'REALTOR', 'BROKER'] as const;
+export const ROLES = ['USER', 'OFFICE_ADMIN', 'SYSTEM_ADMIN', 'REALTOR', 'BROKER'] as const;
 export type Role = typeof ROLES[number];
 export const LISTING_STATUSES = ['ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'] as const;
 export type ListingStatus = typeof LISTING_STATUSES[number];
@@ -81,6 +81,14 @@ export const API = {
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
   BROKER_TEAMS: '/api/broker/teams',            // List: index; single: /api/broker/teams/[id]
   BROKER_REALTOR_DASHBOARD: '/api/broker/realtor-dashboard',
+  BROKER_PERFORMANCE: '/api/broker/performance',
+  BROKER_WORKLOAD: '/api/broker/workload',
+  BROKER_CLIENT_OVERSIGHT: '/api/broker/client-oversight',
+  BROKER_COMMS: '/api/broker/comms',
+  BROKER_ADMIN_CONTROLS: '/api/broker/admin-controls',
+  SYSTEM_ADMIN_SETTINGS: '/api/system-admin/settings',
+  SYSTEM_ADMIN_PERMISSIONS: '/api/system-admin/permissions',
+  SYSTEM_ADMIN_AUDIT: '/api/system-admin/audit',
 } as const;
 
 /** Base path for the listing detail page (pages/listings/[id].tsx). */
@@ -176,7 +184,8 @@ export const UI = {
   LOADING_MORE: 'Loading more...',
   LOADING: 'Loading...',
   ACCESS_DENIED: 'Access Denied',
-  ADMIN_DASHBOARD: 'Admin Dashboard',
+  ADMIN_DASHBOARD: 'System Admin Dashboard',
+  OFFICE_ADMIN_DASHBOARD: 'Office Admin Dashboard',
   ASSIGN_REALTOR_TO_BROKER: 'Assign Realtor to Broker',
   ASSIGN: 'Assign',
   REALTORS_LIST: 'Realtors List',
@@ -229,6 +238,11 @@ export const UI = {
   PROFILE_SAVED: 'Profile saved.',
   TEAM_LEAD: 'Team lead',
   TEAM_MANAGEMENT: 'Team management',
+  BROKER_PERFORMANCE: 'Performance',
+  BROKER_WORKLOAD: 'Workload',
+  BROKER_CLIENT_OVERSIGHT: 'Client oversight',
+  BROKER_COMMUNICATIONS: 'Communications',
+  BROKER_ADMIN_CONTROLS: 'Admin controls',
   BROKER_TEAM_TITLE: 'Team – Realtors',
   BROKER_TEAM_DESCRIPTION: 'Manage your team and designate team leads. Team leads can edit realtor profiles within your team.',
   NO_TEAM_MEMBERS: 'No realtors in your team yet. Realtors are assigned to your team by an admin.',

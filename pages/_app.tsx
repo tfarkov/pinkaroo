@@ -46,8 +46,8 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
   return (
     <>
       <Head>
-        <link rel="preconnect" href="https://images.unsplash.com" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://res.cloudinary.com" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       </Head>
       <div className={dmSans.variable} style={{ minHeight: '100vh', width: '100%' }}>
         <SessionProvider session={session}>

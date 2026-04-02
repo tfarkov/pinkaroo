@@ -78,6 +78,8 @@ describe('GET /api/realtors/[id]', () => {
     expect(res._status).toBe(200);
     expect((res._json as any)?.id).toBe('r1');
     expect((res._json as any)?.role).toBe('REALTOR');
+    const callArgs = mockUserFindUnique.mock.calls[0]?.[0] as any;
+    expect(callArgs?.select?.password).toBeUndefined();
   });
 });
 
@@ -124,5 +126,7 @@ describe('GET /api/realtors/pinkaroo', () => {
     await runHandler(handler, req, res);
     expect(res._status).toBe(200);
     expect(Array.isArray(res._json)).toBe(true);
+    const brokerCallArgs = mockUserFindFirst.mock.calls[0]?.[0] as any;
+    expect(brokerCallArgs?.select?.password).toBeUndefined();
   });
 });

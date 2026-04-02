@@ -39,8 +39,16 @@ describe('GET /api/admin/users', () => {
     expect(res._status).toBe(401);
   });
 
-  it('returns 200 with users, nextPage, total when ADMIN with pagination', async () => {
-    mockGetSession.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } });
+  it('returns 403 when authenticated but not System/Office admin', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'u1', role: 'USER' } });
+    const req = createMockRequest({ method: 'GET' });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(403);
+  });
+
+  it('returns 200 with users, nextPage, total when SYSTEM_ADMIN with pagination', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'admin-1', role: 'SYSTEM_ADMIN' } });
     mockUserFindMany.mockResolvedValue([
       { id: 'u1', name: 'User 1', email: 'u1@test.com', role: 'USER', brokerId: null },
     ]);
@@ -56,7 +64,7 @@ describe('GET /api/admin/users', () => {
   });
 
   it('returns nextPage null when no more pages', async () => {
-    mockGetSession.mockResolvedValue({ user: { id: 'admin-1', role: 'ADMIN' } });
+    mockGetSession.mockResolvedValue({ user: { id: 'admin-1', role: 'OFFICE_ADMIN' } });
     mockUserFindMany.mockResolvedValue([{ id: 'u1', name: 'U1', email: 'u1@t.com', role: 'USER', brokerId: null }]);
     mockUserCount.mockResolvedValue(1);
     const req = createMockRequest({ method: 'GET', query: { page: '0', limit: '50' } });
