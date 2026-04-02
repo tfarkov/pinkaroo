@@ -309,7 +309,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
                   center={position}
                   zoom={10}
                   mapContainerStyle={{ height: '200px' }}
-                  options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: true }}
+                  options={{ zoomControl: true, cameraControl: false, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
                 >
                   <Marker position={position} />
                 </GoogleMap>

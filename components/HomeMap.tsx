@@ -102,16 +102,12 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
     }
   };
 
-  // Use ControlPosition enum so zoom control shows (string position can hide it in some setups)
-  const ControlPosition = typeof google !== 'undefined' && google.maps && google.maps.ControlPosition
-    ? google.maps.ControlPosition
-    : { RIGHT_CENTER: 4 as number };
   const mapOptions: google.maps.MapOptions = {
     zoomControl: true,
-    zoomControlOptions: { position: ControlPosition.RIGHT_CENTER },
+    cameraControl: false,
     mapTypeControl: false,
     streetViewControl: false,
-    fullscreenControl: true,
+    fullscreenControl: false,
     scaleControl: true,
   };
 

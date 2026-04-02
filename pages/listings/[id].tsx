@@ -62,7 +62,7 @@ function ListingMap({ listing }: { listing: { latitude?: number | null; longitud
           mapContainerClassName="w-full"
           center={center}
           zoom={15}
-          options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: true }}
+          options={{ zoomControl: true, cameraControl: false, mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
         >
           <Marker position={center} />
         </GoogleMap>
