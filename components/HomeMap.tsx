@@ -78,6 +78,7 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const [loadError, setLoadError] = useState(false);
   const lastViewRef = useRef<MapView | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   if (!apiKey) {
     return (
       <div className="h-[320px] sm:h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
@@ -94,6 +95,7 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
 
   /** On map load: subscribe to idle events so parent gets center/zoom on pan or zoom. */
   const handleLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
     if (onMapChange) {
       map.addListener('idle', () => {
         const c = map.getCenter();
@@ -113,8 +115,24 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
     }
   }, [onMapChange]);
 
+  const zoomIn = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const current = map.getZoom();
+    if (current == null) return;
+    map.setZoom(current + 1);
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const current = map.getZoom();
+    if (current == null) return;
+    map.setZoom(current - 1);
+  }, []);
+
   const mapOptions: google.maps.MapOptions = {
-    zoomControl: true,
+    zoomControl: false,
     cameraControl: false,
     mapTypeControl: false,
     streetViewControl: false,
@@ -132,7 +150,7 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   );
 
   return (
-    <div role="region" aria-label="Map of nearby listings" className="w-full h-[320px] sm:h-[420px]">
+    <div role="region" aria-label="Map of nearby listings" className="relative w-full h-[320px] sm:h-[420px]">
       <LoadScript
         googleMapsApiKey={apiKey}
         onError={() => setLoadError(true)}
@@ -163,6 +181,26 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
           ))}
         </GoogleMap>
       </LoadScript>
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={zoomIn}
+          className="h-10 w-10 rounded-md border border-slate-300 bg-white/95 text-slate-800 shadow-sm hover:bg-white"
+          aria-label="Zoom in map"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={zoomOut}
+          className="h-10 w-10 rounded-md border border-slate-300 bg-white/95 text-slate-800 shadow-sm hover:bg-white"
+          aria-label="Zoom out map"
+          title="Zoom out"
+        >
+          -
+        </button>
+      </div>
       {markersWithPos.length > 0 && (
         <div className="sr-only">
           <p>Listings shown on map</p>

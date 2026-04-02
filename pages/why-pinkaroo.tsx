@@ -85,6 +85,17 @@ const WHO_IT_IS_FOR = [
   },
 ];
 
+function MapleLeafIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-6 h-6 text-red-600" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2.5l1.8 3.6 3.2-1.4-.8 3.5 3.6 1.1-2.9 2.2 2.2 2.6-3.4.4.4 3.2L12 16.1l-4.1 2.1.4-3.2-3.4-.4 2.2-2.6L4.2 9.8l3.6-1.1-.8-3.5 3.2 1.4L12 2.5zm-.9 14.2h1.8V22h-1.8v-5.3z"
+      />
+    </svg>
+  );
+}
+
 export default function WhyPinkarooPage() {
   const { isSystemAdmin, isOfficeAdmin } = useAuth();
   const canViewAdminMarketingMaterials = isSystemAdmin || isOfficeAdmin;
@@ -198,6 +209,23 @@ export default function WhyPinkarooPage() {
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="bg-white border border-red-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
+            <div className="inline-flex items-center rounded-full bg-red-600 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+              Proudly Canadian
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <MapleLeafIcon />
+              Canadian owned and operated
+            </h2>
+            <p className="text-slate-700 mb-4">
+              Pinkaroo is a Canadian company, built and run here to serve local communities with practical, trustworthy real estate technology.
+              We focus on Canadian market realities, local partnerships, and long-term value for buyers, realtors, and brokers.
+            </p>
+            <p className="text-slate-700">
+              Our commitment is simple: keep improving the platform in a way that supports Canadian families, local professionals, and sustainable business growth.
+            </p>
           </section>
 
 
