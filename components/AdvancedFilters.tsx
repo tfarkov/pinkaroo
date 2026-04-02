@@ -42,8 +42,8 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
       <button onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="md:hidden btn-primary w-full mb-4">{UI.FILTERS}</button>
       <div className={`${isAccordionOpen ? 'block' : 'hidden'} md:block`}>
         <form onSubmit={handleSubmit(onFilter)} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[140px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 items-end">
+            <div className="w-full">
               <label htmlFor="filters-province" className="label">{UI.ANY_PROVINCE}</label>
               <select id="filters-province" {...register('province')} className="input-field">
                 <option value="">All</option>
@@ -52,11 +52,11 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 ))}
               </select>
             </div>
-            <div className="min-w-[140px]">
+            <div className="w-full">
               <label htmlFor="filters-city" className="label">{UI.CITY}</label>
               <input id="filters-city" {...register('city')} type="text" placeholder="e.g. Barrie" className="input-field" />
             </div>
-            <div className="min-w-[100px]">
+            <div className="w-full">
               <label className="label">{UI.MIN_PRICE}</label>
               <select {...register('minPrice')} className="input-field">
                 {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
@@ -64,7 +64,7 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 ))}
               </select>
             </div>
-            <div className="min-w-[100px]">
+            <div className="w-full">
               <label className="label">{UI.MAX_PRICE}</label>
               <select {...register('maxPrice')} className="input-field">
                 {FILTER_PRICE_OPTIONS.map(({ value, label }) => (
@@ -72,7 +72,7 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 ))}
               </select>
             </div>
-            <div className="min-w-[90px]">
+            <div className="w-full">
               <label className="label">{UI.BEDROOMS}</label>
               <select {...register('bedrooms')} className="input-field">
                 {FILTER_BEDROOM_OPTIONS.map(({ value, label }) => (
@@ -80,7 +80,7 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 ))}
               </select>
             </div>
-            <div className="min-w-[90px]">
+            <div className="w-full">
               <label className="label">{UI.BATHROOMS}</label>
               <select {...register('bathrooms')} className="input-field">
                 {FILTER_BATHROOM_OPTIONS.map(({ value, label }) => (
@@ -88,14 +88,14 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 ))}
               </select>
             </div>
-            <div className="min-w-[120px]">
+            <div className="w-full">
               <label className="label">{UI.ANY_TYPE}</label>
               <select {...register('propertyType')} className="input-field">
                 <option value="">All</option>
                 {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <button type="submit" className="btn-primary">Apply Filters</button>
+            <button type="submit" className="btn-primary w-full xl:mt-0">Apply Filters</button>
           </div>
         </form>
       </div>

@@ -326,13 +326,6 @@ export default function Home() {
               )}
             </section>
 
-            {/* Filters */}
-            <section className="w-full border border-slate-200 bg-white shadow-sm rounded-lg mb-10" aria-label="Search filters">
-              <div className="px-4 py-4 md:px-6 md:py-5">
-                <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
-              </div>
-            </section>
-
             {/* Browse Listings - infinite scroll */}
             <section id="listings" aria-labelledby="listings-title" className="py-10">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -382,6 +375,9 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+              </div>
+              <div className="mb-6" aria-label="Search filters">
+                <AdvancedFilters onFilter={(data) => setFilters({ ...data })} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {sortedListings.map((listing) => (
