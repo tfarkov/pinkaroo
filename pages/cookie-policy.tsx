@@ -191,6 +191,33 @@ export default function CookiePolicy() {
               </p>
             </address>
           </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">9. Consent and Legal Basis</h2>
+            <p>
+              Where required by applicable law, we request consent before placing non-essential cookies (for example,
+              analytics or optional performance cookies). Strictly necessary cookies are used to operate essential
+              platform functionality and security.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">10. Third-Party Measurement and Advertising Technologies</h2>
+            <p>
+              We may use third-party technologies for analytics, attribution, and campaign measurement. These services
+              may set or read their own cookies according to their own privacy policies. We recommend reviewing those
+              policies directly to understand available controls and opt-out mechanisms.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">11. Do Not Track and Browser Signals</h2>
+            <p>
+              Some browsers provide &quot;Do Not Track&quot; or similar privacy signals. Because there is no universal
+              technical standard for all such signals, the Platform may not respond uniformly to every signal type. We
+              continue to evaluate evolving standards and legal requirements.
+            </p>
+          </section>
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm">

@@ -300,6 +300,64 @@ export default function Terms() {
               </p>
             </address>
           </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">19. No Legal, Financial, Tax, or Investment Advice</h2>
+            <p>
+              Content on the Platform is provided for general informational purposes only and is not legal, financial,
+              tax, mortgage, insurance, environmental, or investment advice. You should obtain advice from qualified
+              professionals before making decisions related to real estate transactions or financing.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">20. No Agency or Fiduciary Relationship</h2>
+            <p>
+              Unless expressly agreed in writing, your use of the Platform does not create an agency, brokerage,
+              fiduciary, partnership, employment, or joint venture relationship between you and Pinkaroo. Realtors and
+              brokers using the Platform act on their own behalf and are responsible for their own regulatory
+              compliance, representations, and services.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">21. Fair Housing and Non-Discrimination</h2>
+            <p>
+              Pinkaroo supports fair housing and equal treatment. You agree not to use the Platform in a way that
+              violates applicable human rights, fair housing, tenancy, or anti-discrimination laws in Canada. Content
+              that is discriminatory, exclusionary, or unlawful may be removed, and related accounts may be suspended
+              or terminated.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">22. Electronic Communications</h2>
+            <p>
+              By creating an account or using Platform messaging, you consent to receive electronic communications from
+              Pinkaroo related to account activity, service notices, legal notices, and operational updates. Marketing
+              messages are governed by applicable anti-spam laws, including CASL where applicable, and may be
+              unsubscribed from when such option is provided.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">23. Suspension, Termination, and Survival</h2>
+            <p>
+              We may suspend, restrict, or terminate access to the Platform if we reasonably believe these Terms,
+              applicable law, or platform integrity requirements have been violated. Provisions that by nature should
+              survive termination (including intellectual property, disclaimers, limitations of liability,
+              indemnification, governing law, and dispute terms) survive any termination of access or account.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">24. Entire Agreement and Order of Precedence</h2>
+            <p>
+              These Terms, together with the Privacy Statement, Cookie Policy, and any additional written terms
+              expressly incorporated by reference, form the entire agreement between you and Pinkaroo regarding use of
+              the Platform and supersede prior understandings for that subject matter.
+            </p>
+          </section>
         </div>
 
         <div className="mt-10 flex flex-wrap gap-4 text-sm">

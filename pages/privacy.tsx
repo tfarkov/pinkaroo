@@ -88,7 +88,70 @@ export default function Privacy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">7. Contact Us</h2>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">7. Service Providers and Third Parties</h2>
+            <p>
+              We may use third-party service providers to host infrastructure, process analytics, deliver notifications,
+              and support platform operations. These providers are contractually required to use personal information
+              only for authorized service purposes and to apply reasonable safeguards.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">8. MLS, Board, and Regulatory Disclosures</h2>
+            <p>
+              Where required by listing agreements, real estate board rules, or applicable law, personal information
+              and listing-related records may be shared with authorized real estate boards, associations, regulators,
+              and legal authorities for auditing, compliance, dispute resolution, law enforcement, and fraud prevention.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">9. Cross-Border Transfers</h2>
+            <p>
+              Some service providers may process or store data outside your province or outside Canada. Where this
+              occurs, information may be subject to the laws of those jurisdictions. We use contractual and technical
+              safeguards intended to provide a comparable level of protection.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">10. Marketing and CASL Compliance</h2>
+            <p>
+              If you opt in to marketing communications, we may send updates, promotions, and product announcements.
+              You can unsubscribe from commercial electronic messages at any time using provided unsubscribe mechanisms
+              or by contacting us. Transactional and legal notices may still be sent where necessary.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">11. Retention and Deletion</h2>
+            <p>
+              We retain personal information only for as long as required for legitimate business purposes, contractual
+              needs, legal requirements, and dispute handling. When no longer needed, data is deleted, anonymized, or
+              securely archived according to retention obligations.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">12. Children and Minors</h2>
+            <p>
+              The Platform is intended for adults and is not directed to children under 16. We do not knowingly collect
+              personal information from children under 16. If you believe a child has provided personal information,
+              contact us so we can investigate and take appropriate action.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">13. Policy Updates</h2>
+            <p>
+              We may update this Privacy Statement periodically to reflect legal, operational, or product changes. When
+              material changes are made, we will update the &quot;Last updated&quot; date and, where appropriate,
+              provide additional notice.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-3">14. Contact Us</h2>
             <p>
               If you have questions about this Privacy Statement or our practices, please contact us through the contact information provided on our website or in your account settings.
             </p>
