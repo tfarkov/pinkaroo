@@ -43,10 +43,46 @@ const AD_COPY_EXAMPLES = [
   },
 ];
 
-const WHY_PINKAROO_STOCK_IMAGES = [
-  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412745/pinkaroo/mock-assets/bb4d1ea69adec350.jpg',
-  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
-  'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412747/pinkaroo/mock-assets/f2d742c9dc41d29e.jpg',
+const MARKETING_HERO_IMAGES = [
+  {
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412748/pinkaroo/mock-assets/2c65c0cb8f88046a.jpg',
+    alt: 'Happy family reviewing home options together',
+    title: 'Local-first home discovery',
+    blurb: 'Search smarter with map-first browsing and practical filters.',
+  },
+  {
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
+    alt: 'Realtor consulting buyers at a property viewing',
+    title: 'Built for real estate professionals',
+    blurb: 'Streamlined workflows for realtors and brokers.',
+  },
+  {
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412747/pinkaroo/mock-assets/f2d742c9dc41d29e.jpg',
+    alt: 'Modern neighborhood homes with greenery',
+    title: 'Sustainability in focus',
+    blurb: 'Eco-Rating context supports long-term decisions.',
+  },
+];
+
+const WHO_IT_IS_FOR = [
+  {
+    audience: 'Buyers',
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412745/pinkaroo/mock-assets/bb4d1ea69adec350.jpg',
+    alt: 'Home buyers exploring listings on a tablet',
+    description: 'Find and compare listings quickly with local filters, map browsing, favourites, and Eco-Rating context.',
+  },
+  {
+    audience: 'Realtors',
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412746/pinkaroo/mock-assets/da868d444b391574.jpg',
+    alt: 'Realtor presenting home options to clients',
+    description: 'Showcase listings, manage client touchpoints, and stay responsive through one platform.',
+  },
+  {
+    audience: 'Brokers',
+    src: 'https://res.cloudinary.com/dnl7m5zyz/image/upload/v1772412748/pinkaroo/mock-assets/2c65c0cb8f88046a.jpg',
+    alt: 'Broker reviewing team performance metrics',
+    description: 'Monitor team outcomes, assignments, approvals, and weekly KPI trends with less friction.',
+  },
 ];
 
 export default function WhyPinkarooPage() {
@@ -104,38 +140,66 @@ export default function WhyPinkarooPage() {
           </section>
 
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-4 md:p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {WHY_PINKAROO_STOCK_IMAGES.map((src, idx) => (
-                <div key={src} className="relative h-48 md:h-56 rounded-lg overflow-hidden">
-                  <Image
-                    src={src}
-                    alt={`Pinkaroo sustainability and local real estate visual ${idx + 1}`}
-                    fill
-                    sizes="(min-width: 768px) 33vw, 100vw"
-                    className="object-cover"
-                  />
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <article className="relative md:col-span-7 h-64 md:h-80 rounded-xl overflow-hidden">
+                <Image
+                  src={MARKETING_HERO_IMAGES[0].src}
+                  alt={MARKETING_HERO_IMAGES[0].alt}
+                  fill
+                  priority
+                  sizes="(min-width: 768px) 58vw, 100vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent" aria-hidden />
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-5 text-white">
+                  <p className="text-xl md:text-2xl font-bold">{MARKETING_HERO_IMAGES[0].title}</p>
+                  <p className="text-white/90 text-sm md:text-base mt-1">{MARKETING_HERO_IMAGES[0].blurb}</p>
                 </div>
-              ))}
+              </article>
+              <div className="md:col-span-5 grid grid-cols-1 gap-4">
+                {MARKETING_HERO_IMAGES.slice(1).map((item) => (
+                  <article key={item.src} className="relative h-36 md:h-[9.75rem] rounded-xl overflow-hidden">
+                    <Image
+                      src={item.src}
+                      alt={item.alt}
+                      fill
+                      sizes="(min-width: 768px) 35vw, 100vw"
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/65 via-slate-900/15 to-transparent" aria-hidden />
+                    <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                      <p className="font-semibold text-sm md:text-base">{item.title}</p>
+                      <p className="text-white/90 text-xs md:text-sm">{item.blurb}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </section>
 
           <section className="bg-white border border-slate-200 rounded-lg shadow-card p-6 md:p-8 mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Who it is for</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="border border-slate-200 rounded-md p-4">
-                <h3 className="font-semibold text-slate-900 mb-2">Buyers</h3>
-                <p className="text-sm text-slate-600">Find and compare listings quickly with local filters, map browsing, favourites, and Eco-Rating context.</p>
-              </div>
-              <div className="border border-slate-200 rounded-md p-4">
-                <h3 className="font-semibold text-slate-900 mb-2">Realtors</h3>
-                <p className="text-sm text-slate-600">Showcase listings, manage client touchpoints, and stay responsive through one platform.</p>
-              </div>
-              <div className="border border-slate-200 rounded-md p-4">
-                <h3 className="font-semibold text-slate-900 mb-2">Brokers</h3>
-                <p className="text-sm text-slate-600">Monitor team outcomes, assignments, approvals, and weekly KPI trends with less friction.</p>
-              </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-5">Who it is for</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {WHO_IT_IS_FOR.map((item) => (
+                <article key={item.audience} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                  <div className="relative h-44">
+                    <Image
+                      src={item.src}
+                      alt={item.alt}
+                      fill
+                      sizes="(min-width: 768px) 33vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">{item.audience}</h3>
+                    <p className="text-sm text-slate-600">{item.description}</p>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
+
 
           <section className="bg-white border border-slate-300 rounded-lg shadow-card p-6 md:p-8 mb-8">
             <div className="inline-flex items-center rounded-full bg-slate-900 text-white px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
