@@ -416,7 +416,6 @@ export default function Home() {
                     <ListingCard
                       key={id}
                       listing={listing ?? { id }}
-                      variant="recent"
                       imagePlaceholder={entry?.isLoading ? UI.LOADING : 'Property #' + id.slice(0, 8)}
                       isFavorited={isFavorited(id)}
                       onFavoriteClick={handleFavoriteClick}

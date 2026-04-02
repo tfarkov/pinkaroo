@@ -135,6 +135,19 @@ export default function Terms() {
               environmental impact. Buyers are encouraged to obtain a certified energy audit from a qualified
               professional before making any purchasing decision.
             </p>
+            <p className="mt-2">
+              Without limiting any other disclaimer in these Terms, Pinkaroo makes no representation, warranty, or
+              guarantee (express or implied) regarding the Eco-Rating methodology, scoring outputs, assumptions,
+              completeness, or fitness for any particular purpose. The Eco-Rating may change over time as listing data
+              changes, and different tools or professionals may produce different results.
+            </p>
+            <p className="mt-2">
+              You are solely responsible for independently verifying all property attributes and for obtaining any
+              inspections, reports, audits, legal advice, or professional advice you consider necessary. To the maximum
+              extent permitted by applicable law, Pinkaroo is not liable for any loss, cost, claim, or damage arising
+              from or related to your use of, reliance on, or interpretation of any Eco-Rating or related sustainability
+              content.
+            </p>
           </section>
 
           <section>
