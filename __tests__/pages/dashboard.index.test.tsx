@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DashboardPage from '../../pages/dashboard/index';
 
+const mockReplace = jest.fn();
+jest.mock('next/router', () => ({
+  useRouter: () => ({ replace: mockReplace, pathname: '/dashboard' }),
+}));
+
 const mockUseAuth = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseNotifications = jest.fn();
@@ -42,6 +47,7 @@ function renderDashboard() {
 describe('Dashboard role-based rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockReplace.mockClear();
     mockUseFavorites.mockReturnValue({
       favorites: [{ id: 'fav-1', listing: { id: 'l2', title: 'Favourite Listing' } }],
       isFavorited: jest.fn(() => true),
@@ -71,9 +77,6 @@ describe('Dashboard role-based rendering', () => {
       }
       if (key === 'interactions') {
         return { data: { interactions: [{ id: 'i1', date: new Date().toISOString() }] } };
-      }
-      if (key === 'broker-stats') {
-        return { data: { teamCount: 2, availableRealtors: [{ id: 'r1' }], pending: 3 } };
       }
       if (key === 'dashboard-user') {
         return { data: { availableHours: 'Mon–Fri 9am–5pm' } };
@@ -133,22 +136,31 @@ describe('Dashboard role-based rendering', () => {
     }));
   });
 
-  it('renders BROKER summary cards and realtor dashboard links', () => {
+  it('redirects BROKER to /dashboard/broker instead of rendering a second home dashboard', () => {
     mockUseAuth.mockReturnValue({
       role: 'BROKER',
       user: { id: 'broker-1' },
+      isAuthenticated: true,
     });
 
     renderDashboard();
 
-    expect(screen.getByText('BROKER Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Teams managed')).toBeInTheDocument();
-    expect(screen.getByText('Available realtors')).toBeInTheDocument();
-    expect(screen.getByText('Pending approvals')).toBeInTheDocument();
-    expect(screen.getByText('CRM – Client management')).toBeInTheDocument();
-    expect(screen.getByText('Notifications & communications')).toBeInTheDocument();
-    expect(screen.getByText('Broker dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Realtor dashboards')).toBeInTheDocument();
+    expect(screen.getByText('Redirecting…')).toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith('/dashboard/broker');
+    expect(screen.queryByText('BROKER Dashboard')).not.toBeInTheDocument();
+    expect(screen.queryByText('CRM – Client management')).not.toBeInTheDocument();
+  });
+
+  it('redirects OFFICE_ADMIN to /dashboard/office-admin', () => {
+    mockUseAuth.mockReturnValue({
+      role: 'OFFICE_ADMIN',
+      user: { id: 'oa-1' },
+      isAuthenticated: true,
+    });
+
+    renderDashboard();
+
+    expect(mockReplace).toHaveBeenCalledWith('/dashboard/office-admin');
   });
 
   it('renders safe fallback text for invalid notification timestamps', () => {

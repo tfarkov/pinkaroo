@@ -14,7 +14,7 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
           <p className="text-white font-bold text-base tracking-tight shrink-0">Pinkaroo</p>
 
-          <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-1.5 sm:justify-end">
+          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-1.5 sm:justify-end">
             <Link href="/" className="text-white/70 hover:text-white text-sm transition-colors">Find a Home</Link>
             <Link href="/why-pinkaroo" className="text-white/70 hover:text-white text-sm transition-colors">Why Pinkaroo</Link>
             {canAccessMLS && (
@@ -31,7 +31,7 @@ export default function Footer() {
             <button
               type="button"
               onClick={toggleUnit}
-              className="text-white/70 hover:text-white text-sm transition-colors"
+              className="inline-flex items-center self-center p-0 m-0 min-h-0 border-0 bg-transparent text-white/70 hover:text-white text-sm transition-colors cursor-pointer font-inherit text-left"
               title={isMetric ? 'Switch to Imperial (sq ft)' : 'Switch to Metric (m²)'}
               aria-label={isMetric ? 'Use imperial units' : 'Use metric units'}
               aria-pressed={isMetric}

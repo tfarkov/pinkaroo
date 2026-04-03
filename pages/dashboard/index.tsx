@@ -1,10 +1,11 @@
 import { useAuth } from '../../lib/hooks/useAuth';
-import { API, CLIENT_STATUSES, CONTENT_TYPE, UI } from '../../lib/constants';
+import { API, CLIENT_STATUSES, CONTENT_TYPE, UI, getPrimaryDashboardHref } from '../../lib/constants';
 import { getMockClients, getMockInteractions } from '../../lib/mockData';
 import { Bar, Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import DashboardLayout from '../../components/DashboardLayout';
 import ListingCard from '../../components/ListingCard';
@@ -22,9 +23,9 @@ type DashboardListing = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const { role, user, isAuthenticated } = useAuth();
   const { isMetric } = useUnitToggle();
-  const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN';
   const [availableHours, setAvailableHours] = useState('');
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState('');
@@ -76,7 +77,7 @@ export default function Dashboard() {
         return getMockClients();
       }
     },
-    enabled: isAuthenticated && (role === 'REALTOR' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN'),
+    enabled: isAuthenticated && role === 'REALTOR',
   });
   const { data: interactionsRaw } = useQuery({
     queryKey: ['interactions', 0],
@@ -93,16 +94,6 @@ export default function Dashboard() {
   });
   const interactions = Array.isArray(interactionsRaw) ? interactionsRaw : (interactionsRaw?.interactions ?? []);
 
-  const { data: brokerStats } = useQuery({
-    queryKey: ['broker-stats'],
-    queryFn: async () => {
-      const res = await fetch(API.BROKER_STATS, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load broker stats');
-      return res.json();
-    },
-    enabled: isAuthenticated && role === 'BROKER',
-  });
-
   const { data: profileUser } = useQuery({
     queryKey: ['dashboard-user', (user as { id?: string } | undefined)?.id ?? 'unknown'],
     queryFn: async () => {
@@ -118,6 +109,15 @@ export default function Dashboard() {
     availabilityInitialized.current = true;
     setAvailableHours(profileUser.availableHours ?? '');
   }, [profileUser]);
+
+  const redirectHref =
+    isAuthenticated && (role === 'BROKER' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN')
+      ? getPrimaryDashboardHref(role)
+      : null;
+
+  useEffect(() => {
+    if (redirectHref) router.replace(redirectHref);
+  }, [redirectHref, router]);
 
   const clientChartData = useMemo(() => ({
     labels: [...CLIENT_STATUSES],
@@ -208,6 +208,16 @@ export default function Dashboard() {
       setSavingAvailability(false);
     }
   };
+
+  if (redirectHref) {
+    return (
+      <DashboardLayout>
+        <p className="py-16 text-center text-slate-600" role="status">
+          Redirecting…
+        </p>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -309,7 +319,7 @@ export default function Dashboard() {
         </>
       )}
 
-      {(role === 'REALTOR' || role === 'SYSTEM_ADMIN' || role === 'OFFICE_ADMIN') && (
+      {role === 'REALTOR' && (
         <>
           {role === 'REALTOR' && realtorDrafts.length > 0 && (
             <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
@@ -373,24 +383,7 @@ export default function Dashboard() {
         </>
       )}
 
-      {role === 'BROKER' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
-            <p className="text-sm text-slate-500">Teams managed</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{brokerStats?.teamCount ?? 0}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
-            <p className="text-sm text-slate-500">Available realtors</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{brokerStats?.availableRealtors?.length ?? 0}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
-            <p className="text-sm text-slate-500">Pending approvals</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{brokerStats?.pending ?? 0}</p>
-          </div>
-        </div>
-      )}
-
-      {canUseCrm && (
+      {role === 'REALTOR' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -402,7 +395,7 @@ export default function Dashboard() {
             <p className="text-slate-600 text-sm mb-4">
               Add clients, track status, and log interactions (calls, meetings, emails).
             </p>
-            {role === 'REALTOR' && (clients?.length ?? 0) > 0 && (
+            {(clients?.length ?? 0) > 0 && (
               <>
                 <p className="text-slate-700 font-medium mb-2">
                   Recent clients ({clients?.length ?? 0} total)
@@ -425,10 +418,8 @@ export default function Dashboard() {
                 )}
               </>
             )}
-            {(role !== 'REALTOR' || !clients?.length) && (
-              <p className="text-slate-500 text-sm">
-                {role === 'REALTOR' ? 'No clients yet. Go to CRM to add your first client.' : 'Use CRM to manage your clients and leads.'}
-              </p>
+            {!(clients?.length ?? 0) && (
+              <p className="text-slate-500 text-sm">No clients yet. Go to CRM to add your first client.</p>
             )}
           </div>
           <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
@@ -451,16 +442,6 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
-            )}
-            {role === 'BROKER' && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link href="/dashboard/broker" className="btn-secondary">
-                  Broker dashboard
-                </Link>
-                <Link href="/dashboard/broker/realtors" className="btn-secondary">
-                  Realtor dashboards
-                </Link>
-              </div>
             )}
           </div>
         </div>

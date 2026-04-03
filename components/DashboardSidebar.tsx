@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/hooks/useAuth';
-import { UI } from '../lib/constants';
+import { UI, getPrimaryDashboardHref } from '../lib/constants';
 
 const USER_LINKS = [
   { href: '/dashboard', label: UI.DASHBOARD },
@@ -17,7 +17,7 @@ const REALTOR_LINKS = [
 ];
 
 const BROKER_LINKS = [
-  { href: '/dashboard/broker', label: 'Broker Dashboard' },
+  { href: '/dashboard/broker', label: UI.DASHBOARD },
   { href: '/dashboard/broker/performance', label: UI.BROKER_PERFORMANCE },
   { href: '/dashboard/broker/workload', label: UI.BROKER_WORKLOAD },
   { href: '/dashboard/broker/client-oversight', label: UI.BROKER_CLIENT_OVERSIGHT },
@@ -70,7 +70,7 @@ export default function DashboardSidebar() {
             <ul className="space-y-0.5">
               {section.links.map((link) => {
                 // Dashboard (index) should not be active when a child route is selected
-                const isParentOnly = link.href === '/dashboard';
+                const isParentOnly = link.href === getPrimaryDashboardHref(role);
                 const isActive = isParentOnly
                   ? router.pathname === link.href
                   : router.pathname === link.href ||

@@ -9,6 +9,7 @@ import {
   INTERACTION_TYPES,
   STALE_TIME_5_MIN,
   UI,
+  getPrimaryDashboardHref,
 } from '../../lib/constants';
 import { getMockClients, getMockInteractions } from '../../lib/mockData';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -290,8 +291,8 @@ export default function CRM() {
   const clientList = clients as ClientRecord[];
 
   useEffect(() => {
-    if (status !== 'loading' && !canUseCrm) router.replace('/dashboard');
-  }, [canUseCrm, router, status]);
+    if (status !== 'loading' && !canUseCrm) router.replace(getPrimaryDashboardHref(role));
+  }, [canUseCrm, role, router, status]);
 
   if (status === 'loading' || !canUseCrm) {
     return (

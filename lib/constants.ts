@@ -109,6 +109,20 @@ export function getListingPageUrl(id: string | undefined | null): string | null 
   return `${LISTING_PAGE_PATH}/${encodeURIComponent(id.trim())}`;
 }
 
+/** Home dashboard URL for a role (brokers/admins use dedicated hubs, not `/dashboard`). */
+export function getPrimaryDashboardHref(role: string | undefined | null): string {
+  switch (role) {
+    case 'BROKER':
+      return '/dashboard/broker';
+    case 'OFFICE_ADMIN':
+      return '/dashboard/office-admin';
+    case 'SYSTEM_ADMIN':
+      return '/dashboard/system-admin';
+    default:
+      return '/dashboard';
+  }
+}
+
 // ——— HTTP / API messages ———
 export const API_MESSAGES = {
   UNAUTHORIZED: 'Unauthorized',

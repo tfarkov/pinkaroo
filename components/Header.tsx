@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { useAuth } from '../lib/hooks/useAuth';
+import { getPrimaryDashboardHref } from '../lib/constants';
 import NotificationsDropdown from './NotificationsDropdown';
 
 function LogoIcon({ className }: { className?: string }) {
@@ -14,7 +15,7 @@ function LogoIcon({ className }: { className?: string }) {
 }
 
 export default function Header() {
-  const { isAuthenticated, isRealtor, isBroker, isAdmin, isSystemAdmin, isOfficeAdmin } = useAuth();
+  const { isAuthenticated, isRealtor, isBroker, isAdmin, isSystemAdmin, isOfficeAdmin, role } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -24,9 +25,8 @@ export default function Header() {
   const navLinks = [
     { href: '/', label: 'Find a Home' },
     { href: '/why-pinkaroo', label: 'Why Pinkaroo' },
-    ...(isAuthenticated ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
+    ...(isAuthenticated ? [{ href: getPrimaryDashboardHref(role), label: 'Dashboard' }] : []),
     ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
-    ...(isBroker ? [{ href: '/dashboard/broker', label: 'Broker' }] : []),
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
     ...((isRealtor || isBroker || isAdmin) ? [{ href: '/dashboard/crm', label: 'CRM' }] : []),
     ...(canAccessMLS ? [{ href: '/mls-search', label: 'MLS Search' }] : []),

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import ReactGA from 'react-ga';
 import Head from 'next/head';
 import Link from 'next/link';
-import { API, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR } from '../lib/constants';
+import { API, DEFAULT_PROVINCE, GA, MLS_STANDARD_STATUSES, PROVINCES, PROPERTY_TYPES, UI, SQFT_CONVERSION_FACTOR, getPrimaryDashboardHref } from '../lib/constants';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { useAuth } from '../lib/hooks/useAuth';
 import { getMockMLSResults } from '../lib/mockData';
@@ -36,7 +36,7 @@ export default function MLSSearch() {
   const canonical = canonicalUrl('/mls-search');
   const ogImage = toAbsoluteUrl(SEO.ogImagePath);
   const { register, handleSubmit, formState: { errors } } = useForm<SearchFormData>({ defaultValues: { province: DEFAULT_PROVINCE, standardStatus: 'Active' }, mode: 'onBlur' });
-  const { status, isAuthenticated, isRealtor, isBroker, isSystemAdmin, isOfficeAdmin } = useAuth();
+  const { status, isAuthenticated, isRealtor, isBroker, isSystemAdmin, isOfficeAdmin, role } = useAuth();
   const { isMetric } = useUnitToggle();
   const canAccessMLS = isRealtor || isBroker || isSystemAdmin || isOfficeAdmin;
   const [searchParams, setSearchParams] = useState('');
@@ -114,7 +114,7 @@ export default function MLSSearch() {
               {!isAuthenticated ? (
                 <Link href="/signin" className="btn-primary">Sign in</Link>
               ) : (
-                <Link href="/dashboard" className="btn-primary">Go to Dashboard</Link>
+                <Link href={getPrimaryDashboardHref(role)} className="btn-primary">Go to Dashboard</Link>
               )}
               <Link href="/" className="btn-secondary">Back to Home</Link>
             </div>
