@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 
 /**
  * GET /api/listings/[id]
- * Public: ACTIVE/APPROVED with MLS id only. Authenticated owner (or broker/admin for non-draft) may load other rows for CRM / preview.
+ * Public: ACTIVE/APPROVED with MLS id only. Owner, same-broker (including drafts), or office/system admin may load other rows for CRM / preview.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET'])) return;
@@ -75,13 +75,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    if (role === 'BROKER' && listing.status !== 'DRAFT') {
+    if (role === 'BROKER') {
       const owner = await prisma.user.findUnique({
         where: { id: listing.userId },
         select: { brokerId: true },
       });
       if (owner?.brokerId === uid) {
-        res.json(listingToPublicJson(listing));
+        res.json(
+          listingToPublicJson(listing, {
+            stripSupportingDocuments: !roleMayAccessListingSupportingDocuments(role),
+          })
+        );
         return;
       }
     }

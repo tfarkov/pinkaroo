@@ -80,7 +80,7 @@ export default function ListingDetail() {
   const { id } = router.query;
   const { isMetric } = useUnitToggle();
   const { isFavorited, toggleFavorite } = useFavorites();
-  const { user, isBroker, isRealtor, isOfficeAdmin, isSystemAdmin } = useAuth();
+  const { user, isBroker, isRealtor, isOfficeAdmin, isSystemAdmin, isAuthenticated } = useAuth();
   const canViewSupportingDocuments = isRealtor || isBroker || isOfficeAdmin || isSystemAdmin;
   const sessionUserId = (user as { id?: string } | undefined)?.id;
   const queryClient = useQueryClient();
@@ -214,7 +214,15 @@ export default function ListingDetail() {
         <Header />
         <main className="content-width flex items-center justify-center min-h-[50vh]">
           {isFetched ? (
-            <p className="text-slate-500">Listing not found.</p>
+            <div className="text-center max-w-md space-y-3">
+              <p className="text-slate-700 font-medium">Listing not found.</p>
+              <p className="text-slate-500 text-sm">{UI.LISTING_NOT_FOUND_HINT}</p>
+              {!isAuthenticated ? (
+                <Link href="/signin" className="inline-block text-sm font-semibold text-accent-700 hover:underline">
+                  Sign in
+                </Link>
+              ) : null}
+            </div>
           ) : (
             <p className="text-slate-500">{UI.LOADING}</p>
           )}

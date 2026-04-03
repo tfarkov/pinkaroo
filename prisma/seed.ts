@@ -17,7 +17,10 @@
  * └─────────────────────────┴────────────┴───────────────┴─────────────────────────────────────┘
  * Sign in at /signin with any row above.
  *
- * Mock listings (30 Barrie/Innisfil properties) are upserted so they load from DB until MLS sync is active.
+ * Mock listings (100 Ontario properties) are upserted so they load from DB until MLS sync is active.
+ * Also seeds: draft listings (realtor edit flow), broker-approved listings without mlsId (office “awaiting MLS”),
+ * sample supportingDocuments on mock-1 and on one draft, saved searches (favorites/alerts), APPROVAL/INTERACTION notifications.
+ * Draft detail URLs (e.g. seed-listing-draft-2 = realtor2@example.com) are not public: sign in as that realtor, broker@example.com, or an admin.
  */
 import { PrismaClient, type Role, type Province, type ListingStatus, type AssignmentStatus, type ClientStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -488,6 +491,174 @@ async function main() {
   }
   console.log(`Seeded ${MOCK_LISTINGS.length} curated mock listings with validated images and coordinates.`);
 
+  const sampleSupportingDocs = [
+    {
+      url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      fileName: 'sample-disclosure.pdf',
+      mimeType: 'application/pdf',
+    },
+  ];
+
+  function listingFromTemplate(
+    l: (typeof MOCK_LISTINGS)[number],
+    id: string,
+    extras: {
+      status: ListingStatus;
+      userId: string;
+      mlsId: string | null;
+      approvedBy: string | null;
+      approvedAt: Date | null;
+      rejectionReason?: string | null;
+      supportingDocuments?: object | null;
+      title?: string;
+      description?: string;
+    }
+  ) {
+    return {
+      id,
+      title: extras.title ?? l.title,
+      description: extras.description ?? l.description,
+      price: l.price,
+      location: l.location,
+      province: (l.province as Province) ?? 'ONTARIO',
+      postalCode: l.postalCode ?? null,
+      sizeSqm: l.sizeSqm ?? null,
+      bedroomsTotal: l.bedroomsTotal ?? null,
+      bathroomsTotal: l.bathroomsTotal ?? null,
+      propertyType: l.propertyType ?? null,
+      latitude: l.latitude ?? null,
+      longitude: l.longitude ?? null,
+      images: (l.images ?? []) as object,
+      status: extras.status,
+      mlsId: extras.mlsId,
+      userId: extras.userId,
+      approvedBy: extras.approvedBy,
+      approvedAt: extras.approvedAt,
+      rejectionReason: extras.rejectionReason ?? null,
+      streetAddress: l.streetAddress ?? null,
+      unitNumber: l.unitNumber ?? null,
+      yearBuilt: l.yearBuilt ?? null,
+      lotSizeSqm: l.lotSizeSqm ?? null,
+      standardStatus: l.standardStatus ?? null,
+      halfBathroomsTotal: l.halfBathroomsTotal ?? null,
+      buildingLevelTotal: l.buildingLevelTotal ?? null,
+      mlsLastUpdated: l.mlsLastUpdated ? new Date(l.mlsLastUpdated) : null,
+      mlsData: (l.mlsData ?? null) as object | null,
+      ecoRatingScore: l.ecoRatingScore ?? null,
+      heatingType: l.heatingType ?? null,
+      insulationQuality: l.insulationQuality ?? null,
+      hasRecentRenovations: l.hasRecentRenovations ?? null,
+      roofAgeYears: l.roofAgeYears ?? null,
+      appliancesAgeYears: l.appliancesAgeYears ?? null,
+      supportingDocuments: extras.supportingDocuments ?? null,
+    };
+  }
+
+  const tDraft = MOCK_LISTINGS[12];
+  const tAwait = MOCK_LISTINGS[18];
+  const extraListingSeeds: Array<ReturnType<typeof listingFromTemplate>> = [
+    listingFromTemplate(tDraft, 'seed-listing-draft-1', {
+      status: 'DRAFT',
+      userId: realtor.id,
+      mlsId: null,
+      approvedBy: null,
+      approvedAt: null,
+      title: 'Draft: semi-detached (Barrie) — finishing copy',
+      description: 'Work in progress. Photos uploaded; disclosure PDF attached for broker review.',
+      supportingDocuments: sampleSupportingDocs as object,
+    }),
+    listingFromTemplate(MOCK_LISTINGS[13], 'seed-listing-draft-2', {
+      status: 'DRAFT',
+      userId: realtor2.id,
+      mlsId: null,
+      approvedBy: null,
+      approvedAt: null,
+      title: 'Draft: downtown condo listing',
+      description: 'Draft saved from new listing flow — no documents yet.',
+    }),
+    listingFromTemplate(tAwait, 'seed-listing-awaiting-mls-1', {
+      status: 'APPROVED',
+      userId: realtor3.id,
+      mlsId: null,
+      approvedBy: broker2.id,
+      approvedAt: new Date(Date.now() - 2 * 86400000),
+      title: `${tAwait.title} (broker-approved, MLS pending)`,
+    }),
+    listingFromTemplate(MOCK_LISTINGS[19], 'seed-listing-awaiting-mls-2', {
+      status: 'APPROVED',
+      userId: realtor4.id,
+      mlsId: null,
+      approvedBy: broker.id,
+      approvedAt: new Date(Date.now() - 5 * 86400000),
+      title: `${MOCK_LISTINGS[19].title} (awaiting MLS filing)`,
+    }),
+  ];
+  for (const row of extraListingSeeds) {
+    await prisma.listing.upsert({
+      where: { id: row.id },
+      create: row,
+      update: row,
+    });
+  }
+
+  await prisma.listing.update({
+    where: { id: 'mock-1' },
+    data: { supportingDocuments: sampleSupportingDocs as object },
+  });
+
+  const weekAgo = new Date(Date.now() - 7 * 86400000);
+  const savedSearchSeeds = [
+    {
+      id: 'seed-saved-search-1',
+      userId: consumer.id,
+      name: 'Barrie — 3BR under $850k',
+      filters: { province: 'ONTARIO', city: 'Barrie', minPrice: 350000, maxPrice: 850000, bedrooms: 3 },
+      notifyNewMatch: true,
+      lastSeenAt: weekAgo,
+      lastNotifiedAt: null as Date | null,
+    },
+    {
+      id: 'seed-saved-search-2',
+      userId: admin.id,
+      name: 'Ontario detached — eco focus',
+      filters: { province: 'ONTARIO', propertyType: 'Detached', minPrice: 400000 },
+      notifyNewMatch: false,
+      lastSeenAt: new Date(),
+      lastNotifiedAt: null as Date | null,
+    },
+    {
+      id: 'seed-saved-search-3',
+      userId: realtor.id,
+      name: 'Innisfil waterfront watch',
+      filters: { province: 'ONTARIO', city: 'Innisfil', minPrice: 500000 },
+      notifyNewMatch: true,
+      lastSeenAt: weekAgo,
+      lastNotifiedAt: weekAgo,
+    },
+  ];
+  for (const s of savedSearchSeeds) {
+    await prisma.savedSearch.upsert({
+      where: { id: s.id },
+      update: {
+        userId: s.userId,
+        name: s.name,
+        filters: s.filters as object,
+        notifyNewMatch: s.notifyNewMatch,
+        lastSeenAt: s.lastSeenAt,
+        lastNotifiedAt: s.lastNotifiedAt,
+      },
+      create: {
+        id: s.id,
+        userId: s.userId,
+        name: s.name,
+        filters: s.filters as object,
+        notifyNewMatch: s.notifyNewMatch,
+        lastSeenAt: s.lastSeenAt,
+        lastNotifiedAt: s.lastNotifiedAt,
+      },
+    });
+  }
+
   const seedClients: Array<{
     id: string;
     name: string;
@@ -586,6 +757,56 @@ async function main() {
       fromUserId: realtor2.id,
       read: false,
       flagged: false,
+    },
+  });
+  await prisma.notification.upsert({
+    where: { id: 'seed-notif-4' },
+    update: {
+      message: 'Listing approved: seed-listing-awaiting-mls-1 is ready for MLS filing.',
+      type: 'APPROVAL',
+      userId: realtor3.id,
+      fromUserId: broker2.id,
+      read: false,
+    },
+    create: {
+      id: 'seed-notif-4',
+      message: 'Listing approved: seed-listing-awaiting-mls-1 is ready for MLS filing.',
+      type: 'APPROVAL',
+      userId: realtor3.id,
+      fromUserId: broker2.id,
+      read: false,
+    },
+  });
+  await prisma.notification.upsert({
+    where: { id: 'seed-notif-5' },
+    update: {
+      message: 'New interaction logged on client Olivia Carter (Call).',
+      type: 'INTERACTION',
+      userId: broker.id,
+      read: true,
+    },
+    create: {
+      id: 'seed-notif-5',
+      message: 'New interaction logged on client Olivia Carter (Call).',
+      type: 'INTERACTION',
+      userId: broker.id,
+      read: true,
+    },
+  });
+  await prisma.notification.upsert({
+    where: { id: 'seed-notif-6' },
+    update: {
+      message: 'Your saved search "Barrie — 3BR under $850k" has new matches (seed data).',
+      type: 'SYSTEM',
+      userId: consumer.id,
+      read: false,
+    },
+    create: {
+      id: 'seed-notif-6',
+      message: 'Your saved search "Barrie — 3BR under $850k" has new matches (seed data).',
+      type: 'SYSTEM',
+      userId: consumer.id,
+      read: false,
     },
   });
 
@@ -769,7 +990,9 @@ async function main() {
 
   await prisma.client.deleteMany({ where: { email: 'client@example.com' } });
 
-  console.log('Seeded live-like broker/admin dataset (teams, clients, interactions, workload, comms, config, audit).');
+  console.log(
+    'Seeded live-like dataset (draft + awaiting-MLS listings, saved searches, supporting docs on mock-1, APPROVAL/INTERACTION notifications, teams, clients, workload, comms, config, audit).'
+  );
 }
 
 main()

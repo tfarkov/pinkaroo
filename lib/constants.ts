@@ -295,6 +295,8 @@ export const UI = {
   SAVE_AS_DRAFT: 'Save as draft',
   SUBMIT_FOR_APPROVAL: 'Submit for approval',
   LISTING_DRAFT_BANNER: 'Draft — buyers cannot see this listing until you submit it for approval.',
+  LISTING_NOT_FOUND_HINT:
+    'Unpublished or draft listings only appear when you are signed in as the listing agent, your broker, or an administrator.',
   EDIT_DRAFT_LISTING: 'Edit draft',
   AWAITING_MLS_TITLE: 'Awaiting MLS filing',
   AWAITING_MLS_HELP:

@@ -164,8 +164,9 @@ describe('GET /api/listings/public', () => {
   });
 });
 
+const mockGetSession = jest.fn().mockResolvedValue(null);
 jest.mock('../../lib/session', () => ({
-  getSession: jest.fn().mockResolvedValue(null),
+  getSession: (...args: unknown[]) => mockGetSession(...args),
 }));
 
 describe('GET /api/listings/[id]', () => {
@@ -177,6 +178,7 @@ describe('GET /api/listings/[id]', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetSession.mockResolvedValue(null);
     mockListingFindUnique.mockResolvedValue(null);
     mockUserFindUnique.mockResolvedValue(null);
   });
@@ -308,5 +310,57 @@ describe('GET /api/listings/[id]', () => {
     expect(res._status).toBe(200);
     expect((res._json as any)?.ecoRatingScore).toBe(8);
     expect((res._json as any)?.heatingType).toBe('HEAT_PUMP');
+  });
+
+  it('returns 200 for BROKER viewing a DRAFT listing owned by their realtor', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
+    const draft = {
+      id: 'draft-1',
+      title: 'Draft',
+      description: 'WIP',
+      price: 400000,
+      location: 'Barrie, ON',
+      province: 'ONTARIO',
+      postalCode: null,
+      sizeSqm: 90,
+      bedroomsTotal: 2,
+      bathroomsTotal: 2,
+      propertyType: 'Condo',
+      latitude: 44.4,
+      longitude: -79.7,
+      images: [],
+      mlsId: null,
+      status: 'DRAFT',
+      userId: 'realtor-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      streetAddress: null,
+      unitNumber: null,
+      yearBuilt: null,
+      lotSizeSqm: null,
+      standardStatus: null,
+      halfBathroomsTotal: null,
+      buildingLevelTotal: null,
+      mlsLastUpdated: null,
+      mlsData: null,
+      ecoRatingScore: null,
+      heatingType: null,
+      insulationQuality: null,
+      hasRecentRenovations: null,
+      roofAgeYears: null,
+      appliancesAgeYears: null,
+      approvedBy: null,
+      approvedAt: null,
+      rejectionReason: null,
+      supportingDocuments: null,
+    };
+    mockListingFindUnique.mockResolvedValue(draft);
+    mockUserFindUnique.mockResolvedValue({ brokerId: 'broker-1' });
+    const req = createMockRequest({ method: 'GET', query: { id: 'draft-1' } });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(200);
+    expect((res._json as any)?.id).toBe('draft-1');
+    expect((res._json as any)?.status).toBe('DRAFT');
   });
 });
