@@ -79,19 +79,8 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
   const [loadError, setLoadError] = useState(false);
   const lastViewRef = useRef<MapView | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
-  if (!apiKey) {
-    return (
-      <div className="h-[320px] sm:h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
-        {MAP_NO_KEY_MESSAGE}
-      </div>
-    );
-  }
   const center = currentView?.center ?? position ?? { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
   const zoom = currentView?.zoom ?? DEFAULT_ZOOM;
-
-  if (loadError) {
-    return <DefaultMap center={center} apiKey={apiKey} />;
-  }
 
   /** On map load: subscribe to idle events so parent gets center/zoom on pan or zoom. */
   const handleLoad = useCallback((map: google.maps.Map) => {
@@ -148,6 +137,18 @@ export default function HomeMap({ position, listings, currentView, onMapChange }
         .slice(0, 500),
     [listings]
   );
+
+  if (!apiKey) {
+    return (
+      <div className="h-[320px] sm:h-[420px] bg-slate-200 flex items-center justify-center text-slate-500">
+        {MAP_NO_KEY_MESSAGE}
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return <DefaultMap center={center} apiKey={apiKey} />;
+  }
 
   return (
     <div role="region" aria-label="Map of nearby listings" className="relative w-full h-[320px] sm:h-[420px]">
