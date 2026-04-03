@@ -23,6 +23,7 @@ describe('useFavorites', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
+    (global as { fetch?: unknown }).fetch = undefined;
   });
 
   it('adds and removes anonymous favorites using localStorage', () => {
@@ -96,5 +97,38 @@ describe('useFavorites', () => {
         })
       );
     });
+  });
+
+  it('backfills anonymous favorites with full listing details', async () => {
+    mockUseAuth.mockReturnValue({ isAuthenticated: false });
+    localStorage.setItem(
+      ANONYMOUS_FAVORITES_KEY,
+      JSON.stringify([{ id: 'anon-listing-9', listing: { id: 'listing-9', title: 'Older saved favourite' } }])
+    );
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'listing-9',
+        title: 'Older saved favourite',
+        price: 510000,
+        bedroomsTotal: 3,
+        bathroomsTotal: 2,
+        sizeSqm: 120,
+        images: ['https://example.com/l9.jpg'],
+      }),
+    });
+    (global as { fetch?: unknown }).fetch = fetchMock as unknown;
+
+    const { result } = renderHook(() => useFavorites(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.favorites[0]?.listing?.bedroomsTotal).toBe(3);
+      expect(result.current.favorites[0]?.listing?.bathroomsTotal).toBe(2);
+      expect(result.current.favorites[0]?.listing?.sizeSqm).toBe(120);
+    });
+
+    const persisted = JSON.parse(localStorage.getItem(ANONYMOUS_FAVORITES_KEY) || '[]');
+    expect(persisted[0]?.listing?.bedroomsTotal).toBe(3);
+    expect(fetchMock).toHaveBeenCalledWith(`${API.LISTINGS}/listing-9`, expect.any(Object));
   });
 });

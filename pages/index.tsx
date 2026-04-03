@@ -280,10 +280,7 @@ export default function Home() {
   const handleFavoriteClick = useCallback(
     (listingId: string) => {
       const listing = listingById.get(listingId);
-      toggleFavorite(
-        listingId,
-        listing ? { id: listing.id, title: listing.title, price: listing.price, images: listing.images } : undefined
-      );
+      toggleFavorite(listingId, listing);
     },
     [toggleFavorite, listingById]
   );

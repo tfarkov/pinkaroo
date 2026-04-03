@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { API, CONTENT_TYPE, STALE_TIME_5_MIN, MAX_FAVORITES, ANONYMOUS_FAVORITES_KEY } from '../constants';
-import type { FavoriteItem } from '../types';
+import type { FavoriteItem, ListingBasic } from '../types';
 
-type MinimalListing = { id: string; title?: string; price?: number; images?: string[] };
+type MinimalListing = ListingBasic;
 
 /** Load saved favorites from localStorage for guests (no auth). Returns [] on server. */
 function loadAnonymousFavorites(): FavoriteItem[] {
@@ -26,6 +26,11 @@ function saveAnonymousFavorites(items: FavoriteItem[]) {
   } catch {
     // ignore
   }
+}
+
+function needsListingBackfill(item: FavoriteItem): boolean {
+  if (!item.listing?.id) return false;
+  return item.listing.bedroomsTotal == null || item.listing.bathroomsTotal == null || item.listing.sizeSqm == null;
 }
 
 /**
@@ -79,6 +84,50 @@ export function useFavorites() {
     return () => window.removeEventListener('focus', onFocus);
   }, [isAuthenticated]);
 
+  /** Upgrade older anonymous favorites that only stored minimal listing fields. */
+  useEffect(() => {
+    if (isAuthenticated || anonymousList.length === 0) return;
+    const idsToBackfill = anonymousList.filter(needsListingBackfill).map((item) => item.listing!.id);
+    if (idsToBackfill.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const fetched = await Promise.all(
+        idsToBackfill.map(async (listingId) => {
+          try {
+            const res = await fetch(`${API.LISTINGS}/${listingId}`, { credentials: 'same-origin' });
+            if (!res.ok) return null;
+            const listing = (await res.json()) as ListingBasic | null;
+            if (!listing?.id) return null;
+            return listing;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+
+      const byId = new Map(fetched.filter((listing): listing is ListingBasic => !!listing).map((listing) => [listing.id, listing]));
+      if (byId.size === 0) return;
+
+      setAnonymousList((prev) => {
+        const next = prev.map((item) => {
+          const listingId = item.listing?.id;
+          if (!listingId) return item;
+          const full = byId.get(listingId);
+          if (!full) return item;
+          return { ...item, listing: { ...item.listing, ...full, id: listingId } };
+        });
+        saveAnonymousFavorites(next);
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, anonymousList]);
+
   /** Current list: from API when auth, else from in-memory anonymous list (backed by localStorage). */
   const favorites: FavoriteItem[] = isAuthenticated ? apiFavorites : anonymousList;
 
@@ -101,12 +150,7 @@ export function useFavorites() {
         } else {
           const item: FavoriteItem = {
             id: `anon-${listingId}`,
-            listing: {
-              id: listingId,
-              title: listing?.title,
-              price: listing?.price,
-              images: listing?.images,
-            },
+            listing: listing ? { ...listing, id: listingId } : { id: listingId },
           };
           next = [...prev, item].slice(0, MAX_FAVORITES);
         }

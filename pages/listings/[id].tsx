@@ -101,7 +101,7 @@ export default function ListingDetail() {
 
   const handleFavorite = () => {
     if (typeof id !== 'string' || !listing) return;
-    toggleFavorite(id, { id: listing.id, title: listing.title, price: listing.price, images: listing.images });
+    toggleFavorite(id, listing);
   };
 
   if (!listing) {
