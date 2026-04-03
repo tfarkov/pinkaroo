@@ -7,10 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '../../components/DashboardLayout';
+import ListingCard from '../../components/ListingCard';
 import { useFavorites } from '../../lib/hooks/useFavorites';
 import { useNotifications } from '../../lib/hooks/useNotifications';
-import { getListingPageUrl } from '../../lib/constants';
-import { formatPrice } from '../../lib/format';
+import { useUnitToggle } from '../../lib/hooks/useUnitToggle';
+import type { ListingBasic } from '../../lib/types';
 
 type DashboardListing = {
   id: string;
@@ -22,13 +23,14 @@ type DashboardListing = {
 
 export default function Dashboard() {
   const { role, user, isAuthenticated } = useAuth();
+  const { isMetric } = useUnitToggle();
   const canUseCrm = role === 'REALTOR' || role === 'BROKER' || role === 'OFFICE_ADMIN' || role === 'SYSTEM_ADMIN';
   const [availableHours, setAvailableHours] = useState('');
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState('');
   const [availabilitySuccess, setAvailabilitySuccess] = useState('');
   const availabilityInitialized = useRef(false);
-  const { favorites } = useFavorites();
+  const { favorites, isFavorited, toggleFavorite } = useFavorites();
   const { notifications } = useNotifications();
   const userNotifications = useMemo(
     () => notifications.filter((n) => n.fromUser?.role === 'REALTOR' || n.fromUser?.role === 'BROKER').slice(0, 5),
@@ -226,18 +228,14 @@ export default function Dashboard() {
               ) : (
                 <ul className="space-y-2">
                   {myListings.map((listing) => {
-                    const url = getListingPageUrl(listing.id);
                     return (
-                      <li key={listing.id} className="border border-slate-200 rounded-md p-3">
-                        <p className="font-medium text-slate-900">{listing.title ?? 'Listing'}</p>
-                        <p className="text-sm text-slate-500">
-                          {listing.status ?? '—'} · {formatPrice(listing.price ?? 0)}
-                        </p>
-                        {url && (
-                          <Link href={url} className="text-sm text-accent-600 hover:text-accent-700">
-                            View listing →
-                          </Link>
-                        )}
+                      <li key={listing.id}>
+                        <ListingCard
+                          listing={listing as ListingBasic}
+                          variant="mini"
+                          isMetric={isMetric}
+                          metaLine={`${listing.status ?? '—'}${listing.price != null ? ` · $${Math.round(listing.price).toLocaleString()}` : ''}`}
+                        />
                       </li>
                     );
                   })}
@@ -255,16 +253,16 @@ export default function Dashboard() {
               ) : (
                 <ul className="space-y-2">
                   {favorites.slice(0, 5).map((favorite) => {
-                    const listingId = favorite.listing?.id;
-                    const url = getListingPageUrl(listingId);
+                    if (!favorite.listing?.id) return null;
                     return (
-                      <li key={favorite.id} className="border border-slate-200 rounded-md p-3">
-                        <p className="font-medium text-slate-900">{favorite.listing?.title ?? 'Listing'}</p>
-                        {url && (
-                          <Link href={url} className="text-sm text-accent-600 hover:text-accent-700">
-                            View listing →
-                          </Link>
-                        )}
+                      <li key={favorite.id}>
+                        <ListingCard
+                          listing={favorite.listing}
+                          variant="mini"
+                          isMetric={isMetric}
+                          isFavorited={isFavorited(favorite.listing.id)}
+                          onFavoriteClick={toggleFavorite}
+                        />
                       </li>
                     );
                   })}

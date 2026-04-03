@@ -14,14 +14,14 @@
 - **MLS Search** – Canadian MLS search by province, city, postal code, status, price/size/beds/baths, property type; results use the same listing-card style as the home/listings grid; mock results when API unavailable.
 - **Why Pinkaroo** – Public value page at `/why-pinkaroo` with role-based positioning (buyers/realtors/brokers), Simcoe-first channel mix, and ad copy examples.
 - **Profile** – User name, role, and recently viewed listings (from localStorage). **Profile link is shown only when signed in** (footer, bottom nav, hamburger menu).
-- **Unit toggle** – Header toggle for area units: **sq ft** (default) or **m²**; applies to listing cards, listing detail, listing form, and MLS search labels; preference stored in localStorage.
+- **Unit toggle** – Footer toggle for area units: **sq ft** (default) or **m²**; applies to listing cards, listing detail, listing form, and MLS search labels; preference stored in localStorage.
 
 ### Authentication
 - **Sign in / Sign out** – NextAuth session; sign-out now redirects to home with a friendly signed-out confirmation message.
 - **Dashboard & notifications for guests** – Dashboard links (header, mobile bottom nav, hamburger) appear only when signed in. Visiting any `/dashboard` route while signed out redirects to sign-in. The notifications hook does not fetch data until the session is authenticated, so anonymous users do not trigger dashboard-style notification loading. Dashboard index data queries (my listings, clients, broker stats, etc.) run only when authenticated.
 - **Credentials** – Email/password login with bcrypt; optional registration API.
 - **OAuth** (when env configured) – Google, GitHub, Facebook, Apple.
-- **Roles** – USER, REALTOR, BROKER, ADMIN; nav and features vary by role.
+- **Roles** – USER, REALTOR, BROKER, OFFICE_ADMIN, SYSTEM_ADMIN; nav and features vary by role.
 
 ### Realtor
 - **Dashboard** – Client list, client status distribution chart, interactions chart (when REALTOR).
@@ -38,7 +38,7 @@
 - **Realtor / Broker management** – View and manage realtor–broker assignments.
 
 ### Infrastructure & UX
-- **Layout** – Fixed header (logo, nav, unit toggle, notifications, sign in/out, **Why Pinkaroo**), footer (Find a Home, MLS Search, Favourites, Profile when signed in, **Why Pinkaroo**, **Privacy**), bottom nav on mobile (Home, Find a Home, Dashboard, Favourites, Profile when signed in).
+- **Layout** – Fixed header (logo, nav, notifications, sign in/out, **Why Pinkaroo**), footer (Find a Home, MLS Search, Favourites, Profile when signed in, **Why Pinkaroo**, **Privacy**, unit toggle), bottom nav on mobile (Home, Find a Home, Dashboard, Favourites, Profile when signed in).
 - **Privacy** – **Privacy Statement** page at `/privacy` (how we collect, use, and protect your information); link in footer.
 - **Notifications** – Notifications dropdown in header (e.g. listing status, system).
 - **Responsive** – Content width and mobile-first layout; bottom nav only on small screens.
@@ -195,7 +195,7 @@ Open **http://localhost:3000** in your browser.
 
    | Email | Password | Name | Role |
    |-------|----------|------|------|
-   | `admin@example.com` | `password` | Morgan Blake | Admin |
+   | `admin@example.com` | `password` | Morgan Blake | System Admin |
    | `broker@example.com` | `password` | Jordan Lee | Broker |
    | `broker2@example.com` | `password` | Riley Scott | Broker |
    | `realtor@example.com` | `password` | Sam Chen | Realtor (team lead) |
@@ -209,7 +209,7 @@ Open **http://localhost:3000** in your browser.
 3. **After sign-in**  
    - **Favourites** sidebar appears on the home page; you can add/remove favourites with the heart on listing cards (heart turns **red** when a listing is favourited).
    - **Profile** link appears in the footer and bottom nav.
-   - Header shows **Sign out** and role-specific links (Dashboard, Add Listing, Broker, Admin depending on role).
+   - Header shows **Sign out** and role-specific links (Dashboard, Add Listing, Broker, admin links depending on role).
    - Profile, Favourites page, and role-specific dashboards use your session.
 
 ### 4. Emulate signed-in session (local testing, no DB required)
@@ -219,8 +219,8 @@ To test the **signed-in UI** (favourites, nav, role-specific links) without sett
 1. Start the app: `npm run dev:ui` and open **http://localhost:3000/signin**.
 2. On the sign-in page, in development you’ll see a **“Local testing: emulate signed-in session”** box.
 3. Click **“Fill emulate credentials”**, then click **“Sign in with email”**. You are signed in as a fake user (no database used).
-4. **Role:** By default the emulated user has role **REALTOR**. To use **ADMIN** or **BROKER**, set in `.env` and restart the dev server:
-   - `EMULATE_SESSION_ROLE=ADMIN` or `EMULATE_SESSION_ROLE=BROKER`
+4. **Role:** By default the emulated user has role **REALTOR**. To use **SYSTEM_ADMIN** or **BROKER**, set in `.env` and restart the dev server:
+   - `EMULATE_SESSION_ROLE=SYSTEM_ADMIN` or `EMULATE_SESSION_ROLE=BROKER`
    - Optional: `EMULATE_SESSION_EMAIL=emulate@local`, `EMULATE_SESSION_PASSWORD=emulate` (these are the defaults).
 
 **Note:** Emulate only works when `NODE_ENV=development`. API calls that need the database (e.g. saving favourites, creating listings) will fail without a database; use the real seed accounts and a real DB for full API testing.
@@ -255,7 +255,7 @@ npm run db:seed
 
 | Email | Password | Name | Role |
 |-------|----------|------|------|
-| `admin@example.com` | `password` | Morgan Blake | Admin |
+| `admin@example.com` | `password` | Morgan Blake | System Admin |
 | `broker@example.com` | `password` | Jordan Lee | Broker |
 | `broker2@example.com` | `password` | Riley Scott | Broker |
 | `realtor@example.com` | `password` | Sam Chen | Realtor (team lead, under Jordan Lee) |

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokerWorkload } from '../../../lib/mockData';
 
 export default function BrokerWorkloadPage() {
   const { isBroker } = useAuth();
@@ -13,7 +14,7 @@ export default function BrokerWorkloadPage() {
     queryKey: ['broker-workload'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_WORKLOAD, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load workload');
+      if (!res.ok) return getMockBrokerWorkload();
       return res.json();
     },
     enabled: isBroker,

@@ -44,6 +44,8 @@ describe('Dashboard role-based rendering', () => {
     jest.clearAllMocks();
     mockUseFavorites.mockReturnValue({
       favorites: [{ id: 'fav-1', listing: { id: 'l2', title: 'Favourite Listing' } }],
+      isFavorited: jest.fn(() => true),
+      toggleFavorite: jest.fn(),
     });
     mockUseNotifications.mockReturnValue({
       notifications: [

@@ -1,15 +1,22 @@
-import Link from 'next/link';
 import { useEffect } from 'react';
 import { openDB } from 'idb';
-import { IDB_NAME, IDB_VERSION, UI, getListingPageUrl } from '../lib/constants';
+import { IDB_NAME, IDB_VERSION, UI } from '../lib/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
-import SafeListingImage from '../components/ui/SafeListingImage';
+import ListingCard from '../components/ListingCard';
 import { useFavorites } from '../lib/hooks/useFavorites';
+import { useUnitToggle } from '../lib/hooks/useUnitToggle';
+import type { FavoriteItem, ListingBasic } from '../lib/types';
+
+function hasRenderableListing(favorite: FavoriteItem): favorite is FavoriteItem & { listing: ListingBasic } {
+  return !!favorite.listing?.id;
+}
 
 export default function Favorites() {
-  const { favorites } = useFavorites();
+  const { favorites, toggleFavorite, isFavorited, isLoading } = useFavorites();
+  const { isMetric } = useUnitToggle();
+  const renderableFavorites = favorites.filter(hasRenderableListing);
 
   useEffect(() => {
     const dbPromise = openDB(IDB_NAME, IDB_VERSION, {
@@ -29,34 +36,19 @@ export default function Favorites() {
       <Header />
       <main className="flex-1 content-width pb-14">
         <h1 className="text-3xl font-bold text-slate-900 py-8 mb-6">My Favourites</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {favorites.map((f) => {
-            const listingUrl = getListingPageUrl(f.listing?.id);
-            const content = (
-              <>
-                <div className="aspect-[4/3] w-full bg-slate-200 overflow-hidden">
-                  <SafeListingImage src={f.listing?.images?.[0]} />
-                </div>
-                <div className="p-4">
-                  <h2 className="font-semibold text-slate-900 group-hover:text-accent-600 line-clamp-2">{f.listing?.title}</h2>
-                  <span className="inline-block mt-2 text-accent-600 font-semibold text-sm">{UI.VIEW} →</span>
-                </div>
-              </>
-            );
-            return (
-              <article key={f.id} className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group">
-                {listingUrl ? (
-                  <Link href={listingUrl} className="block">
-                    {content}
-                  </Link>
-                ) : (
-                  <div className="block">{content}</div>
-                )}
-              </article>
-            );
-          })}
+        {isLoading && <p className="text-slate-500 mb-4">{UI.LOADING}</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          {renderableFavorites.map((favorite) => (
+              <ListingCard
+                key={favorite.id}
+                listing={favorite.listing}
+                isMetric={isMetric}
+                isFavorited={isFavorited(favorite.listing.id)}
+                onFavoriteClick={toggleFavorite}
+              />
+          ))}
         </div>
-        {favorites.length === 0 && <p className="text-slate-500 py-12 text-center">No favourites yet.</p>}
+        {!isLoading && renderableFavorites.length === 0 && <p className="text-slate-500 py-12 text-center">No favourites yet.</p>}
       </main>
       <Footer />
       <BottomNav />

@@ -1,5 +1,6 @@
 import { DEFAULT_LOCATION } from './constants';
 import { computeEcoRatingScore } from './ecoRating';
+import addressCoordsJson from './addressCoords.json';
 
 /** Source real-estate sample images hosted in Cloudinary. */
 const MOCK_IMAGE_SOURCES = {
@@ -113,6 +114,7 @@ const MOCK_IMAGE_SOURCES = {
 };
 
 const MOCK_IMAGES = MOCK_IMAGE_SOURCES;
+const EXPECTED_ADDRESS_COUNT = 111;
 
 /** Exactly 5 images per listing for extended mocks (within 25/50/100 km of DEFAULT_LOCATION) */
 const FIVE_IMAGES_SETS = [
@@ -227,36 +229,27 @@ function buildAddressCoords(): { lat: number; lng: number }[] {
   // Barrie again (101–110): 10 more spread in east Barrie.
   fillCityBox(out, 44.38, 44.42, -79.62, -79.56, 10);
 
-  return out.slice(0, 111);
+  return out.slice(0, EXPECTED_ADDRESS_COUNT);
 }
 
-/** In Node, load coords from lib/addressCoords.json if present and valid (≥111 entries); otherwise use grid. */
+function parseAddressCoords(input: unknown): { lat: number; lng: number }[] | null {
+  if (!Array.isArray(input) || input.length < EXPECTED_ADDRESS_COUNT) return null;
+  const coords = input.slice(0, EXPECTED_ADDRESS_COUNT);
+  const ok = coords.every(
+    (item: unknown) =>
+      item != null &&
+      typeof item === 'object' &&
+      Number.isFinite((item as { lat?: number }).lat) &&
+      Number.isFinite((item as { lng?: number }).lng)
+  );
+  if (!ok) return null;
+  return coords as { lat: number; lng: number }[];
+}
+
+/** Load committed address coordinates for both browser and Node; fallback to city grid when invalid. */
 function loadAddressCoords(): { lat: number; lng: number }[] {
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    try {
-      // Use eval('require') so browser bundlers don't try to resolve Node built-ins.
-      const req = (0, eval)('require') as NodeJS.Require;
-      const path = req('path') as typeof import('path');
-      const fs = req('fs') as typeof import('fs');
-      const p = path.join(process.cwd(), 'lib', 'addressCoords.json');
-      if (fs.existsSync(p)) {
-        const raw = fs.readFileSync(p, 'utf8');
-        const arr = JSON.parse(raw) as unknown;
-        if (Array.isArray(arr) && arr.length >= 111) {
-          const ok = arr.every(
-            (x: unknown) =>
-              x != null &&
-              typeof x === 'object' &&
-              typeof (x as { lat?: number }).lat === 'number' &&
-              typeof (x as { lng?: number }).lng === 'number'
-          );
-          if (ok) return arr.slice(0, 111) as { lat: number; lng: number }[];
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const parsed = parseAddressCoords(addressCoordsJson as unknown);
+  if (parsed) return parsed;
   return buildAddressCoords();
 }
 
@@ -602,8 +595,44 @@ function buildMockListings(): MockListing[] {
   return list;
 }
 
-/** Mock listings: 100 total, 10 at each of 10/20/30/40/50/60/70/80/90/100 km from DEFAULT_LOCATION. */
+/** Mock listings: 100 total, mapped onto curated Ontario address rows and coordinates. */
 export const MOCK_LISTINGS = buildMockListings();
+
+function isHttpsUrl(value: string): boolean {
+  return /^https:\/\//i.test(value);
+}
+
+export function getMockDataValidationIssues(): string[] {
+  const issues: string[] = [];
+  if (MOCK_LISTINGS.length === 0) {
+    issues.push('MOCK_LISTINGS is empty.');
+  }
+  for (const listing of MOCK_LISTINGS) {
+    if (!listing.id) issues.push('Listing is missing id.');
+    if (!listing.title?.trim()) issues.push(`Listing ${listing.id} is missing title.`);
+    if (!listing.description?.trim()) issues.push(`Listing ${listing.id} is missing description.`);
+    if (!listing.location?.trim()) issues.push(`Listing ${listing.id} is missing location.`);
+    if (!Number.isFinite(listing.price) || listing.price <= 0) issues.push(`Listing ${listing.id} has invalid price.`);
+    if (!Number.isFinite(listing.latitude) || !Number.isFinite(listing.longitude)) {
+      issues.push(`Listing ${listing.id} has invalid coordinates.`);
+    }
+    if (!Array.isArray(listing.images) || listing.images.length === 0) {
+      issues.push(`Listing ${listing.id} has no images.`);
+      continue;
+    }
+    const badImage = listing.images.find((image) => typeof image !== 'string' || !isHttpsUrl(image));
+    if (badImage) issues.push(`Listing ${listing.id} has invalid image URL.`);
+  }
+  return issues;
+}
+
+export function assertMockDataIntegrity(): void {
+  const issues = getMockDataValidationIssues();
+  if (issues.length === 0) return;
+  const preview = issues.slice(0, 12).map((issue) => `- ${issue}`).join('\n');
+  const remaining = issues.length > 12 ? `\n...and ${issues.length - 12} more issue(s)` : '';
+  throw new Error(`Mock data validation failed:\n${preview}${remaining}`);
+}
 
 /** Filter params from AdvancedFilters (province, city, minPrice, maxPrice, bedrooms, bathrooms, propertyType) */
 export type MockListingsFilters = Record<string, string | number | undefined>;
@@ -672,7 +701,8 @@ export function getMockFavorites() {
 /** Notifications */
 export const MOCK_NOTIFICATIONS = [
   { id: 'mock-n-1', message: 'Welcome to Pinkaroo', type: 'SYSTEM', read: false, createdAt: new Date().toISOString() },
-  { id: 'mock-n-2', message: 'Your listing has been approved', type: 'APPROVAL', read: true, createdAt: new Date().toISOString() },
+  { id: 'mock-n-2', message: 'Your listing has been approved', type: 'APPROVAL', read: true, createdAt: new Date(Date.now() - 4 * 3600000).toISOString() },
+  { id: 'mock-n-4', message: '[Broadcast] Weekly pipeline review due Friday 2pm', type: 'SYSTEM', read: false, createdAt: new Date(Date.now() - 9 * 3600000).toISOString() },
   {
     id: 'mock-n-3',
     message: 'Hi, I have a client interested in the 3BR listing. Can we schedule a viewing?',
@@ -688,67 +718,269 @@ export function getMockNotifications() {
   return MOCK_NOTIFICATIONS;
 }
 
+const MOCK_SYSTEM_ADMIN = { id: 'mock-sa-1', email: 'admin@example.com', name: 'Morgan Blake', role: 'SYSTEM_ADMIN' };
+const MOCK_OFFICE_ADMIN = { id: 'mock-oa-1', email: 'officeadmin@example.com', name: 'Avery Cole', role: 'OFFICE_ADMIN' };
+
+/** Admin: brokers list */
+export const MOCK_BROKERS = [
+  { id: 'mock-b-1', email: 'broker@example.com', name: 'Jordan Lee', role: 'BROKER' },
+  { id: 'mock-b-2', email: 'broker2@example.com', name: 'Riley Scott', role: 'BROKER' },
+];
+
+/** Admin: realtors list */
+export const MOCK_REALTORS = [
+  { id: 'mock-r-1', email: 'sam.chen@pinkaroo.ca', name: 'Sam Chen', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Jordan Lee' }, teamId: 'mock-team-1', team: { id: 'mock-team-1', name: 'Barrie Sales' }, isTeamLead: true, phone: '(705) 555-0101', availableHours: 'Mon-Fri 9am-6pm', listingsCount: 11, interactionsCount: 26 },
+  { id: 'mock-r-2', email: 'alex.rivera@pinkaroo.ca', name: 'Alex Rivera', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Jordan Lee' }, teamId: 'mock-team-1', team: { id: 'mock-team-1', name: 'Barrie Sales' }, isTeamLead: false, phone: '(705) 555-0102', availableHours: 'Mon-Fri 8am-7pm', listingsCount: 9, interactionsCount: 31 },
+  { id: 'mock-r-3', email: 'morgan.taylor@pinkaroo.ca', name: 'Morgan Taylor', role: 'REALTOR', brokerId: 'mock-b-2', broker: { id: 'mock-b-2', name: 'Riley Scott' }, teamId: 'mock-team-3', team: { id: 'mock-team-3', name: 'Orillia Growth' }, isTeamLead: true, phone: '(705) 555-0103', availableHours: 'Tue-Sat 9am-5pm', listingsCount: 7, interactionsCount: 18 },
+  { id: 'mock-r-4', email: 'casey.wong@pinkaroo.ca', name: 'Casey Wong', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Jordan Lee' }, teamId: 'mock-team-2', team: { id: 'mock-team-2', name: 'Innisfil Partners' }, isTeamLead: false, phone: '(705) 555-0104', availableHours: 'Mon-Fri 10am-6pm', listingsCount: 6, interactionsCount: 22 },
+  { id: 'mock-r-5', email: 'jamie.patel@pinkaroo.ca', name: 'Jamie Patel', role: 'REALTOR', brokerId: 'mock-b-2', broker: { id: 'mock-b-2', name: 'Riley Scott' }, teamId: null, team: null, isTeamLead: false, phone: '(705) 555-0105', availableHours: 'Mon-Thu 9am-5pm', listingsCount: 4, interactionsCount: 12 },
+];
+
+/** Broker teams (mock) */
+export const MOCK_TEAMS = [
+  { id: 'mock-team-1', name: 'Barrie Sales', brokerId: 'mock-b-1', targetListings: 24, targetRevenue: 3200000, targetInteractions: 90, members: [] },
+  { id: 'mock-team-2', name: 'Innisfil Partners', brokerId: 'mock-b-1', targetListings: 16, targetRevenue: 2100000, targetInteractions: 60, members: [] },
+  { id: 'mock-team-3', name: 'Orillia Growth', brokerId: 'mock-b-2', targetListings: 14, targetRevenue: 1800000, targetInteractions: 55, members: [] },
+];
+
 /** CRM clients */
 export const MOCK_CLIENTS = [
-  { id: 'mock-c-1', name: 'Sample Lead', email: 'lead@example.com', phone: '555-0100', notes: 'Interested in 3BR', status: 'LEAD', userId: 'mock-user', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'mock-c-2', name: 'Jane Buyer', email: 'jane@example.com', phone: '555-0101', notes: '', status: 'QUALIFIED', userId: 'mock-user', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'mock-c-1', name: 'Olivia Carter', email: 'olivia.carter@example.com', phone: '555-0100', notes: 'Interested in waterfront options', status: 'LEAD', userId: 'mock-r-1', brokerId: 'mock-b-1', teamId: 'mock-team-1', createdAt: new Date(Date.now() - 23 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 1 * 86400000).toISOString() },
+  { id: 'mock-c-2', name: 'Ethan Brooks', email: 'ethan.brooks@example.com', phone: '555-0101', notes: 'Pre-approved, wants 4BR detached', status: 'QUALIFIED', userId: 'mock-r-2', brokerId: 'mock-b-1', teamId: 'mock-team-1', createdAt: new Date(Date.now() - 40 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 8 * 86400000).toISOString() },
+  { id: 'mock-c-3', name: 'Mia Thompson', email: 'mia.thompson@example.com', phone: '555-0102', notes: 'Reviewing offer terms', status: 'NEGOTIATION', userId: 'mock-r-4', brokerId: 'mock-b-1', teamId: 'mock-team-2', createdAt: new Date(Date.now() - 31 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 'mock-c-4', name: 'Lucas Green', email: 'lucas.green@example.com', phone: '555-0103', notes: 'Condo buyer, downtown focus', status: 'PROPOSAL', userId: 'mock-r-3', brokerId: 'mock-b-2', teamId: 'mock-team-3', createdAt: new Date(Date.now() - 18 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 4 * 86400000).toISOString() },
+  { id: 'mock-c-5', name: 'Charlotte Nguyen', email: 'charlotte.nguyen@example.com', phone: '555-0104', notes: 'Recently closed purchase', status: 'CLOSED', userId: 'mock-r-1', brokerId: 'mock-b-1', teamId: 'mock-team-1', createdAt: new Date(Date.now() - 65 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'mock-c-6', name: 'Noah Singh', email: 'noah.singh@example.com', phone: '555-0105', notes: 'Needs follow-up, no response for 2 weeks', status: 'LEAD', userId: 'mock-r-5', brokerId: 'mock-b-2', teamId: null, createdAt: new Date(Date.now() - 29 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 16 * 86400000).toISOString() },
 ];
-export function getMockClients() {
-  return MOCK_CLIENTS;
-}
 
-/** Client interactions (for dashboard) */
+/** Client interactions (for dashboard + CRM trend views) */
 export const MOCK_INTERACTIONS = [
-  { id: 'mock-i-1', type: 'Call', details: 'Initial contact', date: new Date().toISOString(), clientId: 'mock-c-1', userId: 'mock-user' },
+  { id: 'mock-i-1', type: 'Call', details: 'Initial discovery call', date: new Date(Date.now() - 20 * 86400000).toISOString(), clientId: 'mock-c-1', userId: 'mock-r-1' },
+  { id: 'mock-i-2', type: 'Email', details: 'Sent listing package', date: new Date(Date.now() - 14 * 86400000).toISOString(), clientId: 'mock-c-1', userId: 'mock-r-1' },
+  { id: 'mock-i-3', type: 'Meeting', details: 'Mortgage pre-approval review', date: new Date(Date.now() - 7 * 86400000).toISOString(), clientId: 'mock-c-2', userId: 'mock-r-2' },
+  { id: 'mock-i-4', type: 'Showing', details: 'Showed 2 detached homes', date: new Date(Date.now() - 6 * 86400000).toISOString(), clientId: 'mock-c-2', userId: 'mock-r-2' },
+  { id: 'mock-i-5', type: 'Document', details: 'Offer paperwork prepared', date: new Date(Date.now() - 5 * 86400000).toISOString(), clientId: 'mock-c-3', userId: 'mock-r-4' },
+  { id: 'mock-i-6', type: 'Call', details: 'Counter-offer discussion', date: new Date(Date.now() - 4 * 86400000).toISOString(), clientId: 'mock-c-3', userId: 'mock-r-4' },
+  { id: 'mock-i-7', type: 'Email', details: 'Sent proposal details', date: new Date(Date.now() - 10 * 86400000).toISOString(), clientId: 'mock-c-4', userId: 'mock-r-3' },
+  { id: 'mock-i-8', type: 'Meeting', details: 'Final walk-through', date: new Date(Date.now() - 2 * 86400000).toISOString(), clientId: 'mock-c-5', userId: 'mock-r-1' },
 ];
-export function getMockInteractions() {
-  return MOCK_INTERACTIONS;
-}
 
-/** MLS search results (full CREA DDF–style payload per listing for display/import) */
+/** MLS search results (full CREA DDF-style payload per listing for display/import) */
 export const MOCK_MLS_RESULTS: MockMLSPayload[] = MOCK_LISTINGS.map((l) => l.mlsData);
 
 export function getMockMLSResults() {
   return MOCK_MLS_RESULTS;
 }
 
-/** Admin: realtors list */
-export const MOCK_REALTORS = [
-  { id: 'mock-r-1', email: 'realtor@example.com', name: 'Sample Realtor', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Sample Broker' }, teamId: 'mock-team-1', isTeamLead: true },
-  { id: 'mock-r-2', email: 'realtor2@example.com', name: 'Another Realtor', role: 'REALTOR', brokerId: 'mock-b-1', broker: { id: 'mock-b-1', name: 'Sample Broker' }, teamId: null, isTeamLead: false },
-];
+export function getMockClients() {
+  return MOCK_CLIENTS;
+}
+
+export function getMockInteractions() {
+  return MOCK_INTERACTIONS;
+}
+
 export function getMockRealtors() {
   return MOCK_REALTORS;
 }
 
-/** Broker teams (mock) */
-export const MOCK_TEAMS = [
-  { id: 'mock-team-1', name: 'Barrie Office', brokerId: 'mock-b-1', members: [] },
-  { id: 'mock-team-2', name: 'Toronto Office', brokerId: 'mock-b-1', members: [] },
-];
 export function getMockTeams() {
-  return MOCK_TEAMS.map((t) => ({ ...t, members: (MOCK_REALTORS as { teamId?: string | null }[]).filter((r) => r.teamId === t.id) }));
+  return MOCK_TEAMS.map((team) => ({
+    ...team,
+    members: MOCK_REALTORS.filter((realtor) => realtor.teamId === team.id),
+  }));
 }
 
-/** Admin: brokers list */
-export const MOCK_BROKERS = [
-  { id: 'mock-b-1', email: 'broker@example.com', name: 'Sample Broker', role: 'BROKER', teamMembers: [] },
-];
 export function getMockBrokers() {
-  return MOCK_BROKERS;
+  const teams = getMockTeams();
+  return MOCK_BROKERS.map((broker) => ({
+    ...broker,
+    teamMembers: MOCK_REALTORS.filter((realtor) => realtor.brokerId === broker.id),
+    teams: teams.filter((team) => team.brokerId === broker.id),
+  }));
 }
 
 /** Broker dashboard stats */
 export function getMockBrokerStats() {
+  const teams = getMockTeams();
   return {
-    teamCount: 2,
-    listings: 5,
-    pending: 1,
-    approved: 3,
-    rejected: 1,
-    realtors: MOCK_REALTORS.map((r, i) => ({ ...r, listingsCount: i + 2 })),
-    revenue: [100000, 150000, 120000],
-    months: ['Jan', 'Feb', 'Mar'],
+    teamCount: teams.length,
+    teams,
+    listings: 42,
+    pending: 8,
+    approved: 23,
+    rejected: 4,
+    realtors: MOCK_REALTORS,
+    availableRealtors: MOCK_REALTORS.filter((r) => !r.teamId),
+    revenue: [380000, 420000, 390000, 460000, 480000, 510000],
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    teamPerformance: teams.map((team) => {
+      const members = MOCK_REALTORS.filter((r) => r.teamId === team.id);
+      const actualListings = members.reduce((sum, r) => sum + (r.listingsCount ?? 0), 0);
+      const actualInteractions = members.reduce((sum, r) => sum + (r.interactionsCount ?? 0), 0);
+      const actualRevenue = actualListings * 95000;
+      return {
+        id: team.id,
+        name: team.name,
+        members: members.length,
+        targets: {
+          listings: team.targetListings ?? 0,
+          revenue: team.targetRevenue ?? 0,
+          interactions: team.targetInteractions ?? 0,
+        },
+        actual: {
+          listings: actualListings,
+          revenue: actualRevenue,
+          interactions: actualInteractions,
+        },
+      };
+    }),
+  };
+}
+
+export const MOCK_WORKLOAD_ASSIGNMENTS = [
+  { id: 'mock-a-1', title: 'Follow up with Olivia', details: 'Confirm weekend showing availability', priority: 4, status: 'OPEN', dueAt: new Date(Date.now() + 2 * 86400000).toISOString(), realtorId: 'mock-r-1', clientId: 'mock-c-1', listingId: 'mock-2', realtor: { id: 'mock-r-1', name: 'Sam Chen', email: 'sam.chen@pinkaroo.ca' }, client: { id: 'mock-c-1', name: 'Olivia Carter', status: 'LEAD' }, listing: { id: 'mock-2', title: 'Condo with Lake View', status: 'ACTIVE' } },
+  { id: 'mock-a-2', title: 'Prepare offer package', details: 'Review clauses with buyer', priority: 5, status: 'IN_PROGRESS', dueAt: new Date(Date.now() + 1 * 86400000).toISOString(), realtorId: 'mock-r-4', clientId: 'mock-c-3', listingId: 'mock-7', realtor: { id: 'mock-r-4', name: 'Casey Wong', email: 'casey.wong@pinkaroo.ca' }, client: { id: 'mock-c-3', name: 'Mia Thompson', status: 'NEGOTIATION' }, listing: { id: 'mock-7', title: '4BR Detached', status: 'PENDING' } },
+  { id: 'mock-a-3', title: 'Revive stale lead', details: 'Call and send shortlist', priority: 3, status: 'BLOCKED', dueAt: new Date(Date.now() + 3 * 86400000).toISOString(), realtorId: 'mock-r-5', clientId: 'mock-c-6', listingId: null, realtor: { id: 'mock-r-5', name: 'Jamie Patel', email: 'jamie.patel@pinkaroo.ca' }, client: { id: 'mock-c-6', name: 'Noah Singh', status: 'LEAD' }, listing: null },
+  { id: 'mock-a-4', title: 'Schedule closing prep', details: 'Coordinate legal and inspection docs', priority: 2, status: 'DONE', dueAt: new Date(Date.now() - 1 * 86400000).toISOString(), realtorId: 'mock-r-2', clientId: 'mock-c-2', listingId: 'mock-14', realtor: { id: 'mock-r-2', name: 'Alex Rivera', email: 'alex.rivera@pinkaroo.ca' }, client: { id: 'mock-c-2', name: 'Ethan Brooks', status: 'QUALIFIED' }, listing: { id: 'mock-14', title: 'Loft Downtown', status: 'APPROVED' } },
+];
+
+export const MOCK_COMMS_TEMPLATES = [
+  { id: 'mock-tpl-1', brokerId: 'mock-b-1', name: 'Weekly KPI Review', body: 'Please update your weekly KPI notes before Friday 2pm.', createdAt: new Date(Date.now() - 12 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'mock-tpl-2', brokerId: 'mock-b-1', name: 'Approval Queue Reminder', body: 'Pending approval queue is high. Prioritize status updates today.', createdAt: new Date(Date.now() - 20 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 10 * 86400000).toISOString() },
+];
+
+export const MOCK_BROADCASTS = [
+  { id: 'mock-bc-1', brokerId: 'mock-b-1', teamId: 'mock-team-1', templateId: 'mock-tpl-1', subject: 'Friday KPI checkpoint', message: 'Please publish your weekly KPI snapshot by 2pm Friday.', createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), team: { id: 'mock-team-1', name: 'Barrie Sales' }, sentBy: { id: 'mock-b-1', name: 'Jordan Lee', email: 'broker@example.com' }, template: { id: 'mock-tpl-1', name: 'Weekly KPI Review' } },
+  { id: 'mock-bc-2', brokerId: 'mock-b-1', teamId: null, templateId: null, subject: 'Open house weekend push', message: 'All teams: prioritize follow-up with leads from Saturday open houses.', createdAt: new Date(Date.now() - 7 * 86400000).toISOString(), team: null, sentBy: { id: 'mock-b-1', name: 'Jordan Lee', email: 'broker@example.com' }, template: null },
+];
+
+export const MOCK_AUDIT_LOGS = [
+  { id: 'mock-log-1', actor: MOCK_SYSTEM_ADMIN, action: 'SYSTEM_SETTING_UPDATED', entityType: 'Config', createdAt: new Date(Date.now() - 1 * 86400000).toISOString() },
+  { id: 'mock-log-2', actor: MOCK_OFFICE_ADMIN, action: 'BROKER_ASSIGNMENT_UPDATED', entityType: 'User', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'mock-log-3', actor: { id: 'mock-b-1', name: 'Jordan Lee', email: 'broker@example.com', role: 'BROKER' }, action: 'ASSIGNMENT_REBALANCED', entityType: 'WorkloadAssignment', createdAt: new Date(Date.now() - 4 * 86400000).toISOString() },
+  { id: 'mock-log-4', actor: { id: 'mock-b-1', name: 'Jordan Lee', email: 'broker@example.com', role: 'BROKER' }, action: 'BROADCAST_SENT', entityType: 'BrokerBroadcast', createdAt: new Date(Date.now() - 6 * 86400000).toISOString() },
+];
+
+export function getMockBrokerPerformance(windowMonths = 6) {
+  const stats = getMockBrokerStats();
+  return {
+    windowMonths,
+    teamPerformance: stats.teamPerformance,
+    realtorPerformance: MOCK_REALTORS.map((realtor) => ({
+      id: realtor.id,
+      name: realtor.name,
+      teamId: realtor.teamId,
+      listings: realtor.listingsCount ?? 0,
+      revenue: (realtor.listingsCount ?? 0) * 95000,
+      interactions: realtor.interactionsCount ?? 0,
+    })),
+  };
+}
+
+export function getMockBrokerWorkload() {
+  const openByRealtor = new Map<string, number>();
+  for (const realtor of MOCK_REALTORS) openByRealtor.set(realtor.id, 0);
+  for (const assignment of MOCK_WORKLOAD_ASSIGNMENTS) {
+    if (assignment.status === 'DONE') continue;
+    openByRealtor.set(assignment.realtorId, (openByRealtor.get(assignment.realtorId) ?? 0) + 1);
+  }
+  return {
+    assignments: MOCK_WORKLOAD_ASSIGNMENTS,
+    capacity: MOCK_REALTORS.map((realtor) => ({
+      id: realtor.id,
+      name: realtor.name,
+      email: realtor.email,
+      availableHours: realtor.availableHours ?? null,
+      teamId: realtor.teamId ?? null,
+      openAssignments: openByRealtor.get(realtor.id) ?? 0,
+    })),
+  };
+}
+
+export function getMockBrokerClientOversight() {
+  const statusCounts = MOCK_CLIENTS.reduce<Record<string, number>>((acc, client) => {
+    acc[client.status] = (acc[client.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const stalled = MOCK_CLIENTS.filter((client) => {
+    const updated = new Date(client.updatedAt).getTime();
+    return Date.now() - updated > 14 * 86400000 && client.status !== 'CLOSED';
+  });
+  return {
+    total: MOCK_CLIENTS.length,
+    statusCounts,
+    stalled: stalled.map((client) => ({
+      id: client.id,
+      name: client.name,
+      status: client.status,
+      updatedAt: client.updatedAt,
+    })),
+    aging: MOCK_CLIENTS.map((client) => ({
+      id: client.id,
+      name: client.name,
+      status: client.status,
+      daysOpen: Math.floor((Date.now() - new Date(client.createdAt).getTime()) / 86400000),
+      realtorName: MOCK_REALTORS.find((r) => r.id === client.userId)?.name ?? 'Unknown',
+    })).sort((a, b) => b.daysOpen - a.daysOpen),
+    clients: MOCK_CLIENTS,
+  };
+}
+
+export function getMockBrokerComms() {
+  return {
+    templates: MOCK_COMMS_TEMPLATES,
+    broadcasts: MOCK_BROADCASTS,
+    teams: getMockTeams().map((team) => ({ id: team.id, name: team.name })),
+  };
+}
+
+export function getMockBrokerAdminControls() {
+  return {
+    auditLogs: MOCK_AUDIT_LOGS,
+    teams: getMockTeams().map((team) => ({
+      id: team.id,
+      name: team.name,
+      targetListings: team.targetListings ?? 0,
+      targetRevenue: team.targetRevenue ?? 0,
+      targetInteractions: team.targetInteractions ?? 0,
+    })),
+    realtors: MOCK_REALTORS.map((realtor) => ({
+      id: realtor.id,
+      name: realtor.name,
+      email: realtor.email,
+      teamId: realtor.teamId ?? null,
+      isTeamLead: realtor.isTeamLead ?? false,
+    })),
+  };
+}
+
+export function getMockSystemAdminSettings() {
+  return {
+    settings: [
+      { id: 'mock-cfg-1', key: 'app_name', value: 'Pinkaroo' },
+      { id: 'mock-cfg-2', key: 'feature_broker_workload', value: 'true' },
+      { id: 'mock-cfg-3', key: 'notifications_rate_limit_per_min', value: '25' },
+    ],
+  };
+}
+
+export function getMockSystemAdminPermissions() {
+  return {
+    key: 'role_permissions',
+    permissions: {
+      SYSTEM_ADMIN: ['*'],
+      OFFICE_ADMIN: ['manage:brokers', 'manage:realtors', 'view:operational_dashboards'],
+      BROKER: ['manage:teams', 'manage:assignments', 'approve:listings'],
+      REALTOR: ['manage:own_clients', 'manage:own_listings'],
+      USER: ['browse:listings'],
+    },
+  };
+}
+
+export function getMockSystemAdminAudit() {
+  return {
+    logs: MOCK_AUDIT_LOGS,
   };
 }
 
@@ -784,22 +1016,33 @@ export function getMockPinkarooTeam(): typeof MOCK_PINKAROO_TEAM {
 
 /** Broker pending listings */
 export function getMockBrokerPendingListings() {
-  return [MOCK_LISTINGS[0]].map((l) => ({ ...l, status: 'PENDING', user: { id: 'mock-r-1', name: 'Sample Realtor', email: 'realtor@example.com' } }));
+  return [MOCK_LISTINGS[0], MOCK_LISTINGS[1], MOCK_LISTINGS[2], MOCK_LISTINGS[3]].map((listing, index) => {
+    const realtor = MOCK_REALTORS[index % MOCK_REALTORS.length];
+    return {
+      ...listing,
+      status: 'PENDING',
+      user: { id: realtor.id, name: realtor.name, email: realtor.email },
+    };
+  });
 }
 
 /** User / realtor profile (for AgentProfileCard and realtors/[id]) */
 export function getMockUser(id: string | undefined) {
+  const realtor = MOCK_REALTORS.find((r) => r.id === id) ?? MOCK_REALTORS[0];
+  const broker = MOCK_BROKERS.find((b) => b.id === realtor.brokerId);
   return {
-    id: id ?? 'mock-r-1',
-    email: 'realtor@example.com',
-    name: 'Sample Realtor',
+    id: realtor.id,
+    email: realtor.email,
+    name: realtor.name,
     role: 'REALTOR',
-    bio: 'Experienced in residential sales.',
+    bio: 'Experienced in residential sales with strong local market coverage.',
+    phone: realtor.phone,
+    availableHours: realtor.availableHours,
     ratings: 4.5,
-    listingsCount: 3,
+    listingsCount: realtor.listingsCount ?? 0,
     image: null,
-    listings: MOCK_LISTINGS.slice(0, 3),
+    listings: MOCK_LISTINGS.slice(0, 6),
     teamMembers: [],
-    broker: null,
+    broker: broker ? { id: broker.id, name: broker.name } : null,
   };
 }

@@ -12,3 +12,9 @@ test('applies filters when province changes (debounced)', async () => {
   await new Promise((r) => setTimeout(r, 400));
   expect(onFilter).toHaveBeenCalled();
 });
+
+test('does not render apply filters button when auto-apply is enabled', () => {
+  const onFilter = jest.fn();
+  render(<AdvancedFilters onFilter={onFilter} />);
+  expect(screen.queryByRole('button', { name: /apply filters/i })).not.toBeInTheDocument();
+});

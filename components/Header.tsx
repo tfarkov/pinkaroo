@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { useAuth } from '../lib/hooks/useAuth';
-import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import NotificationsDropdown from './NotificationsDropdown';
 
 function LogoIcon({ className }: { className?: string }) {
@@ -16,7 +15,6 @@ function LogoIcon({ className }: { className?: string }) {
 
 export default function Header() {
   const { isAuthenticated, isRealtor, isBroker, isAdmin, isSystemAdmin, isOfficeAdmin } = useAuth();
-  const { isMetric, toggleUnit } = useUnitToggle();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -71,14 +69,6 @@ export default function Header() {
               {label}
             </Link>
           ))}
-          <button
-            type="button"
-            onClick={toggleUnit}
-            className="ml-1 px-3 py-1.5 rounded-md text-white/80 hover:bg-white/10 text-sm font-medium"
-            title={isMetric ? 'Switch to Imperial (sq ft)' : 'Switch to Metric (m²)'}
-          >
-            {isMetric ? 'Metric' : 'Imperial'}
-          </button>
           {isAuthenticated && (
             <div className="ml-1">
               <NotificationsDropdown />
@@ -128,9 +118,6 @@ export default function Header() {
                 {label}
               </Link>
             ))}
-            <button type="button" onClick={toggleUnit} className="px-3 py-3 text-left text-white/90 hover:bg-white/10 rounded-md font-medium">
-              Units: {isMetric ? 'Metric' : 'Imperial'}
-            </button>
             {isAuthenticated ? (
               <button
                 type="button"

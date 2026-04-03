@@ -12,6 +12,7 @@
     "cypress:open": "cypress open",
     "db:seed": "prisma db seed",
     "geocode-mock": "npx ts-node --project tsconfig.scripts.json scripts/geocode-mock-addresses.ts",
+    "validate:mock": "npx ts-node --project tsconfig.scripts.json scripts/validate-mock-data.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

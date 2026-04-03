@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokerComms } from '../../../lib/mockData';
 
 export default function BrokerCommunicationsPage() {
   const { isBroker } = useAuth();
@@ -18,7 +19,7 @@ export default function BrokerCommunicationsPage() {
     queryKey: ['broker-comms'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_COMMS, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load comms');
+      if (!res.ok) return getMockBrokerComms();
       return res.json();
     },
     enabled: isBroker,

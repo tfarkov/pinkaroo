@@ -20,6 +20,7 @@ Pinkaroo is a Canadian, local-first real estate platform built for:
 The app combines public home discovery with authenticated operational tools:
 - Public listing browsing and map-first search
 - Favorites and recently viewed flows
+- Global area-unit preference toggle in the footer (imperial/metric)
 - Role-aware dashboards
 - CRM for client and interaction tracking
 - Brokerage operations tools

@@ -19,12 +19,7 @@ export interface ListingWithCoords extends ListingBasic {
 
 export interface FavoriteItem {
   id: string;
-  listing?: {
-    id: string;
-    title?: string;
-    price?: number;
-    images?: string[];
-  };
+  listing?: ListingBasic;
 }
 
 export interface RealtorTeamMember {

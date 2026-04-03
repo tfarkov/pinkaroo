@@ -6,6 +6,7 @@ import 'chart.js/auto';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokers, getMockRealtors } from '../../../lib/mockData';
 
 export default function OfficeAdminDashboardPage() {
   const { isOfficeAdmin } = useAuth();
@@ -14,7 +15,7 @@ export default function OfficeAdminDashboardPage() {
     queryKey: ['office-admin-brokers'],
     queryFn: async () => {
       const res = await fetch(API.ADMIN_BROKERS, { credentials: 'include' });
-      if (!res.ok) return [];
+      if (!res.ok) return getMockBrokers();
       return res.json();
     },
     enabled: isOfficeAdmin,
@@ -24,7 +25,7 @@ export default function OfficeAdminDashboardPage() {
     queryKey: ['office-admin-realtors'],
     queryFn: async () => {
       const res = await fetch(API.ADMIN_REALTORS, { credentials: 'include' });
-      if (!res.ok) return [];
+      if (!res.ok) return getMockRealtors();
       return res.json();
     },
     enabled: isOfficeAdmin,

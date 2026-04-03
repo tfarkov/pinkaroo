@@ -1,13 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Header from '../Header';
 import { AllProviders } from '../../lib/__tests__/test-utils';
 
 jest.mock('../../lib/hooks/useAuth', () => ({
   useAuth: jest.fn(() => ({ isAuthenticated: true, isRealtor: true, isBroker: false, isAdmin: false })),
-}));
-jest.mock('../../lib/hooks/useUnitToggle', () => ({
-  useUnitToggle: jest.fn(() => ({ isMetric: true, toggleUnit: jest.fn() })),
 }));
 
 function renderHeader() {
@@ -18,11 +15,10 @@ function renderHeader() {
   );
 }
 
-test('renders header with toggle', () => {
+test('renders header brand and navigation shell', () => {
   renderHeader();
   expect(screen.getByAltText('Pinkaroo')).toBeInTheDocument();
-  expect(screen.getByText('Metric')).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Metric'));
+  expect(screen.getByText('Find a Home')).toBeInTheDocument();
 });
 
 test('renders navigation links', () => {

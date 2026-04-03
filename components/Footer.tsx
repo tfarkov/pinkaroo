@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 
 export default function Footer() {
   const { isAuthenticated, isRealtor, isBroker, isSystemAdmin, isOfficeAdmin } = useAuth();
+  const { isMetric, toggleUnit } = useUnitToggle();
   const canAccessMLS = isRealtor || isBroker || isSystemAdmin || isOfficeAdmin;
   return (
     <footer className="bg-header text-white mt-auto">
@@ -26,6 +28,16 @@ export default function Footer() {
             <Link href="/terms" className="text-white/70 hover:text-white text-sm transition-colors">Terms</Link>
             <Link href="/privacy" className="text-white/70 hover:text-white text-sm transition-colors">Privacy</Link>
             <Link href="/cookie-policy" className="text-white/70 hover:text-white text-sm transition-colors">Cookies</Link>
+            <button
+              type="button"
+              onClick={toggleUnit}
+              className="text-white/70 hover:text-white text-sm transition-colors"
+              title={isMetric ? 'Switch to Imperial (sq ft)' : 'Switch to Metric (m²)'}
+              aria-label={isMetric ? 'Use imperial units' : 'Use metric units'}
+              aria-pressed={isMetric}
+            >
+              {isMetric ? 'Metric' : 'Imperial'}
+            </button>
           </nav>
         </div>
 

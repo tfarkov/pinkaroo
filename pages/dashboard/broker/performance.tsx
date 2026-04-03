@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokerPerformance } from '../../../lib/mockData';
 
 type TeamPerf = {
   id: string;
@@ -16,7 +17,7 @@ export default function BrokerPerformancePage() {
     queryKey: ['broker-performance'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_PERFORMANCE, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load performance');
+      if (!res.ok) return getMockBrokerPerformance();
       return res.json();
     },
     enabled: isBroker,

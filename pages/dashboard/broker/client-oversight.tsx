@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokerClientOversight, getMockBrokerStats } from '../../../lib/mockData';
 
 export default function BrokerClientOversightPage() {
   const { isBroker } = useAuth();
@@ -14,7 +15,7 @@ export default function BrokerClientOversightPage() {
     queryKey: ['broker-client-oversight'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_CLIENT_OVERSIGHT, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load client oversight');
+      if (!res.ok) return getMockBrokerClientOversight();
       return res.json();
     },
     enabled: isBroker,
@@ -23,7 +24,7 @@ export default function BrokerClientOversightPage() {
     queryKey: ['broker-stats'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_STATS, { credentials: 'include' });
-      if (!res.ok) return { realtors: [] };
+      if (!res.ok) return getMockBrokerStats();
       return res.json();
     },
     enabled: isBroker,

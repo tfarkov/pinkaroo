@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockSystemAdminAudit, getMockSystemAdminPermissions, getMockSystemAdminSettings } from '../../../lib/mockData';
 
 export default function SystemAdminDashboardPage() {
   const { isSystemAdmin } = useAuth();
@@ -20,7 +21,7 @@ export default function SystemAdminDashboardPage() {
     queryKey: ['system-admin-settings'],
     queryFn: async () => {
       const res = await fetch(API.SYSTEM_ADMIN_SETTINGS, { credentials: 'include' });
-      if (!res.ok) return { settings: [] };
+      if (!res.ok) return getMockSystemAdminSettings();
       return res.json();
     },
     enabled: isSystemAdmin,
@@ -29,7 +30,7 @@ export default function SystemAdminDashboardPage() {
     queryKey: ['system-admin-permissions'],
     queryFn: async () => {
       const res = await fetch(API.SYSTEM_ADMIN_PERMISSIONS, { credentials: 'include' });
-      if (!res.ok) return { permissions: {} };
+      if (!res.ok) return getMockSystemAdminPermissions();
       return res.json();
     },
     enabled: isSystemAdmin,
@@ -38,7 +39,7 @@ export default function SystemAdminDashboardPage() {
     queryKey: ['system-admin-audit'],
     queryFn: async () => {
       const res = await fetch(API.SYSTEM_ADMIN_AUDIT, { credentials: 'include' });
-      if (!res.ok) return { logs: [] };
+      if (!res.ok) return getMockSystemAdminAudit();
       return res.json();
     },
     enabled: isSystemAdmin,

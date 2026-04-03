@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { API, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { useAuth } from '../../../lib/hooks/useAuth';
+import { getMockBrokerAdminControls } from '../../../lib/mockData';
 
 type Team = { id: string; name?: string; targetListings?: number | null; targetRevenue?: number | null; targetInteractions?: number | null };
 type Realtor = { id: string; name?: string; email?: string; isTeamLead?: boolean | null };
@@ -16,7 +17,7 @@ export default function BrokerAdminControlsPage() {
     queryKey: ['broker-admin-controls'],
     queryFn: async () => {
       const res = await fetch(API.BROKER_ADMIN_CONTROLS, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load admin controls');
+      if (!res.ok) return getMockBrokerAdminControls();
       return res.json();
     },
     enabled: isBroker,

@@ -6,12 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION, NEARBY_POOL_RADIUS_KM, getListingPageUrl } from '../lib/constants';
+import { API, STALE_TIME_5_MIN, UI, DEFAULT_NEARBY_RADIUS_KM, DEFAULT_PROVINCE, DEFAULT_LOCATION, NEARBY_POOL_RADIUS_KM } from '../lib/constants';
 import { useGeolocation } from '../lib/hooks/useGeolocation';
 import { useUnitToggle } from '../lib/hooks/useUnitToggle';
 import { useRecentlyViewed } from '../lib/hooks/useRecentlyViewed';
 import { useFavorites } from '../lib/hooks/useFavorites';
-import { formatPrice } from '../lib/format';
 import type { ListingBasic, ListingWithCoords, FavoriteItem, RealtorTeamMember } from '../lib/types';
 import type { ListingSortValue } from '../lib/listings';
 import { buildQueryParams } from '../lib/utils/queryParams';
@@ -21,7 +20,6 @@ import { sortListings, LISTING_SORT_OPTIONS } from '../lib/listings';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BottomNav from '../components/ui/BottomNav';
-import SafeListingImage from '../components/ui/SafeListingImage';
 import ListingCard from '../components/ListingCard';
 import ContactRealtorCard from '../components/ContactRealtorCard';
 import AdvancedFilters from '../components/AdvancedFilters';
@@ -522,7 +520,7 @@ export default function Home() {
 
           {/* Right sidebar - Favourites + Contact a Realtor */}
           <aside className="lg:w-80 shrink-0" aria-labelledby="sidebar-favourites-title">
-            <div className="lg:sticky lg:top-24 bg-white rounded-lg shadow-card border border-slate-200 p-4">
+            <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
               <h2 id="sidebar-favourites-title" className="text-xl font-bold text-slate-900 mb-4">
                 Favourites
               </h2>
@@ -530,35 +528,18 @@ export default function Home() {
                 View all →
               </Link>
               <ul className="space-y-3">
-                {favorites.map((f) => {
-                  const listingUrl = getListingPageUrl(f.listing?.id);
-                  const itemContent = (
-                    <>
-                      <div className="w-16 h-12 shrink-0 rounded overflow-hidden bg-slate-200">
-                        <SafeListingImage src={f.listing?.images?.[0]} placeholder="" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900 group-hover:text-accent-600 line-clamp-2 text-sm">
-                          {f.listing?.title ?? 'Listing'}
-                        </p>
-                        <p className="text-sm font-semibold text-accent-600">
-                          {f.listing?.price != null ? formatPrice(f.listing.price) : ''}
-                        </p>
-                      </div>
-                    </>
-                  );
-                  return (
-                    <li key={f.id}>
-                      {listingUrl ? (
-                        <Link href={listingUrl} className="flex gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group">
-                          {itemContent}
-                        </Link>
-                      ) : (
-                        <div className="flex gap-3 p-2 rounded-lg">{itemContent}</div>
-                      )}
+                {favorites
+                  .filter((favorite) => !!favorite.listing?.id)
+                  .map((favorite) => (
+                    <li key={favorite.id}>
+                      <ListingCard
+                        listing={favorite.listing!}
+                        variant="mini"
+                        isFavorited={isFavorited(favorite.listing!.id)}
+                        onFavoriteClick={toggleFavorite}
+                      />
                     </li>
-                  );
-                })}
+                  ))}
               </ul>
               {favorites.length === 0 && (
                 <EmptyState message="No favourites yet. Save listings to see them here." className="text-sm py-4" />

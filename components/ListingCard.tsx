@@ -10,10 +10,11 @@ import SafeListingImage from './ui/SafeListingImage';
 type ListingCardProps = {
   listing: ListingBasic;
   isMetric?: boolean;
-  variant?: 'default' | 'recent';
+  variant?: 'default' | 'recent' | 'mini';
   imagePlaceholder?: string;
   isFavorited?: boolean;
   onFavoriteClick?: (listingId: string) => void;
+  metaLine?: string;
 };
 
 function HeartIcon({ filled }: { filled: boolean }) {
@@ -25,7 +26,15 @@ function HeartIcon({ filled }: { filled: boolean }) {
 }
 
 function ListingCard(props: ListingCardProps) {
-  const { listing, isMetric = false, variant = 'default', imagePlaceholder, isFavorited = false, onFavoriteClick } = props;
+  const {
+    listing,
+    isMetric = false,
+    variant = 'default',
+    imagePlaceholder,
+    isFavorited = false,
+    onFavoriteClick,
+    metaLine,
+  } = props;
   const listingUrl = getListingPageUrl(listing.id);
   const showPrice = variant === 'default' && listing.price != null;
   const areaStr = listing.sizeSqm != null ? ' · ' + formatArea(listing.sizeSqm, isMetric) : '';
@@ -59,6 +68,52 @@ function ListingCard(props: ListingCardProps) {
       </span>
     </>
   );
+
+  if (variant === 'mini') {
+    const miniInfo = (
+      <>
+        <h3 className="font-medium text-slate-900 group-hover:text-accent-600 transition-colors line-clamp-2 text-sm">
+          {listing.title ?? 'Listing'}
+        </h3>
+        {metaLine ? (
+          <p className="mt-1 text-sm text-slate-500 line-clamp-1">{metaLine}</p>
+        ) : listing.price != null ? (
+          <p className="mt-1 text-sm font-semibold text-accent-600">{formatPrice(listing.price)}</p>
+        ) : null}
+        <span className="inline-block mt-2 text-accent-600 font-semibold text-sm">{UI.VIEW_LISTING} →</span>
+      </>
+    );
+    return (
+      <div className="bg-white border border-slate-200 rounded-md p-2 hover:bg-slate-50 transition-colors group">
+        <div className="flex gap-3">
+          <div className="w-20 h-16 shrink-0 rounded overflow-hidden bg-slate-200 relative">
+            {imageBlock}
+            {onFavoriteClick != null && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onFavoriteClick(listing.id);
+                }}
+                className={`absolute top-1 right-1 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow flex items-center justify-center transition-colors z-10 ${isFavorited ? 'text-red-500 hover:text-red-600' : 'text-slate-700 hover:text-accent-600'}`}
+                aria-label={isFavorited ? 'Remove from favourites' : 'Add to favourites'}
+              >
+                <HeartIcon filled={isFavorited} />
+              </button>
+            )}
+          </div>
+          {listingUrl ? (
+            <Link href={listingUrl} className="block min-w-0 flex-1">
+              {miniInfo}
+            </Link>
+          ) : (
+            <div className="block min-w-0 flex-1">{miniInfo}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow group relative">

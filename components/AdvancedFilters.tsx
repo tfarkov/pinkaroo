@@ -16,7 +16,7 @@ interface FilterData {
 }
 
 export default function AdvancedFilters({ onFilter }: { onFilter: (filters: FilterData) => void }) {
-  const { register, handleSubmit, watch, setValue } = useForm<FilterData>({
+  const { register, watch, setValue } = useForm<FilterData>({
     defaultValues: { province: DEFAULT_PROVINCE, city: '', minPrice: '', maxPrice: '', bedrooms: '', bathrooms: '', propertyType: '' },
   });
   const router = useRouter();
@@ -60,7 +60,7 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
         {UI.FILTERS}
       </button>
       <div id="advanced-filters-panel" className={`${isAccordionOpen ? 'block' : 'hidden'} md:block`}>
-        <form onSubmit={handleSubmit(onFilter)} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
+        <form onSubmit={(event) => event.preventDefault()} className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-end">
             <div className="w-full">
               <label htmlFor="filters-province" className="label">{UI.ANY_PROVINCE}</label>
@@ -114,7 +114,6 @@ export default function AdvancedFilters({ onFilter }: { onFilter: (filters: Filt
                 {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <button type="submit" className="btn-primary w-full">Apply Filters</button>
           </div>
         </form>
       </div>
