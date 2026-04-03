@@ -167,7 +167,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
     await new Promise<void>((resolve, reject) =>
-      uploadListingMedia(req as any, res as any, (err: Error | undefined) => (err ? reject(err) : resolve()))
+      uploadListingMedia(req as any, res as any, (err?: unknown) => {
+        if (err != null) reject(err instanceof Error ? err : new Error(String(err)));
+        else resolve();
+      })
     );
     const fileGroups = (req as { files?: Record<string, Express.Multer.File[]> }).files ?? {};
     const imageFiles = fileGroups.images ?? [];
