@@ -73,3 +73,36 @@ test('shows and dismisses signed-out message when query contains signedOut=1', (
   fireEvent.click(screen.getByRole('button', { name: /dismiss signed out message/i }));
   expect(screen.queryByText(/You have been signed out successfully/i)).not.toBeInTheDocument();
 });
+
+test('does not show signed-out message when query is absent', () => {
+  render(
+    <AllProviders>
+      <Home />
+    </AllProviders>
+  );
+  expect(screen.queryByText(/You have been signed out successfully/i)).not.toBeInTheDocument();
+});
+
+test('opens and selects sort dropdown option', () => {
+  render(
+    <AllProviders>
+      <Home />
+    </AllProviders>
+  );
+
+  const sortButton = screen.getByRole('button', { name: /sort listings/i });
+  fireEvent.click(sortButton);
+  expect(screen.getByRole('button', { name: /price: low to high/i })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /price: low to high/i }));
+  expect(screen.queryByRole('button', { name: /price: low to high/i })).not.toBeInTheDocument();
+});
+
+test('shows favourites empty-state helper text in sidebar', () => {
+  render(
+    <AllProviders>
+      <Home />
+    </AllProviders>
+  );
+  expect(screen.getByText(/No favourites yet\. Save listings to see them here\./i)).toBeInTheDocument();
+});

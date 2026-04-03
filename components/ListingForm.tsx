@@ -63,6 +63,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
   );
   const [error, setError] = useState<string | null>(null);
   const [mapLoadError, setMapLoadError] = useState(false);
+  const locationField = register('location', { required: 'Location is required' });
   useEffect(() => {
     if (listing?.latitude != null && listing?.longitude != null) {
       setPosition({ lat: Number(listing.latitude), lng: Number(listing.longitude) });
@@ -89,10 +90,6 @@ export default function ListingForm({ listing }: { listing?: any }) {
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
       const formData = new FormData();
-      let sizeToStore = data.sizeSqm;
-      if (!isMetric && sizeToStore != null) {
-        sizeToStore = Number(sizeToStore) / SQFT_CONVERSION_FACTOR;
-      }
       Object.entries(data).forEach(([key, value]) => {
         if (value === undefined || value === null) return;
         if (key === 'images') {
@@ -100,7 +97,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
             Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
           }
         } else if (key === 'sizeSqm') {
-          formData.append(key, String(sizeToStore ?? value));
+          formData.append(key, String(value));
         } else if (key === 'lotSizeSqm') {
           if (value != null && !Number.isNaN(Number(value))) formData.append(key, String(value));
         } else if (key === 'latitude' || key === 'longitude') {
@@ -170,7 +167,15 @@ export default function ListingForm({ listing }: { listing?: any }) {
           </div>
           <div>
             <label className="label">{UI.LOCATION}</label>
-            <input {...register('location', { required: 'Location is required' })} className="input-field" onChange={(e) => debouncedGeocode(e.target.value)} aria-invalid={!!errors.location} />
+            <input
+              {...locationField}
+              className="input-field"
+              onChange={(e) => {
+                locationField.onChange(e);
+                debouncedGeocode(e.target.value);
+              }}
+              aria-invalid={!!errors.location}
+            />
             {errors.location && <p className="text-red-600 text-sm mt-1" role="alert">{errors.location.message}</p>}
           </div>
         </div>
