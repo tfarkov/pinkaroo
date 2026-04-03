@@ -7,6 +7,10 @@ const mockListingUpdate = jest.fn();
 const mockListingDelete = jest.fn();
 const mockListingFindUnique = jest.fn();
 const mockUserFindUnique = jest.fn();
+const mockCloudinaryUpload = jest.fn();
+const mockUploadArray = jest.fn();
+const mockGeocodeAddress = jest.fn();
+const mockComputeEcoRatingScore = jest.fn();
 
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn(() => ({
@@ -27,6 +31,29 @@ jest.mock('../../lib/session', () => ({
   getSession: (...args: unknown[]) => mockGetSession(...args),
 }));
 
+jest.mock('multer', () =>
+  jest.fn(() => ({
+    array: (...args: unknown[]) => mockUploadArray(...args),
+  }))
+);
+
+jest.mock('cloudinary', () => ({
+  v2: {
+    config: jest.fn(),
+    uploader: {
+      upload: (...args: unknown[]) => mockCloudinaryUpload(...args),
+    },
+  },
+}));
+
+jest.mock('../../lib/geocode', () => ({
+  geocodeAddress: (...args: unknown[]) => mockGeocodeAddress(...args),
+}));
+
+jest.mock('../../lib/ecoRating', () => ({
+  computeEcoRatingScore: (...args: unknown[]) => mockComputeEcoRatingScore(...args),
+}));
+
 describe('/api/listings (index route)', () => {
   let handler: (req: unknown, res: unknown) => Promise<void>;
 
@@ -39,6 +66,14 @@ describe('/api/listings (index route)', () => {
     mockGetSession.mockResolvedValue(null);
     mockListingFindMany.mockResolvedValue([]);
     mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
+    mockUploadArray.mockReturnValue((_req: unknown, _res: unknown, cb: (err?: Error) => void) => cb());
+    mockCloudinaryUpload.mockResolvedValue({ secure_url: 'https://img.example.com/one.jpg' });
+    mockGeocodeAddress.mockResolvedValue({ lat: 43.7, lng: -79.4 });
+    mockComputeEcoRatingScore.mockReturnValue(8);
+    process.env.CLOUDINARY_CLOUD_NAME = 'test-cloud';
+    process.env.CLOUDINARY_API_KEY = 'test-key';
+    process.env.CLOUDINARY_API_SECRET = 'test-secret';
+    (global as { io?: unknown }).io = undefined;
   });
 
   it('returns 401 when unauthenticated', async () => {
@@ -54,6 +89,57 @@ describe('/api/listings (index route)', () => {
     const res = createMockResponse();
     await runHandler(handler as any, req, res);
     expect(res._status).toBe(403);
+  });
+
+  it('POST returns 422 for invalid listing payload', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'realtor-1', role: 'REALTOR' } });
+    const req = createMockRequest({
+      method: 'POST',
+      body: { title: '', description: '', location: '', price: 'nope' },
+      headers: { 'x-forwarded-for': '203.0.113.40' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(422);
+    expect(mockListingCreate).not.toHaveBeenCalled();
+  });
+
+  it('POST creates listing, geocodes missing coordinates, and notifies broker for REALTOR', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'realtor-1', role: 'REALTOR' } });
+    mockUserFindUnique.mockResolvedValue({ brokerId: 'broker-1' });
+    mockListingCreate.mockResolvedValue({ id: 'listing-1', title: 'New Listing' });
+    const emit = jest.fn();
+    (global as { io?: { to: (id: string) => { emit: (event: string, payload: unknown) => void } } }).io = {
+      to: (_id: string) => ({ emit }),
+    };
+    const req = createMockRequest({
+      method: 'POST',
+      body: {
+        title: 'New Listing',
+        description: 'Great home',
+        location: 'Toronto, ON',
+        price: 550000,
+        images: ['https://example.com/fallback.jpg'],
+        yearBuilt: 2010,
+      },
+      headers: { 'x-forwarded-for': '203.0.113.41' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(200);
+    expect(mockGeocodeAddress).toHaveBeenCalledWith('Toronto, ON');
+    expect(mockListingCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'realtor-1',
+          status: 'PENDING',
+          latitude: 43.7,
+          longitude: -79.4,
+          ecoRatingScore: 8,
+        }),
+      })
+    );
+    expect(emit).toHaveBeenCalled();
   });
 
   it('GET applies filters and mine scope', async () => {
@@ -127,6 +213,47 @@ describe('/api/listings (index route)', () => {
     expect(mockListingUpdate).not.toHaveBeenCalled();
   });
 
+  it('returns 400 when PUT has no update fields', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'owner-1', role: 'USER' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
+    const req = createMockRequest({
+      method: 'PUT',
+      body: { id: 'l1' },
+      headers: { 'x-forwarded-for': '203.0.113.42' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(400);
+  });
+
+  it('returns 404 when PUT listing does not exist', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'owner-1', role: 'USER' } });
+    mockListingFindUnique.mockResolvedValue(null);
+    const req = createMockRequest({
+      method: 'PUT',
+      body: { id: 'missing', title: 'Update' },
+      headers: { 'x-forwarded-for': '203.0.113.43' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(404);
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when non-owner USER attempts PUT update', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'u2', role: 'USER' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
+    const req = createMockRequest({
+      method: 'PUT',
+      body: { id: 'l1', title: 'Unauthorized update' },
+      headers: { 'x-forwarded-for': '203.0.113.44' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(403);
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+  });
+
   it('blocks unknown fields from being updated', async () => {
     mockGetSession.mockResolvedValue({ user: { id: 'owner-1', role: 'USER' } });
     mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
@@ -173,6 +300,39 @@ describe('/api/listings (index route)', () => {
         data: expect.objectContaining({
           status: 'REJECTED',
           rejectionReason: 'Incomplete details',
+        }),
+      })
+    );
+  });
+
+  it('recomputes eco score when eco fields change on PUT', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'owner-1', role: 'USER' } });
+    mockListingFindUnique
+      .mockResolvedValueOnce({ id: 'l1', userId: 'owner-1' })
+      .mockResolvedValueOnce({
+        yearBuilt: 2000,
+        heatingType: 'FORCED_AIR',
+        insulationQuality: 'AVERAGE',
+        hasRecentRenovations: false,
+        roofAgeYears: 10,
+        appliancesAgeYears: 6,
+      });
+    mockComputeEcoRatingScore.mockReturnValue(9);
+    mockListingUpdate.mockResolvedValue({ id: 'l1', ecoRatingScore: 9 });
+    const req = createMockRequest({
+      method: 'PUT',
+      body: { id: 'l1', yearBuilt: 2015 },
+      headers: { 'x-forwarded-for': '203.0.113.45' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(200);
+    expect(mockListingUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'l1' },
+        data: expect.objectContaining({
+          yearBuilt: 2015,
+          ecoRatingScore: 9,
         }),
       })
     );
