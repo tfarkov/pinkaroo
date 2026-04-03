@@ -6,12 +6,18 @@ import { createMockRequest, createMockResponse, runHandler } from './helpers';
 
 const mockListingFindMany = jest.fn();
 const mockListingFindFirst = jest.fn();
+const mockListingFindUnique = jest.fn();
+const mockUserFindUnique = jest.fn();
 
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn(() => ({
     listing: {
       findMany: mockListingFindMany,
       findFirst: mockListingFindFirst,
+      findUnique: mockListingFindUnique,
+    },
+    user: {
+      findUnique: mockUserFindUnique,
     },
   })),
 }));
@@ -73,7 +79,7 @@ describe('GET /api/listings/nearby', () => {
       bathroomsTotal: null,
       propertyType: null,
       images: [],
-      mlsId: null,
+      mlsId: 'MLS-TEST-1',
       userId: 'u1',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -109,7 +115,7 @@ describe('GET /api/listings/public', () => {
   it('returns 200 with listings and nextPage', async () => {
     const req = createMockRequest({ method: 'GET', query: { page: '0' } });
     const res = createMockResponse();
-    mockListingFindMany.mockResolvedValue([{ id: '1', title: 'Listing' }]);
+    mockListingFindMany.mockResolvedValue([{ id: '1', title: 'Listing', mlsId: 'MLS-1' }]);
     await runHandler(handler, req, res);
     expect(res._status).toBe(200);
     expect((res._json as any)?.listings).toBeDefined();
@@ -136,6 +142,7 @@ describe('GET /api/listings/public', () => {
         longitude: -79,
         images: [],
         status: 'ACTIVE',
+        mlsId: 'MLS-E1',
         userId: 'u1',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -157,6 +164,10 @@ describe('GET /api/listings/public', () => {
   });
 });
 
+jest.mock('../../lib/session', () => ({
+  getSession: jest.fn().mockResolvedValue(null),
+}));
+
 describe('GET /api/listings/[id]', () => {
   let handler: (req: unknown, res: unknown) => Promise<void>;
 
@@ -166,7 +177,8 @@ describe('GET /api/listings/[id]', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockListingFindFirst.mockResolvedValue(null);
+    mockListingFindUnique.mockResolvedValue(null);
+    mockUserFindUnique.mockResolvedValue(null);
   });
 
   it('returns 405 for non-GET', async () => {
@@ -194,7 +206,7 @@ describe('GET /api/listings/[id]', () => {
   it('returns 404 when listing not found', async () => {
     const req = createMockRequest({ method: 'GET', query: { id: 'nonexistent' } });
     const res = createMockResponse();
-    mockListingFindFirst.mockResolvedValue(null);
+    mockListingFindUnique.mockResolvedValue(null);
     await runHandler(handler, req, res);
     expect(res._status).toBe(404);
   });
@@ -217,13 +229,31 @@ describe('GET /api/listings/[id]', () => {
       latitude: 44.3894,
       longitude: -79.6903,
       images: [],
-      mlsId: null,
+      mlsId: 'MLS-DETAIL-1',
       status: 'ACTIVE',
       userId: 'u1',
       createdAt: new Date(),
       updatedAt: new Date(),
+      streetAddress: null,
+      unitNumber: null,
+      yearBuilt: null,
+      lotSizeSqm: null,
+      standardStatus: null,
+      halfBathroomsTotal: null,
+      buildingLevelTotal: null,
+      mlsLastUpdated: null,
+      mlsData: null,
+      ecoRatingScore: null,
+      heatingType: null,
+      insulationQuality: null,
+      hasRecentRenovations: null,
+      roofAgeYears: null,
+      appliancesAgeYears: null,
+      approvedBy: null,
+      approvedAt: null,
+      rejectionReason: null,
     };
-    mockListingFindFirst.mockResolvedValue(listing);
+    mockListingFindUnique.mockResolvedValue(listing);
     await runHandler(handler, req, res);
     expect(res._status).toBe(200);
     expect((res._json as any)?.id).toBe('mock-1');
@@ -235,7 +265,7 @@ describe('GET /api/listings/[id]', () => {
   it('returns 200 with eco fields when present', async () => {
     const req = createMockRequest({ method: 'GET', query: { id: 'mock-1' } });
     const res = createMockResponse();
-    mockListingFindFirst.mockResolvedValue({
+    mockListingFindUnique.mockResolvedValue({
       id: 'mock-1',
       title: 'Eco Listing',
       description: 'Green home',
@@ -250,17 +280,29 @@ describe('GET /api/listings/[id]', () => {
       latitude: 44.3894,
       longitude: -79.6903,
       images: [],
-      mlsId: null,
+      mlsId: 'MLS-ECO-1',
       status: 'ACTIVE',
       userId: 'u1',
       createdAt: new Date(),
       updatedAt: new Date(),
+      streetAddress: null,
+      unitNumber: null,
+      yearBuilt: null,
+      lotSizeSqm: null,
+      standardStatus: null,
+      halfBathroomsTotal: null,
+      buildingLevelTotal: null,
+      mlsLastUpdated: null,
+      mlsData: null,
       ecoRatingScore: 8,
       heatingType: 'HEAT_PUMP',
       insulationQuality: 'EXCELLENT',
       hasRecentRenovations: true,
       roofAgeYears: 4,
       appliancesAgeYears: 2,
+      approvedBy: null,
+      approvedAt: null,
+      rejectionReason: null,
     });
     await runHandler(handler, req, res);
     expect(res._status).toBe(200);

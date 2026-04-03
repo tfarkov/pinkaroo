@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 /**
  * GET /api/realtors/[id]
- * Public: returns a single realtor/broker by id with their ACTIVE/APPROVED listings.
+ * Public: realtor/broker by id with ACTIVE/APPROVED listings that have an MLS id (site-visible inventory).
  * Used by the public realtor profile page (/realtors/[id]).
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -32,7 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bio: true,
         broker: { select: { id: true, name: true } },
         listings: {
-          where: { status: { in: ['ACTIVE', 'APPROVED'] } },
+          where: {
+            status: { in: ['ACTIVE', 'APPROVED'] },
+            mlsId: { not: null },
+          },
           select: {
             id: true,
             title: true,

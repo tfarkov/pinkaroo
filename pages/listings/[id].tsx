@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import Head from 'next/head';
+import { useMemo, useState } from 'react';
 import PropertyGallery from '../../components/PropertyGallery';
 import AgentProfileCard from '../../components/AgentProfileCard';
 import MortgageCalculator from '../../components/MortgageCalculator';
@@ -10,10 +11,13 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import BottomNav from '../../components/ui/BottomNav';
 import { API, RECENTLY_VIEWED_LIMIT, UI, DEFAULT_LOCATION, MAP_NO_KEY_MESSAGE } from '../../lib/constants';
+import { canonicalUrl, toAbsoluteUrl, SEO } from '../../lib/seo';
 import { formatPrice, formatArea } from '../../lib/format';
 import { getEcoRatingDisplay } from '../../lib/ecoRating';
 import { useUnitToggle } from '../../lib/hooks/useUnitToggle';
 import { useFavorites } from '../../lib/hooks/useFavorites';
+import { useAuth } from '../../lib/hooks/useAuth';
+import Link from 'next/link';
 
 /** Parse listing lat/lng; return default if missing or invalid. */
 function getMapCenter(listing: { latitude?: number | null; longitude?: number | null }) {
@@ -76,15 +80,19 @@ export default function ListingDetail() {
   const { id } = router.query;
   const { isMetric } = useUnitToggle();
   const { isFavorited, toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const sessionUserId = (user as { id?: string } | undefined)?.id;
   const { data: listing, isFetched } = useQuery({
     queryKey: ['listing', id],
     queryFn: async () => {
-      const res = await fetch(`${API.LISTINGS}/${id}`);
+      const res = await fetch(`${API.LISTINGS}/${id}`, { credentials: 'include' });
       if (!res.ok) return undefined;
       return res.json();
     },
     enabled: !!id,
   });
+  const isDraftPreview = listing?.status === 'DRAFT';
+  const canEditDraft = isDraftPreview && !!sessionUserId && listing?.userId === sessionUserId;
   useEffect(() => {
     if (typeof window === 'undefined' || typeof id !== 'string' || !id.trim()) return;
     let viewed: string[] = [];
@@ -103,6 +111,50 @@ export default function ListingDetail() {
     if (typeof id !== 'string' || !listing) return;
     toggleFavorite(id, listing);
   };
+
+  const listingJsonLd = useMemo(() => {
+    if (!listing || typeof id !== 'string' || listing.status === 'DRAFT') return null;
+    const mlsOk = listing.mlsId != null && String(listing.mlsId).trim() !== '';
+    if (!mlsOk || (listing.status !== 'ACTIVE' && listing.status !== 'APPROVED')) return null;
+    const imageUrls = (Array.isArray(listing.images) ? listing.images : [])
+      .filter((u: unknown): u is string => typeof u === 'string' && u.trim().length > 0)
+      .slice(0, 10)
+      .map((u) => toAbsoluteUrl(u));
+    const pageUrl = canonicalUrl(`/listings/${id}`);
+    const region =
+      typeof listing.province === 'string' ? listing.province.replace(/_/g, ' ') : undefined;
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'RealEstateListing',
+      name: listing.title,
+      description: String(listing.description || listing.title || '').slice(0, 5000),
+      url: pageUrl,
+      ...(imageUrls.length ? { image: imageUrls } : {}),
+      offers: {
+        '@type': 'Offer',
+        price: Number(listing.price ?? 0),
+        priceCurrency: 'CAD',
+        availability: 'https://schema.org/InStock',
+      },
+      address: {
+        '@type': 'PostalAddress',
+        ...(listing.location ? { addressLocality: listing.location } : {}),
+        ...(region ? { addressRegion: region } : {}),
+        ...(listing.postalCode ? { postalCode: listing.postalCode } : {}),
+        ...(listing.streetAddress ? { streetAddress: listing.streetAddress } : {}),
+      },
+      ...(listing.latitude != null && listing.longitude != null
+        ? {
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: Number(listing.latitude),
+              longitude: Number(listing.longitude),
+            },
+          }
+        : {}),
+      ...(listing.bedroomsTotal != null ? { numberOfRooms: listing.bedroomsTotal } : {}),
+    };
+  }, [listing, id]);
 
   if (!listing) {
     return (
@@ -148,10 +200,42 @@ export default function ListingDetail() {
     return uniqueParts.join(', ');
   })();
 
+  const metaDescription = String(listing.description || listing.title || SEO.descriptionDefault).slice(0, 160);
+  const pageCanonical = typeof id === 'string' ? canonicalUrl(`/listings/${id}`) : canonicalUrl('/');
+  const isPublishedOnSite =
+    listing.mlsId != null &&
+    String(listing.mlsId).trim() !== '' &&
+    (listing.status === 'ACTIVE' || listing.status === 'APPROVED');
+
   return (
     <div className="page-container flex flex-col">
+      <Head>
+        <title>{`${listing.title} | ${SEO.siteName}`}</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={pageCanonical} />
+        {isDraftPreview || !isPublishedOnSite ? <meta name="robots" content="noindex, nofollow" /> : null}
+        {listingJsonLd ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(listingJsonLd) }}
+          />
+        ) : null}
+      </Head>
       <Header />
       <main className="flex-1 content-width max-w-5xl pb-14">
+        {isDraftPreview && (
+          <div
+            role="status"
+            className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 text-sm flex flex-wrap items-center justify-between gap-3"
+          >
+            <span>{UI.LISTING_DRAFT_BANNER}</span>
+            {canEditDraft ? (
+              <Link href={`/listings/edit/${listing.id}`} className="font-semibold text-accent-700 hover:underline shrink-0">
+                {UI.EDIT_DRAFT_LISTING}
+              </Link>
+            ) : null}
+          </div>
+        )}
         <div className="py-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 flex items-center gap-2">

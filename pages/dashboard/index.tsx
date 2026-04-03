@@ -52,6 +52,19 @@ export default function Dashboard() {
   });
   const myListings = ((myListingsData?.listings as DashboardListing[] | undefined) ?? []).slice(0, 5);
 
+  const { data: realtorListingsData } = useQuery({
+    queryKey: ['my-listings-realtor', (user as { id?: string } | undefined)?.id ?? 'anon'],
+    queryFn: async () => {
+      const res = await fetch(`${API.LISTINGS}?mine=1&page=0`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load listings');
+      return res.json();
+    },
+    enabled: isAuthenticated && role === 'REALTOR',
+  });
+  const realtorDrafts = ((realtorListingsData?.listings as DashboardListing[] | undefined) ?? []).filter(
+    (l) => l.status === 'DRAFT'
+  );
+
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
@@ -298,6 +311,27 @@ export default function Dashboard() {
 
       {(role === 'REALTOR' || role === 'SYSTEM_ADMIN' || role === 'OFFICE_ADMIN') && (
         <>
+          {role === 'REALTOR' && realtorDrafts.length > 0 && (
+            <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Listing drafts</h2>
+              <p className="text-sm text-slate-600 mb-3">Continue editing or preview before you submit for approval.</p>
+              <ul className="space-y-2">
+                {realtorDrafts.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 border border-slate-100 rounded-md p-3">
+                    <span className="font-medium text-slate-900 truncate">{l.title ?? l.id}</span>
+                    <div className="flex gap-3 shrink-0 text-sm">
+                      <Link href={`/listings/edit/${l.id}`} className="font-semibold text-accent-600 hover:underline">
+                        Edit
+                      </Link>
+                      <Link href={`/listings/${l.id}`} className="font-semibold text-slate-600 hover:underline">
+                        Preview
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {role === 'REALTOR' && (
             <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
               <h2 className="text-lg font-bold text-slate-900 mb-4">{UI.AVAILABLE_HOURS}</h2>

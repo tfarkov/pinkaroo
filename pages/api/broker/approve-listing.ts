@@ -7,10 +7,10 @@ import { requireMethod, sendError } from '../../../lib/apiHelpers';
 const prisma = new PrismaClient() as any;
 
 /**
- * Listing Approval Workflow: Realtor listings are PENDING; brokers approve/reject with reason.
- * Schema: approvedBy, approvedAt, rejectionReason. Uses Prisma index on status for fast
- * pending queries, transaction for atomic approve/reject, and notifications only on
- * actual status change (diff check) for consistency in concurrent approvals.
+ * Listing approval: PENDING → APPROVED/REJECTED. Approved listings without an MLS id are not
+ * shown on the public site; office staff file them on MLS outside the app, then MLS sync
+ * brings live inventory (mlsId + ACTIVE) onto the site. Office admins receive a system
+ * notification when a listing is approved for MLS filing.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['POST'])) return;
@@ -25,9 +25,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sendError(res, 400, 'id is required');
       return;
     }
-    const listingBefore = await prisma.listing.findUnique({ where: { id }, select: { id: true, status: true, userId: true } });
+    const listingBefore = await prisma.listing.findUnique({
+      where: { id },
+      select: { id: true, status: true, userId: true, title: true },
+    });
     if (!listingBefore) {
       res.status(404).json({ success: false, error: 'Listing not found' });
+      return;
+    }
+    if (listingBefore.status !== 'PENDING') {
+      res.status(400).json({ success: false, error: 'Only pending listings can be approved or rejected' });
       return;
     }
     if (listingBefore.status === status) {
@@ -57,6 +64,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           details: { status, rejectionReason: status === 'REJECTED' ? (rejectionReason ?? null) : null },
         },
       });
+      if (status === 'APPROVED') {
+        const admins = await tx.user.findMany({
+          where: { role: { in: ['OFFICE_ADMIN', 'SYSTEM_ADMIN'] } },
+          select: { id: true },
+        });
+        const title = listingBefore.title?.trim() || 'Listing';
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map((a: { id: string }) => ({
+              userId: a.id,
+              type: 'SYSTEM',
+              message: NOTIFICATION_MESSAGES.LISTING_APPROVED_AWAITING_MLS(title, id),
+            })),
+          });
+        }
+      }
       const io = (global as { io?: { to: (id: string) => { emit: (e: string, d: unknown) => void } } }).io;
       if (io) io.to(listingBefore.userId).emit('notification', { message: NOTIFICATION_MESSAGES.YOUR_LISTING_STATUS(status.toLowerCase()), id: updated.id });
     });

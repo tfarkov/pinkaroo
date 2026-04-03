@@ -30,6 +30,16 @@ export default function OfficeAdminDashboardPage() {
     },
     enabled: isOfficeAdmin,
   });
+  const { data: awaitingMls = [] } = useQuery({
+    queryKey: ['office-admin-awaiting-mls'],
+    queryFn: async () => {
+      const res = await fetch(API.OFFICE_ADMIN_AWAITING_MLS, { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isOfficeAdmin,
+  });
+
   const { data: weeklyKpis } = useQuery({
     queryKey: ['office-admin-weekly-kpis'],
     queryFn: async () => {
@@ -124,6 +134,24 @@ export default function OfficeAdminDashboardPage() {
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-bold text-slate-900 py-8">{UI.OFFICE_ADMIN_DASHBOARD}</h1>
+
+      <section className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-2">{UI.AWAITING_MLS_TITLE}</h2>
+        <p className="text-sm text-slate-600 mb-4">{UI.AWAITING_MLS_HELP}</p>
+        {(awaitingMls as { id: string; title?: string; user?: { name?: string } }[]).length === 0 ? (
+          <p className="text-slate-500 text-sm">No listings waiting for MLS filing.</p>
+        ) : (
+          <ul className="space-y-2">
+            {(awaitingMls as { id: string; title?: string; user?: { name?: string } }[]).map((row) => (
+              <li key={row.id} className="border border-slate-200 rounded-md p-3 text-sm flex flex-wrap justify-between gap-2">
+                <span className="font-medium text-slate-900">{row.title ?? row.id}</span>
+                <span className="text-slate-600">Realtor: {row.user?.name ?? '—'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-card border border-slate-200 p-4">
           <p className="text-sm text-slate-500">Brokers</p>

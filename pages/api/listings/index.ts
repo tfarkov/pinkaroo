@@ -95,6 +95,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (bedrooms != null) where.bedroomsTotal = { gte: bedrooms };
     if (bathrooms != null) where.bathroomsTotal = { gte: bathrooms };
     if (filters.propertyType && typeof filters.propertyType === 'string') where.propertyType = filters.propertyType;
+    if (mine && filters.status && typeof filters.status === 'string' && filters.status.trim()) {
+      where.status = filters.status.trim();
+    }
     const PAGE_SIZE = 10;
     const listings = await prisma.listing.findMany({
       skip: page * PAGE_SIZE,
@@ -136,6 +139,213 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }));
     }
+
+    const draftIdRaw = rawBody.draftId != null ? String(rawBody.draftId).trim() : '';
+    const submitForApproval = parseBoolean(rawBody.submitForApproval) === true;
+    const isNewDraft = parseBoolean(rawBody.isDraft) === true;
+
+    const mergeDraftImages = (existingImages: unknown): string[] => {
+      const prev = Array.isArray(existingImages)
+        ? (existingImages as unknown[]).filter((u): u is string => typeof u === 'string')
+        : [];
+      if (uploadedImages.length > 0) return [...prev, ...uploadedImages];
+      return prev;
+    };
+
+    if (draftIdRaw && isSafeId(draftIdRaw)) {
+      const existingDraft = await prisma.listing.findFirst({
+        where: { id: draftIdRaw, userId: session.user.id, status: 'DRAFT' },
+      });
+      if (!existingDraft) {
+        sendError(res, 404, 'Draft not found');
+        return;
+      }
+      const province = ((rawBody.province as string) ?? 'ONTARIO') as Province;
+      const images = mergeDraftImages(existingDraft.images);
+
+      if (submitForApproval) {
+        const title = parseString(rawBody.title, { maxLength: 160 });
+        const description = parseString(rawBody.description, { maxLength: 5000 });
+        const location = parseString(rawBody.location, { maxLength: 180 });
+        const price = parseFiniteNumber(rawBody.price, { min: 0, max: 100_000_000 });
+        if (!title || !description || !location || price == null || price < 1) {
+          sendError(res, 422, 'Invalid listing payload');
+          return;
+        }
+        let latitude = parseFiniteNumber(rawBody.latitude, { min: -90, max: 90 });
+        let longitude = parseFiniteNumber(rawBody.longitude, { min: -180, max: 180 });
+        if ((latitude == null || longitude == null) && location) {
+          const geocoded = await geocodeAddress(location);
+          if (geocoded) {
+            latitude = geocoded.lat;
+            longitude = geocoded.lng;
+          }
+        }
+        const nextStatus = (role === 'REALTOR' ? 'PENDING' : 'ACTIVE') as ListingStatus;
+        const submitData = {
+          title,
+          description,
+          price,
+          location,
+          province,
+          postalCode: rawBody.postalCode != null ? String(rawBody.postalCode) : null,
+          sizeSqm: parseFiniteNumber(rawBody.sizeSqm, { min: 0 }),
+          bedroomsTotal: parseFiniteInt(rawBody.bedroomsTotal, { min: 0, max: 20 }) ?? null,
+          bathroomsTotal: parseFiniteInt(rawBody.bathroomsTotal, { min: 0, max: 20 }) ?? null,
+          propertyType: rawBody.propertyType != null ? String(rawBody.propertyType) : null,
+          latitude,
+          longitude,
+          images,
+          status: nextStatus,
+          streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
+          yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
+          lotSizeSqm: parseFiniteNumber(rawBody.lotSizeSqm, { min: 0 }) ?? undefined,
+          heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
+          insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
+          hasRecentRenovations: parseBoolean(rawBody.hasRecentRenovations) ?? undefined,
+          roofAgeYears: parseFiniteInt(rawBody.roofAgeYears, { min: 0, max: 200 }) ?? null,
+          appliancesAgeYears: parseFiniteInt(rawBody.appliancesAgeYears, { min: 0, max: 100 }) ?? null,
+        };
+        const ecoSubmit = computeEcoRatingScore({
+          yearBuilt: submitData.yearBuilt ?? undefined,
+          heatingType: submitData.heatingType ?? undefined,
+          insulationQuality: submitData.insulationQuality ?? undefined,
+          hasRecentRenovations: submitData.hasRecentRenovations ?? undefined,
+          roofAgeYears: submitData.roofAgeYears ?? undefined,
+          appliancesAgeYears: submitData.appliancesAgeYears ?? undefined,
+        });
+        const listing = await prisma.listing.update({
+          where: { id: draftIdRaw },
+          data: { ...submitData, ecoRatingScore: ecoSubmit ?? null },
+        });
+        const ioSubmit = (global as { io?: { to: (id: string) => { emit: (e: string, d: unknown) => void } } }).io;
+        if (role === 'REALTOR' && nextStatus === 'PENDING' && ioSubmit) {
+          const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { brokerId: true } });
+          if (user?.brokerId) ioSubmit.to(user.brokerId).emit('notification', { message: NOTIFICATION_MESSAGES.NEW_LISTING_PENDING, id: listing.id });
+        }
+        res.json(listing);
+        return;
+      }
+
+      const t = parseString(rawBody.title, { maxLength: 160, allowEmpty: true });
+      const title = t && t.length > 0 ? t : '(Draft)';
+      const d = parseString(rawBody.description, { maxLength: 5000, allowEmpty: true });
+      const description = d && d.length > 0 ? d : 'Add a description before publishing.';
+      const l = parseString(rawBody.location, { maxLength: 180, allowEmpty: true });
+      const location = l && l.length > 0 ? l : 'TBD';
+      const price = parseFiniteNumber(rawBody.price, { min: 0, max: 100_000_000 }) ?? 0;
+      let latitude = parseFiniteNumber(rawBody.latitude, { min: -90, max: 90 });
+      let longitude = parseFiniteNumber(rawBody.longitude, { min: -180, max: 180 });
+      if ((latitude == null || longitude == null) && location && location !== 'TBD') {
+        const geocoded = await geocodeAddress(location);
+        if (geocoded) {
+          latitude = geocoded.lat;
+          longitude = geocoded.lng;
+        }
+      }
+      const draftSaveData = {
+        title,
+        description,
+        price,
+        location,
+        province,
+        postalCode: rawBody.postalCode != null ? String(rawBody.postalCode) : null,
+        sizeSqm: parseFiniteNumber(rawBody.sizeSqm, { min: 0 }),
+        bedroomsTotal: parseFiniteInt(rawBody.bedroomsTotal, { min: 0, max: 20 }) ?? null,
+        bathroomsTotal: parseFiniteInt(rawBody.bathroomsTotal, { min: 0, max: 20 }) ?? null,
+        propertyType: rawBody.propertyType != null ? String(rawBody.propertyType) : null,
+        latitude,
+        longitude,
+        images,
+        status: 'DRAFT' as ListingStatus,
+        streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
+        yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
+        lotSizeSqm: parseFiniteNumber(rawBody.lotSizeSqm, { min: 0 }) ?? undefined,
+        heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
+        insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
+        hasRecentRenovations: parseBoolean(rawBody.hasRecentRenovations) ?? undefined,
+        roofAgeYears: parseFiniteInt(rawBody.roofAgeYears, { min: 0, max: 200 }) ?? null,
+        appliancesAgeYears: parseFiniteInt(rawBody.appliancesAgeYears, { min: 0, max: 100 }) ?? null,
+      };
+      const ecoDraft = computeEcoRatingScore({
+        yearBuilt: draftSaveData.yearBuilt ?? undefined,
+        heatingType: draftSaveData.heatingType ?? undefined,
+        insulationQuality: draftSaveData.insulationQuality ?? undefined,
+        hasRecentRenovations: draftSaveData.hasRecentRenovations ?? undefined,
+        roofAgeYears: draftSaveData.roofAgeYears ?? undefined,
+        appliancesAgeYears: draftSaveData.appliancesAgeYears ?? undefined,
+      });
+      const updatedDraft = await prisma.listing.update({
+        where: { id: draftIdRaw },
+        data: { ...draftSaveData, ecoRatingScore: ecoDraft ?? null },
+      });
+      res.json(updatedDraft);
+      return;
+    }
+
+    if (isNewDraft) {
+      const t = parseString(rawBody.title, { maxLength: 160, allowEmpty: true });
+      const title = t && t.length > 0 ? t : '(Draft)';
+      const d = parseString(rawBody.description, { maxLength: 5000, allowEmpty: true });
+      const description = d && d.length > 0 ? d : 'Add a description before publishing.';
+      const l = parseString(rawBody.location, { maxLength: 180, allowEmpty: true });
+      const location = l && l.length > 0 ? l : 'TBD';
+      const price = parseFiniteNumber(rawBody.price, { min: 0, max: 100_000_000 }) ?? 0;
+      const province = ((rawBody.province as string) ?? 'ONTARIO') as Province;
+      let latitude = parseFiniteNumber(rawBody.latitude, { min: -90, max: 90 });
+      let longitude = parseFiniteNumber(rawBody.longitude, { min: -180, max: 180 });
+      if ((latitude == null || longitude == null) && location && location !== 'TBD') {
+        const geocoded = await geocodeAddress(location);
+        if (geocoded) {
+          latitude = geocoded.lat;
+          longitude = geocoded.lng;
+        }
+      }
+      const draftImages = uploadedImages.length
+        ? uploadedImages
+        : Array.isArray(rawBody.images)
+          ? rawBody.images.filter((v): v is string => typeof v === 'string')
+          : [];
+      const newDraftData = {
+        title,
+        description,
+        price,
+        location,
+        province,
+        postalCode: rawBody.postalCode != null ? String(rawBody.postalCode) : null,
+        sizeSqm: parseFiniteNumber(rawBody.sizeSqm, { min: 0 }),
+        bedroomsTotal: parseFiniteInt(rawBody.bedroomsTotal, { min: 0, max: 20 }) ?? null,
+        bathroomsTotal: parseFiniteInt(rawBody.bathroomsTotal, { min: 0, max: 20 }) ?? null,
+        propertyType: rawBody.propertyType != null ? String(rawBody.propertyType) : null,
+        latitude,
+        longitude,
+        images: draftImages,
+        userId: session.user.id,
+        status: 'DRAFT' as ListingStatus,
+        streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
+        yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
+        lotSizeSqm: parseFiniteNumber(rawBody.lotSizeSqm, { min: 0 }) ?? undefined,
+        heatingType: rawBody.heatingType != null && String(rawBody.heatingType).trim() ? String(rawBody.heatingType).trim() : null,
+        insulationQuality: rawBody.insulationQuality != null && String(rawBody.insulationQuality).trim() ? String(rawBody.insulationQuality).trim() : null,
+        hasRecentRenovations: parseBoolean(rawBody.hasRecentRenovations) ?? undefined,
+        roofAgeYears: parseFiniteInt(rawBody.roofAgeYears, { min: 0, max: 200 }) ?? null,
+        appliancesAgeYears: parseFiniteInt(rawBody.appliancesAgeYears, { min: 0, max: 100 }) ?? null,
+      };
+      const ecoNew = computeEcoRatingScore({
+        yearBuilt: newDraftData.yearBuilt ?? undefined,
+        heatingType: newDraftData.heatingType ?? undefined,
+        insulationQuality: newDraftData.insulationQuality ?? undefined,
+        hasRecentRenovations: newDraftData.hasRecentRenovations ?? undefined,
+        roofAgeYears: newDraftData.roofAgeYears ?? undefined,
+        appliancesAgeYears: newDraftData.appliancesAgeYears ?? undefined,
+      });
+      const draftListing = await prisma.listing.create({
+        data: { ...newDraftData, ecoRatingScore: ecoNew ?? null },
+      });
+      res.json(draftListing);
+      return;
+    }
+
     const title = parseString(rawBody.title, { maxLength: 160 });
     const description = parseString(rawBody.description, { maxLength: 5000 });
     const location = parseString(rawBody.location, { maxLength: 180 });
@@ -388,7 +598,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return;
       }
       const parsed = parseString(updateData.status, { maxLength: 32 });
-      if (!parsed || !['ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'].includes(parsed)) {
+      if (!parsed || !['DRAFT', 'ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'].includes(parsed)) {
         sendError(res, 422, 'Invalid status');
         return;
       }

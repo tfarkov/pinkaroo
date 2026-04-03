@@ -48,6 +48,21 @@ model User {
   notifications     Notification[]
   notificationsFrom Notification[] @relation("NotificationFrom")
   favorites         Favorite[]
+  savedSearches     SavedSearch[]
+}
+
+model SavedSearch {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  filters          Json
+  notifyNewMatch   Boolean  @default(false)
+  lastSeenAt       DateTime @default(now())
+  lastNotifiedAt   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([userId])
 }
 
 model Account {
@@ -135,6 +150,7 @@ model Listing {
   @@index([ecoRatingScore])
 }
 enum ListingStatus {
+  DRAFT
   ACTIVE
   PENDING
   APPROVED

@@ -1,12 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { getSession } from '../../../lib/session';
+import { listingToPublicJson } from '../../../lib/listings/listingResponse';
 
 const prisma = new PrismaClient();
 
 /**
  * GET /api/listings/[id]
- * Public single listing by id (no auth). Only ACTIVE/APPROVED listings are returned.
+ * Public: ACTIVE/APPROVED with MLS id only. Authenticated owner (or broker/admin for non-draft) may load other rows for CRM / preview.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!requireMethod(req, res, ['GET'])) return;
@@ -21,52 +23,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
   try {
-    const listing = await prisma.listing.findFirst({
-      where: {
-        id,
-        status: { in: ['ACTIVE', 'APPROVED'] },
-      },
-    });
+    const listing = await prisma.listing.findUnique({ where: { id } });
     if (!listing) {
       res.status(404).json({ error: 'Listing not found' });
       return;
     }
-    res.json({
-      id: listing.id,
-      title: listing.title,
-      description: listing.description,
-      price: listing.price,
-      location: listing.location,
-      province: listing.province,
-      postalCode: listing.postalCode,
-      sizeSqm: listing.sizeSqm,
-      bedroomsTotal: listing.bedroomsTotal,
-      bathroomsTotal: listing.bathroomsTotal,
-      propertyType: listing.propertyType,
-      latitude: listing.latitude != null ? Number(listing.latitude) : null,
-      longitude: listing.longitude != null ? Number(listing.longitude) : null,
-      images: listing.images,
-      mlsId: listing.mlsId,
-      status: listing.status,
-      userId: listing.userId,
-      createdAt: listing.createdAt,
-      updatedAt: listing.updatedAt,
-      streetAddress: listing.streetAddress ?? null,
-      unitNumber: listing.unitNumber ?? null,
-      yearBuilt: listing.yearBuilt ?? null,
-      lotSizeSqm: listing.lotSizeSqm ?? null,
-      standardStatus: listing.standardStatus ?? null,
-      halfBathroomsTotal: listing.halfBathroomsTotal ?? null,
-      buildingLevelTotal: listing.buildingLevelTotal ?? null,
-      mlsLastUpdated: listing.mlsLastUpdated ?? null,
-      mlsData: listing.mlsData ?? null,
-      ecoRatingScore: listing.ecoRatingScore ?? null,
-      heatingType: listing.heatingType ?? null,
-      insulationQuality: listing.insulationQuality ?? null,
-      hasRecentRenovations: listing.hasRecentRenovations ?? null,
-      roofAgeYears: listing.roofAgeYears ?? null,
-      appliancesAgeYears: listing.appliancesAgeYears ?? null,
-    });
+
+    const hasMls = listing.mlsId != null && String(listing.mlsId).trim() !== '';
+    const isPublic =
+      hasMls && (listing.status === 'ACTIVE' || listing.status === 'APPROVED');
+    if (isPublic) {
+      res.json(listingToPublicJson(listing));
+      return;
+    }
+
+    const session = await getSession(req, res);
+    if (!session?.user) {
+      res.status(404).json({ error: 'Listing not found' });
+      return;
+    }
+
+    const uid = session.user.id;
+    const role = session.user.role;
+
+    if (listing.userId === uid) {
+      res.json(listingToPublicJson(listing));
+      return;
+    }
+
+    if (role === 'SYSTEM_ADMIN' || role === 'OFFICE_ADMIN') {
+      res.json(listingToPublicJson(listing));
+      return;
+    }
+
+    if (role === 'BROKER' && listing.status !== 'DRAFT') {
+      const owner = await prisma.user.findUnique({
+        where: { id: listing.userId },
+        select: { brokerId: true },
+      });
+      if (owner?.brokerId === uid) {
+        res.json(listingToPublicJson(listing));
+        return;
+      }
+    }
+
+    res.status(404).json({ error: 'Listing not found' });
   } catch (err) {
     console.error('[api/listings/[id]]', err);
     if (!res.headersSent) sendError(res, 500);

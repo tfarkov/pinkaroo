@@ -2,13 +2,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { parseQueryNum, parseQueryInt } from '../../../lib/utils/parse';
 import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { buildPublicListingWhere } from '../../../lib/listings/buildPublicListingWhere';
 
 const prisma = new PrismaClient();
 const PAGE_SIZE = 10;
 
 /**
  * GET /api/listings/public
- * Public paginated listings (no auth). Only ACTIVE/APPROVED.
+ * Public paginated listings (no auth). ACTIVE/APPROVED with MLS id (synced inventory only).
  * Query: page, province, city, minPrice, maxPrice, bedrooms, bathrooms, propertyType.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -23,19 +24,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const propertyType = typeof req.query.propertyType === 'string' ? req.query.propertyType : undefined;
     const city = typeof req.query.city === 'string' ? req.query.city.trim() : undefined;
 
-    const where: Record<string, unknown> = {
-      status: { in: ['ACTIVE', 'APPROVED'] },
-    };
-    if (province) where.province = province;
-    if (city) where.location = { contains: city };
-    if (minPrice != null && minPrice > 0) where.price = { ...((where.price as object) || {}), gte: minPrice };
-    if (maxPrice != null && maxPrice > 0) where.price = { ...((where.price as object) || {}), lte: maxPrice };
-    if (bedrooms != null && bedrooms > 0) where.bedroomsTotal = { gte: bedrooms };
-    if (bathrooms != null && bathrooms > 0) where.bathroomsTotal = { gte: bathrooms };
-    if (propertyType) where.propertyType = propertyType;
+    const where = buildPublicListingWhere({
+      province,
+      city,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      bathrooms,
+      propertyType,
+    });
 
     const rows = await prisma.listing.findMany({
-      where: where as Parameters<typeof prisma.listing.findMany>[0]['where'],
+      where,
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
       orderBy: { updatedAt: 'desc' },

@@ -12,7 +12,7 @@ import ReactGA from 'react-ga';
 import { debounce } from 'lodash';
 import { computeEcoRatingScore, getEcoRatingDisplay, HEATING_TYPES, INSULATION_OPTIONS } from '../lib/ecoRating';
 
-interface FormData {
+interface ListingFormFields {
   title: string;
   description: string;
   price: number;
@@ -36,7 +36,7 @@ interface FormData {
   appliancesAgeYears?: number;
 }
 
-const defaultNewListing: Partial<FormData> = {
+const defaultNewListing: Partial<ListingFormFields> = {
   province: 'ONTARIO',
   postalCode: '',
   sizeSqm: 0,
@@ -47,9 +47,9 @@ const defaultNewListing: Partial<FormData> = {
   longitude: DEFAULT_LOCATION.lng,
 };
 
-export default function ListingForm({ listing }: { listing?: any }) {
+export default function ListingForm({ listing, hideHeading }: { listing?: any; hideHeading?: boolean }) {
   const router = useRouter();
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, getValues, clearErrors, setError: setFieldError, formState: { errors } } = useForm<ListingFormFields>({
     defaultValues: listing ?? defaultNewListing,
     mode: 'onBlur',
   });
@@ -61,9 +61,9 @@ export default function ListingForm({ listing }: { listing?: any }) {
       ? { lat: Number(listing.latitude), lng: Number(listing.longitude) }
       : { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng }
   );
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [mapLoadError, setMapLoadError] = useState(false);
-  const locationField = register('location', { required: 'Location is required' });
+  const locationField = register('location');
   useEffect(() => {
     if (listing?.latitude != null && listing?.longitude != null) {
       setPosition({ lat: Number(listing.latitude), lng: Number(listing.longitude) });
@@ -87,41 +87,96 @@ export default function ListingForm({ listing }: { listing?: any }) {
     roofAgeYears: roofAgeYears != null && !Number.isNaN(Number(roofAgeYears)) ? Number(roofAgeYears) : null,
     appliancesAgeYears: appliancesAgeYears != null && !Number.isNaN(Number(appliancesAgeYears)) ? Number(appliancesAgeYears) : null,
   }), [yearBuilt, heatingType, insulationQuality, hasRecentRenovations, roofAgeYears, appliancesAgeYears]);
-  const mutation = useMutation({
-    mutationFn: (data: FormData) => {
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        if (key === 'images') {
-          if (value && (value as FileList).length) {
-            Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
-          }
-        } else if (key === 'sizeSqm') {
-          formData.append(key, String(value));
-        } else if (key === 'lotSizeSqm') {
-          if (value != null && !Number.isNaN(Number(value))) formData.append(key, String(value));
-        } else if (key === 'latitude' || key === 'longitude') {
-          if (typeof value === 'number' && !Number.isNaN(value)) formData.append(key, String(value));
-        } else if (key === 'hasRecentRenovations') {
-          formData.append(key, value === true ? 'true' : 'false');
-        } else if (key === 'roofAgeYears' || key === 'appliancesAgeYears') {
-          if (value != null && !Number.isNaN(Number(value))) formData.append(key, String(value));
-        } else {
-          formData.append(key, String(value));
+  const buildFormDataPayload = (data: ListingFormFields) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (key === 'images') {
+        if (value && (value as FileList).length) {
+          Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
         }
-      });
-      return axios.post(API.LISTINGS, formData, { withCredentials: true });
-    },
-    onSuccess: (response: { data: { id: string } }) => {
+      } else if (key === 'sizeSqm') {
+        formData.append(key, String(value));
+      } else if (key === 'lotSizeSqm') {
+        if (value != null && !Number.isNaN(Number(value))) formData.append(key, String(value));
+      } else if (key === 'latitude' || key === 'longitude') {
+        if (typeof value === 'number' && !Number.isNaN(value)) formData.append(key, String(value));
+      } else if (key === 'hasRecentRenovations') {
+        formData.append(key, value === true ? 'true' : 'false');
+      } else if (key === 'roofAgeYears' || key === 'appliancesAgeYears') {
+        if (value != null && !Number.isNaN(Number(value))) formData.append(key, String(value));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
+    return formData;
+  };
+
+  const validateForPublish = (data: ListingFormFields) => {
+    if (!data.title?.trim()) {
+      setFieldError('title', { type: 'manual', message: 'Title is required' });
+      return false;
+    }
+    if (!data.description?.trim()) {
+      setFieldError('description', { type: 'manual', message: 'Description is required' });
+      return false;
+    }
+    if (!data.location?.trim()) {
+      setFieldError('location', { type: 'manual', message: 'Location is required' });
+      return false;
+    }
+    if (data.price == null || Number.isNaN(Number(data.price)) || Number(data.price) < 1) {
+      setFieldError('price', { type: 'manual', message: 'Price must be at least $1' });
+      return false;
+    }
+    if (!data.propertyType?.trim()) {
+      setFieldError('propertyType', { type: 'manual', message: 'Property type is required' });
+      return false;
+    }
+    clearErrors();
+    return true;
+  };
+
+  const mutation = useMutation({
+    mutationFn: (formData: FormData) => axios.post(API.LISTINGS, formData, { withCredentials: true }),
+    onSuccess: (response: { data: { id: string; status?: string } }) => {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing'] });
       ReactGA.event({ category: GA.LISTING, action: GA.LISTING_CREATED });
-      if (!listing && response?.data?.id) {
-        const url = getListingPageUrl(response.data.id);
+      const st = response?.data?.status;
+      const newId = response?.data?.id;
+      if (st === 'DRAFT' && newId) {
+        if (router.pathname === '/listings/new') {
+          router.push(`/listings/edit/${newId}`);
+        }
+        return;
+      }
+      if (newId && (st === 'PENDING' || st === 'ACTIVE' || st === 'APPROVED')) {
+        const url = getListingPageUrl(newId);
         if (url) router.push(url);
       }
     },
-    onError: (err: Error) => setError(err?.message ?? 'Failed to save listing'),
+    onError: (err: Error) => setFormError(err?.message ?? 'Failed to save listing'),
   });
+
+  const onPublish = (data: ListingFormFields) => {
+    if (!validateForPublish(data)) return;
+    const fd = buildFormDataPayload(data);
+    if (listing?.status === 'DRAFT' && listing.id) {
+      fd.append('draftId', listing.id);
+      fd.append('submitForApproval', 'true');
+    }
+    mutation.mutate(fd);
+  };
+
+  const onSaveDraft = () => {
+    clearErrors();
+    const data = getValues();
+    const fd = buildFormDataPayload(data);
+    fd.append('isDraft', 'true');
+    if (listing?.id) fd.append('draftId', listing.id);
+    mutation.mutate(fd);
+  };
 
   const debouncedGeocode = debounce(async (location: string) => {
     if (!location?.trim()) return;
@@ -131,7 +186,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
         setPosition({ lat: result.lat, lng: result.lng });
         setValue('latitude', result.lat);
         setValue('longitude', result.lng);
-        setError(null);
+        setFormError(null);
         ReactGA.event({ category: GA.GEOCODING, action: GA.GEOCODING_SUCCESS });
       } else {
         setPosition(DEFAULT_LOCATION);
@@ -140,29 +195,31 @@ export default function ListingForm({ listing }: { listing?: any }) {
         ReactGA.event({ category: GA.GEOCODING, action: GA.GEOCODING_FAILURE });
       }
     } catch (err) {
-      setError((err as Error).message);
+      setFormError((err as Error).message);
       ReactGA.event({ category: GA.GEOCODING, action: GA.GEOCODING_FAILURE });
     }
   }, DEBOUNCE_MS);
 
   return (
     <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6">
-      <h2 className="text-lg font-bold text-slate-900 mb-4">Add listing</h2>
-      <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+      {!hideHeading && (
+        <h2 className="text-lg font-bold text-slate-900 mb-4">{listing?.status === 'DRAFT' ? UI.EDIT_DRAFT_LISTING : 'Add listing'}</h2>
+      )}
+      <form onSubmit={handleSubmit(onPublish)} className="space-y-4">
         <div>
           <label className="label">{UI.TITLE}</label>
-          <input {...register('title', { required: 'Title is required' })} className="input-field" placeholder="e.g. Cozy 3BR" aria-invalid={!!errors.title} />
+          <input {...register('title')} className="input-field" placeholder="e.g. Cozy 3BR" aria-invalid={!!errors.title} />
           {errors.title && <p className="text-red-600 text-sm mt-1" role="alert">{errors.title.message}</p>}
         </div>
         <div>
           <label className="label">{UI.DESCRIPTION}</label>
-          <textarea {...register('description', { required: 'Description is required' })} className="input-field min-h-[100px]" aria-invalid={!!errors.description} />
+          <textarea {...register('description')} className="input-field min-h-[100px]" aria-invalid={!!errors.description} />
           {errors.description && <p className="text-red-600 text-sm mt-1" role="alert">{errors.description.message}</p>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">{UI.PRICE}</label>
-            <input {...register('price', { required: 'Price is required', min: { value: 1, message: 'Price must be greater than 0' }, valueAsNumber: true })} type="number" className="input-field" aria-invalid={!!errors.price} />
+            <input {...register('price', { valueAsNumber: true, min: { value: 0, message: 'Invalid price' } })} type="number" className="input-field" aria-invalid={!!errors.price} />
             {errors.price && <p className="text-red-600 text-sm mt-1" role="alert">{errors.price.message}</p>}
           </div>
           <div>
@@ -182,7 +239,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Province</label>
-            <select {...register('province', { required: 'Province is required' })} className="input-field" aria-invalid={!!errors.province}>
+            <select {...register('province')} className="input-field" aria-invalid={!!errors.province}>
               {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             {errors.province && <p className="text-red-600 text-sm mt-1" role="alert">{errors.province.message}</p>}
@@ -221,7 +278,7 @@ export default function ListingForm({ listing }: { listing?: any }) {
         </div>
         <div>
           <label className="label">Property type</label>
-          <select {...register('propertyType', { required: 'Property type is required' })} className="input-field" aria-invalid={!!errors.propertyType}>
+          <select {...register('propertyType')} className="input-field" aria-invalid={!!errors.propertyType}>
             {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {errors.propertyType && <p className="text-red-600 text-sm mt-1" role="alert">{errors.propertyType.message}</p>}
@@ -330,8 +387,18 @@ export default function ListingForm({ listing }: { listing?: any }) {
             {MAP_NO_KEY_MESSAGE}
           </div>
         )}
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button type="submit" className="btn-primary">{UI.SUBMIT}</button>
+        {formError && <p className="text-red-600 text-sm">{formError}</p>}
+        <div className="flex flex-wrap gap-3 items-center">
+          <button type="submit" className="btn-primary" disabled={mutation.isPending}>
+            {listing?.status === 'DRAFT' ? UI.SUBMIT_FOR_APPROVAL : UI.SUBMIT}
+          </button>
+          <button type="button" className="btn-secondary" disabled={mutation.isPending} onClick={onSaveDraft}>
+            {UI.SAVE_AS_DRAFT}
+          </button>
+        </div>
+        {!listing && (
+          <p className="text-sm text-slate-500">You can save a draft without filling every field; submit when you are ready for broker review.</p>
+        )}
       </form>
     </div>
   );

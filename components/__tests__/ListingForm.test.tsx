@@ -33,7 +33,7 @@ describe('ListingForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = 'test-key';
-    (axios.post as jest.Mock).mockResolvedValue({ data: { id: 'listing-1' } });
+    (axios.post as jest.Mock).mockResolvedValue({ data: { id: 'listing-1', status: 'PENDING' } });
     (geocodeAddressClient as jest.Mock).mockResolvedValue({ lat: 44.4, lng: -79.7 });
     mockUseUnitToggle.mockReturnValue({ isMetric: true });
   });

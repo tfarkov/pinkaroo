@@ -23,6 +23,7 @@ import BottomNav from '../components/ui/BottomNav';
 import ListingCard from '../components/ListingCard';
 import ContactRealtorCard from '../components/ContactRealtorCard';
 import AdvancedFilters from '../components/AdvancedFilters';
+import SavedSearchesPanel from '../components/SavedSearchesPanel';
 import LoadingMore from '../components/ui/LoadingMore';
 import EmptyState from '../components/ui/EmptyState';
 import { SEO, canonicalUrl, toAbsoluteUrl } from '../lib/seo';
@@ -267,6 +268,17 @@ export default function Home() {
   const handleFilterChange = useCallback((data: HomeFilterData) => {
     setFilters({ ...data } as FilterParams);
   }, []);
+
+  const applySavedSearchFilters = useCallback(
+    (data: HomeFilterData) => {
+      setFilters({ ...data } as FilterParams);
+      const query = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, v === undefined || v === '' ? undefined : String(v)])
+      );
+      router.push({ pathname: '/', query }, undefined, { shallow: true });
+    },
+    [router]
+  );
   const listingById = useMemo(() => {
     const byId = new Map<string, ListingBasic>();
     listings.forEach((listing) => {
@@ -472,6 +484,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+              <SavedSearchesPanel currentFilters={filters} onApplyFilters={applySavedSearchFilters} />
               <div className="mb-6" aria-label="Search filters">
                 <AdvancedFilters onFilter={handleFilterChange} />
               </div>

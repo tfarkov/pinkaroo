@@ -13,12 +13,15 @@ const mockInteractionGroupBy = jest.fn();
 const mockListingFindUnique = jest.fn();
 const mockListingUpdate = jest.fn();
 const mockNotificationCreate = jest.fn();
+const mockNotificationCreateMany = jest.fn();
 const mockAuditLogCreate = jest.fn();
+const mockTxUserFindMany = jest.fn();
 
 const mockTx = {
   listing: { update: mockListingUpdate },
-  notification: { create: mockNotificationCreate },
+  notification: { create: mockNotificationCreate, createMany: mockNotificationCreateMany },
   auditLog: { create: mockAuditLogCreate },
+  user: { findMany: mockTxUserFindMany },
 };
 
 jest.mock('@prisma/client', () => ({
@@ -99,6 +102,8 @@ describe('POST /api/broker/approve-listing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSession.mockResolvedValue(null);
+    mockTxUserFindMany.mockResolvedValue([]);
+    mockNotificationCreateMany.mockResolvedValue({ count: 0 });
   });
 
   it('returns 401 when not authenticated', async () => {
@@ -125,13 +130,22 @@ describe('POST /api/broker/approve-listing', () => {
     expect(res._status).toBe(404);
   });
 
-  it('returns 200 with changed false when status unchanged', async () => {
+  it('returns 200 with changed false when status unchanged (still pending)', async () => {
     mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
-    mockListingFindUnique.mockResolvedValue({ id: 'listing-1', status: 'APPROVED', userId: 'u1' });
-    const req = createMockRequest({ method: 'POST', body: { id: 'listing-1', status: 'APPROVED' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'listing-1', status: 'PENDING', userId: 'u1', title: 'T' });
+    const req = createMockRequest({ method: 'POST', body: { id: 'listing-1', status: 'PENDING' } });
     const res = createMockResponse();
     await runHandler(handler, req, res);
     expect(res._status).toBe(200);
     expect((res._json as any)?.changed).toBe(false);
+  });
+
+  it('returns 400 when listing is not pending (e.g. draft)', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'listing-1', status: 'DRAFT', userId: 'u1' });
+    const req = createMockRequest({ method: 'POST', body: { id: 'listing-1', status: 'APPROVED' } });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(400);
   });
 });

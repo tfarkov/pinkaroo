@@ -1,7 +1,10 @@
 export const ROLES = ['USER', 'OFFICE_ADMIN', 'SYSTEM_ADMIN', 'REALTOR', 'BROKER'] as const;
 export type Role = typeof ROLES[number];
-export const LISTING_STATUSES = ['ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'] as const;
+export const LISTING_STATUSES = ['DRAFT', 'ACTIVE', 'PENDING', 'APPROVED', 'REJECTED'] as const;
 export type ListingStatus = typeof LISTING_STATUSES[number];
+
+/** Use these for broker approve/reject API — do not index into LISTING_STATUSES (order changes with enum). */
+export const BROKER_LISTING_DECISION = { APPROVED: 'APPROVED', REJECTED: 'REJECTED' } as const;
 export const PROVINCES = [
   'ALBERTA', 'BRITISH_COLUMBIA', 'MANITOBA', 'NEW_BRUNSWICK', 'NEWFOUNDLAND_AND_LABRADOR',
   'NOVA_SCOTIA', 'ONTARIO', 'PRINCE_EDWARD_ISLAND', 'QUEBEC', 'SASKATCHEWAN',
@@ -64,6 +67,7 @@ export const API = {
   LISTINGS_PUBLIC: '/api/listings/public',      // GET paginated public listings (no auth)
   LISTINGS_NEARBY: '/api/listings/nearby',      // GET by lat/lng/radius (no auth)
   FAVORITES: '/api/favorites',                  // GET/POST/DELETE (auth); index.ts re-exports handler
+  SAVED_SEARCHES: '/api/saved-searches',        // GET list / POST create (auth); PATCH/DELETE /api/saved-searches/[id]
   NOTIFICATIONS: '/api/notifications',          // GET/POST/PUT (auth)
   CLIENTS: '/api/clients',                      // CRUD; single: /api/clients/[id]
   CLIENTS_INTERACTIONS: '/api/clients/interactions',
@@ -91,6 +95,7 @@ export const API = {
   SYSTEM_ADMIN_SETTINGS: '/api/system-admin/settings',
   SYSTEM_ADMIN_PERMISSIONS: '/api/system-admin/permissions',
   SYSTEM_ADMIN_AUDIT: '/api/system-admin/audit',
+  OFFICE_ADMIN_AWAITING_MLS: '/api/office-admin/awaiting-mls',
 } as const;
 
 /** Base path for the listing detail page (pages/listings/[id].tsx). */
@@ -153,6 +158,8 @@ export const NOTIFICATION_MESSAGES = {
   NEW_LISTING_PENDING: 'New listing pending approval',
   NEW_CLIENT_ADDED: 'New client added',
   LISTING_STATUS_UPDATED: 'Listing status updated',
+  LISTING_APPROVED_AWAITING_MLS: (title: string, id: string) =>
+    `Listing approved — file on MLS outside the app: "${title}" (${id.slice(0, 8)}…). It will appear on the site after MLS sync.`,
   YOUR_LISTING_STATUS: (status: string) => `Your listing has been ${status}`,
 } as const;
 
@@ -254,6 +261,21 @@ export const UI = {
   DELETE_TEAM: 'Delete team',
   ASSIGN_TO_TEAM: 'Assign to team',
   NO_TEAM: 'No team',
+  SAVED_SEARCHES_TITLE: 'Saved searches',
+  SAVE_THIS_SEARCH: 'Save this search',
+  SAVED_SEARCH_NAME_LABEL: 'Search name',
+  APPLY_SAVED_SEARCH: 'Apply',
+  NOTIFY_NEW_MATCHES: 'In-app alerts for new matches',
+  SIGN_IN_TO_SAVE_SEARCHES: 'Sign in to save searches and get in-app alerts when new listings match.',
+  NEW_MATCHES_BADGE: 'New',
+  DELETE_SAVED_SEARCH: 'Remove',
+  SAVE_AS_DRAFT: 'Save as draft',
+  SUBMIT_FOR_APPROVAL: 'Submit for approval',
+  LISTING_DRAFT_BANNER: 'Draft — buyers cannot see this listing until you submit it for approval.',
+  EDIT_DRAFT_LISTING: 'Edit draft',
+  AWAITING_MLS_TITLE: 'Awaiting MLS filing',
+  AWAITING_MLS_HELP:
+    'These listings are broker-approved but not on the public site. File them on MLS outside Pinkaroo; they appear after MLS sync picks them up.',
 } as const;
 
 // ——— Content-Type headers ———

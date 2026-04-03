@@ -21,7 +21,7 @@ function boundingBoxDeltas(
 
 /**
  * GET /api/listings/nearby
- * Returns listings within radius (km) of lat/lng. No auth. Only ACTIVE/APPROVED.
+ * Returns listings within radius (km) of lat/lng. No auth. Only ACTIVE/APPROVED with MLS id (published inventory).
  * Haversine filter with indexed lat/lng (Prisma); default radius 50km. Client should
  * pass user location or fallback (e.g. Barrie, ON) when geolocation is unavailable.
  * Query: lat, lng, radius (optional), plus filter params (province, minPrice, etc.).
@@ -41,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const where: Record<string, unknown> = {
     status: { in: ['ACTIVE', 'APPROVED'] },
+    mlsId: { not: null },
     latitude: { gte: lat - deltaLat, lte: lat + deltaLat },
     longitude: { gte: lng - deltaLng, lte: lng + deltaLng },
   };

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../lib/hooks/useAuth';
-import { API, CONTENT_TYPE, LISTING_STATUSES, UI } from '../../../lib/constants';
+import { API, BROKER_LISTING_DECISION, CONTENT_TYPE, UI } from '../../../lib/constants';
 import { getMockBrokerPendingListings } from '../../../lib/mockData';
 import DashboardLayout from '../../../components/DashboardLayout';
 
@@ -26,12 +26,24 @@ export default function BrokerApprovals() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => fetch(API.BROKER_APPROVE_LISTING, { method: 'POST', body: JSON.stringify({ id, status: LISTING_STATUSES[2] }), headers: { 'Content-Type': CONTENT_TYPE.JSON } }),
+    mutationFn: (id: string) =>
+      fetch(API.BROKER_APPROVE_LISTING, {
+        method: 'POST',
+        body: JSON.stringify({ id, status: BROKER_LISTING_DECISION.APPROVED }),
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-pending'] }),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, rejectionReason }: { id: string; rejectionReason: string }) => fetch(API.BROKER_APPROVE_LISTING, { method: 'POST', body: JSON.stringify({ id, status: LISTING_STATUSES[3], rejectionReason }), headers: { 'Content-Type': CONTENT_TYPE.JSON } }),
+    mutationFn: ({ id, rejectionReason }: { id: string; rejectionReason: string }) =>
+      fetch(API.BROKER_APPROVE_LISTING, {
+        method: 'POST',
+        body: JSON.stringify({ id, status: BROKER_LISTING_DECISION.REJECTED, rejectionReason }),
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broker-pending'] }),
   });
 
@@ -47,7 +59,10 @@ export default function BrokerApprovals() {
 
   return (
     <DashboardLayout>
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">{UI.PENDING_APPROVALS}</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-2">{UI.PENDING_APPROVALS}</h1>
+      <p className="text-slate-600 text-sm mb-8 max-w-3xl">
+        Approving sends the listing to office admins for MLS filing outside the app. It will not appear on the public site until it exists on MLS and sync runs.
+      </p>
 
         <div className="space-y-6">
           {pendingListings.map((listing: any) => (
