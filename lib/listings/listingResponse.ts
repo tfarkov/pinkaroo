@@ -32,8 +32,14 @@ export function listingToListingBasic(listing: {
 }
 
 /** JSON shape returned by GET /api/listings/[id] (and similar). */
-export function listingToPublicJson(listing: Listing) {
+export function listingToPublicJson(listing: Listing, opts?: { stripSupportingDocuments?: boolean }) {
   const eco = listing.ecoRatingScore != null ? Number(listing.ecoRatingScore) : null;
+  const docsRaw = listing.supportingDocuments;
+  const includeDocs =
+    !opts?.stripSupportingDocuments &&
+    docsRaw != null &&
+    Array.isArray(docsRaw) &&
+    (docsRaw as unknown[]).length > 0;
   return {
     id: listing.id,
     title: listing.title,
@@ -49,6 +55,7 @@ export function listingToPublicJson(listing: Listing) {
     latitude: listing.latitude != null ? Number(listing.latitude) : null,
     longitude: listing.longitude != null ? Number(listing.longitude) : null,
     images: listing.images,
+    ...(includeDocs ? { supportingDocuments: docsRaw } : {}),
     mlsId: listing.mlsId,
     status: listing.status,
     userId: listing.userId,

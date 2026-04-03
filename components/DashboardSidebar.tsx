@@ -26,6 +26,7 @@ const BROKER_LINKS = [
   { href: '/dashboard/broker/realtors', label: 'Realtor dashboards' },
   { href: '/dashboard/broker/team', label: UI.TEAM_MANAGEMENT },
   { href: '/dashboard/broker/approvals', label: UI.PENDING_APPROVALS },
+  { href: '/dashboard/broker/approved-listings', label: UI.APPROVED_LISTINGS },
   { href: '/dashboard/crm', label: 'CRM' },
   { href: '/dashboard/notifications', label: UI.NOTIFICATIONS },
 ];

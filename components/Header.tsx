@@ -26,7 +26,9 @@ export default function Header() {
     { href: '/', label: 'Find a Home' },
     { href: '/why-pinkaroo', label: 'Why Pinkaroo' },
     ...(isAuthenticated ? [{ href: getPrimaryDashboardHref(role), label: 'Dashboard' }] : []),
-    ...(isRealtor ? [{ href: '/listings/new', label: 'Add Listing' }] : []),
+    ...(isRealtor || isBroker || isOfficeAdmin || isSystemAdmin
+      ? [{ href: '/listings/new', label: 'Add Listing' }]
+      : []),
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
     ...((isRealtor || isBroker || isAdmin) ? [{ href: '/dashboard/crm', label: 'CRM' }] : []),
     ...(canAccessMLS ? [{ href: '/mls-search', label: 'MLS Search' }] : []),

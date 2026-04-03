@@ -5,6 +5,7 @@ import { createMockRequest, createMockResponse, runHandler } from './helpers';
 
 const mockGetSession = jest.fn();
 const mockUserFindMany = jest.fn();
+const mockUserFindUnique = jest.fn();
 const mockTeamFindMany = jest.fn();
 const mockListingGroupBy = jest.fn();
 const mockListingCount = jest.fn();
@@ -26,7 +27,7 @@ const mockTx = {
 
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn(() => ({
-    user: { findMany: mockUserFindMany },
+    user: { findMany: mockUserFindMany, findUnique: mockUserFindUnique },
     team: { findMany: mockTeamFindMany },
     listing: {
       groupBy: mockListingGroupBy,
@@ -92,6 +93,50 @@ describe('GET /api/broker/stats', () => {
   });
 });
 
+describe('GET /api/broker/approved-listings', () => {
+  let handler: (req: unknown, res: unknown) => Promise<void>;
+
+  beforeAll(async () => {
+    handler = (await import('../../pages/api/broker/approved-listings')).default;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetSession.mockResolvedValue(null);
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    const req = createMockRequest({ method: 'GET' });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(401);
+  });
+
+  it('returns 401 when authenticated but not BROKER', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'u1', role: 'USER' } });
+    const req = createMockRequest({ method: 'GET' });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(401);
+  });
+
+  it('returns 200 with approved listings when BROKER', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
+    mockListingFindMany.mockResolvedValue([{ id: 'l1', title: 'Approved home', status: 'APPROVED', user: { name: 'R1' } }]);
+    const req = createMockRequest({ method: 'GET' });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(200);
+    expect(Array.isArray(res._json)).toBe(true);
+    expect((res._json as unknown[]).length).toBe(1);
+    expect(mockListingFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'APPROVED' }),
+      })
+    );
+  });
+});
+
 describe('POST /api/broker/approve-listing', () => {
   let handler: (req: unknown, res: unknown) => Promise<void>;
 
@@ -104,6 +149,7 @@ describe('POST /api/broker/approve-listing', () => {
     mockGetSession.mockResolvedValue(null);
     mockTxUserFindMany.mockResolvedValue([]);
     mockNotificationCreateMany.mockResolvedValue({ count: 0 });
+    mockUserFindUnique.mockResolvedValue({ brokerId: 'broker-1' });
   });
 
   it('returns 401 when not authenticated', async () => {
@@ -119,6 +165,16 @@ describe('POST /api/broker/approve-listing', () => {
     const res = createMockResponse();
     await runHandler(handler, req, res);
     expect(res._status).toBe(400);
+  });
+
+  it('returns 403 when listing agent is not under this broker', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'broker-1', role: 'BROKER' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'listing-1', status: 'PENDING', userId: 'u1', title: 'T' });
+    mockUserFindUnique.mockResolvedValue({ brokerId: 'other-broker' });
+    const req = createMockRequest({ method: 'POST', body: { id: 'listing-1', status: 'APPROVED' } });
+    const res = createMockResponse();
+    await runHandler(handler, req, res);
+    expect(res._status).toBe(403);
   });
 
   it('returns 404 when listing not found', async () => {

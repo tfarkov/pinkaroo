@@ -10,8 +10,8 @@ import { API, UI } from '../../../lib/constants';
 export default function EditListingDraftPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { isRealtor, isBroker, isAdmin, status, user } = useAuth();
-  const canEdit = isRealtor || isBroker || isAdmin;
+  const { isRealtor, isBroker, isOfficeAdmin, isSystemAdmin, status, user } = useAuth();
+  const canEdit = isRealtor || isBroker || isOfficeAdmin || isSystemAdmin;
   const idStr = typeof id === 'string' ? id : '';
   const sessionUserId = (user as { id?: string } | undefined)?.id;
 

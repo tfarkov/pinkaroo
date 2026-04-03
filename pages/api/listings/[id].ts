@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { requireMethod, sendError } from '../../../lib/apiHelpers';
+import { requireMethod, sendError, roleMayAccessListingSupportingDocuments } from '../../../lib/apiHelpers';
 import { getSession } from '../../../lib/session';
 import { listingToPublicJson } from '../../../lib/listings/listingResponse';
 
@@ -33,7 +33,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isPublic =
       hasMls && (listing.status === 'ACTIVE' || listing.status === 'APPROVED');
     if (isPublic) {
-      res.json(listingToPublicJson(listing));
+      const sessionEarly = await getSession(req, res);
+      let stripSupportingDocuments = true;
+      if (sessionEarly?.user && roleMayAccessListingSupportingDocuments(sessionEarly.user.role)) {
+        const uid = sessionEarly.user.id;
+        const role = sessionEarly.user.role;
+        if (role === 'REALTOR' && listing.userId === uid) stripSupportingDocuments = false;
+        else if (role === 'SYSTEM_ADMIN' || role === 'OFFICE_ADMIN') stripSupportingDocuments = false;
+        else if (role === 'BROKER') {
+          const owner = await prisma.user.findUnique({
+            where: { id: listing.userId },
+            select: { brokerId: true },
+          });
+          if (owner?.brokerId === uid) stripSupportingDocuments = false;
+        }
+      }
+      res.json(listingToPublicJson(listing, { stripSupportingDocuments }));
       return;
     }
 
@@ -47,7 +62,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const role = session.user.role;
 
     if (listing.userId === uid) {
-      res.json(listingToPublicJson(listing));
+      res.json(
+        listingToPublicJson(listing, {
+          stripSupportingDocuments: !roleMayAccessListingSupportingDocuments(role),
+        })
+      );
       return;
     }
 

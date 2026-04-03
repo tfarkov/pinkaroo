@@ -80,6 +80,16 @@ export function canManageBrokersAndRealtors(role: string | undefined): boolean {
   return isSystemAdminRole(role) || isOfficeAdminRole(role);
 }
 
+/** Realtor, broker, or admin — may view/upload listing supporting documents via API. */
+export function roleMayAccessListingSupportingDocuments(role: string | undefined): boolean {
+  return (
+    role === 'REALTOR' ||
+    role === 'BROKER' ||
+    role === 'OFFICE_ADMIN' ||
+    role === 'SYSTEM_ADMIN'
+  );
+}
+
 export function canManageSystemSettings(role: string | undefined): boolean {
   return isSystemAdminRole(role);
 }

@@ -84,6 +84,7 @@ export const API = {
   BROKER_STATS: '/api/broker/stats',
   BROKER_WEEKLY_KPIS: '/api/broker/weekly-kpis',
   BROKER_PENDING_LISTINGS: '/api/broker/pending-listings',
+  BROKER_APPROVED_LISTINGS: '/api/broker/approved-listings',
   BROKER_APPROVE_LISTING: '/api/broker/approve-listing',
   BROKER_TEAMS: '/api/broker/teams',            // List: index; single: /api/broker/teams/[id]
   BROKER_REALTOR_DASHBOARD: '/api/broker/realtor-dashboard',
@@ -214,6 +215,14 @@ export const UI = {
   REALTORS_LIST: 'Realtors List',
   BROKERS_LIST: 'Brokers List',
   PENDING_APPROVALS: 'Pending Listing Approvals',
+  BROKER_PENDING_LISTING_BANNER_TITLE: 'Pending your approval',
+  BROKER_PENDING_LISTING_BANNER_HELP:
+    'This listing is awaiting broker approval. Approve to send it for MLS filing, or reject with a reason.',
+  APPROVED_LISTINGS: 'Approved Listings',
+  LISTING_SUPPORTING_DOCS_LABEL: 'Supporting documents',
+  LISTING_SUPPORTING_DOCS_HELP:
+    'Optional PDF, Word, Excel, or text files (e.g. disclosures, floor plans). Up to 15 files, 15 MB each.',
+  LISTING_SUPPORTING_DOCS_SECTION: 'Supporting documents',
   CRM_TITLE: 'CRM - Client Management',
   ADD_CLIENT: 'Add Client',
   EDIT_CLIENT: 'Edit Client',

@@ -33,6 +33,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(404).json({ success: false, error: 'Listing not found' });
       return;
     }
+    const listingOwner = await prisma.user.findUnique({
+      where: { id: listingBefore.userId },
+      select: { brokerId: true },
+    });
+    if (listingOwner?.brokerId !== session.user.id) {
+      res.status(403).json({ success: false, error: 'Forbidden' });
+      return;
+    }
     if (listingBefore.status !== 'PENDING') {
       res.status(400).json({ success: false, error: 'Only pending listings can be approved or rejected' });
       return;

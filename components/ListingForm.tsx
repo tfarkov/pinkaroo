@@ -24,6 +24,7 @@ interface ListingFormFields {
   bathroomsTotal: number;
   propertyType: string;
   images: FileList | undefined;
+  documents: FileList | undefined;
   latitude?: number;
   longitude?: number;
   streetAddress?: string;
@@ -54,7 +55,8 @@ export default function ListingForm({ listing, hideHeading }: { listing?: any; h
     mode: 'onBlur',
   });
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isRealtor, isBroker, isOfficeAdmin, isSystemAdmin } = useAuth();
+  const canUploadSupportingDocuments = isRealtor || isBroker || isOfficeAdmin || isSystemAdmin;
   const { isMetric } = useUnitToggle();
   const [position, setPosition] = useState(() =>
     listing?.latitude != null && listing?.longitude != null
@@ -94,6 +96,10 @@ export default function ListingForm({ listing, hideHeading }: { listing?: any; h
       if (key === 'images') {
         if (value && (value as FileList).length) {
           Array.from(value as FileList).forEach((file: File) => formData.append('images', file));
+        }
+      } else if (key === 'documents') {
+        if (value && (value as FileList).length) {
+          Array.from(value as FileList).forEach((file: File) => formData.append('documents', file));
         }
       } else if (key === 'sizeSqm') {
         formData.append(key, String(value));
@@ -355,6 +361,19 @@ export default function ListingForm({ listing, hideHeading }: { listing?: any; h
           <label className="label">Photos</label>
           <input type="file" multiple accept="image/*" {...register('images')} className="input-field py-2" />
         </div>
+        {canUploadSupportingDocuments && (
+          <div>
+            <label className="label">{UI.LISTING_SUPPORTING_DOCS_LABEL}</label>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+              {...register('documents')}
+              className="input-field py-2"
+            />
+            <p className="text-sm text-slate-500 mt-1">{UI.LISTING_SUPPORTING_DOCS_HELP}</p>
+          </div>
+        )}
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
           <LoadScript
             googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}

@@ -1026,6 +1026,19 @@ export function getMockBrokerPendingListings() {
   });
 }
 
+/** Broker-approved listings (awaiting or on MLS). */
+export function getMockBrokerApprovedListings() {
+  return MOCK_LISTINGS.slice(0, 2).map((listing, index) => {
+    const realtor = MOCK_REALTORS[index % MOCK_REALTORS.length];
+    return {
+      ...listing,
+      status: 'APPROVED',
+      mlsId: index === 0 ? 'MLS-MOCK-1' : null,
+      user: { id: realtor.id, name: realtor.name, email: realtor.email },
+    };
+  });
+}
+
 /** User / realtor profile (for AgentProfileCard and realtors/[id]) */
 export function getMockUser(id: string | undefined) {
   const realtor = MOCK_REALTORS.find((r) => r.id === id) ?? MOCK_REALTORS[0];

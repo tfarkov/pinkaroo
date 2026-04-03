@@ -8,7 +8,7 @@ const mockListingDelete = jest.fn();
 const mockListingFindUnique = jest.fn();
 const mockUserFindUnique = jest.fn();
 const mockCloudinaryUpload = jest.fn();
-const mockUploadArray = jest.fn();
+const mockUploadFieldsMiddleware = jest.fn();
 const mockGeocodeAddress = jest.fn();
 const mockComputeEcoRatingScore = jest.fn();
 
@@ -33,7 +33,7 @@ jest.mock('../../lib/session', () => ({
 
 jest.mock('multer', () =>
   jest.fn(() => ({
-    array: (...args: unknown[]) => mockUploadArray(...args),
+    fields: jest.fn(() => mockUploadFieldsMiddleware),
   }))
 );
 
@@ -66,7 +66,10 @@ describe('/api/listings (index route)', () => {
     mockGetSession.mockResolvedValue(null);
     mockListingFindMany.mockResolvedValue([]);
     mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
-    mockUploadArray.mockReturnValue((_req: unknown, _res: unknown, cb: (err?: Error) => void) => cb());
+    mockUploadFieldsMiddleware.mockImplementation((req: { files?: Record<string, unknown[]> }, _res: unknown, cb: (err?: Error) => void) => {
+      req.files = { images: [], documents: [] };
+      cb();
+    });
     mockCloudinaryUpload.mockResolvedValue({ secure_url: 'https://img.example.com/one.jpg' });
     mockGeocodeAddress.mockResolvedValue({ lat: 43.7, lng: -79.4 });
     mockComputeEcoRatingScore.mockReturnValue(8);
@@ -247,6 +250,23 @@ describe('/api/listings (index route)', () => {
       method: 'PUT',
       body: { id: 'l1', title: 'Unauthorized update' },
       headers: { 'x-forwarded-for': '203.0.113.44' },
+    });
+    const res = createMockResponse();
+    await runHandler(handler as any, req, res);
+    expect(res._status).toBe(403);
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when USER attempts to update supportingDocuments', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'owner-1', role: 'USER' } });
+    mockListingFindUnique.mockResolvedValue({ id: 'l1', userId: 'owner-1' });
+    const req = createMockRequest({
+      method: 'PUT',
+      body: {
+        id: 'l1',
+        supportingDocuments: [{ url: 'https://evil.com/x', fileName: 'x.pdf', mimeType: 'application/pdf' }],
+      },
+      headers: { 'x-forwarded-for': '203.0.113.99' },
     });
     const res = createMockResponse();
     await runHandler(handler as any, req, res);

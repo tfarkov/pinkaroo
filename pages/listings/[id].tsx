@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Head from 'next/head';
 import { useMemo, useState } from 'react';
 import PropertyGallery from '../../components/PropertyGallery';
@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import BottomNav from '../../components/ui/BottomNav';
-import { API, RECENTLY_VIEWED_LIMIT, UI, DEFAULT_LOCATION, MAP_NO_KEY_MESSAGE } from '../../lib/constants';
+import { API, BROKER_LISTING_DECISION, CONTENT_TYPE, RECENTLY_VIEWED_LIMIT, UI, DEFAULT_LOCATION, MAP_NO_KEY_MESSAGE } from '../../lib/constants';
 import { canonicalUrl, toAbsoluteUrl, SEO } from '../../lib/seo';
 import { formatPrice, formatArea } from '../../lib/format';
 import { getEcoRatingDisplay } from '../../lib/ecoRating';
@@ -80,8 +80,13 @@ export default function ListingDetail() {
   const { id } = router.query;
   const { isMetric } = useUnitToggle();
   const { isFavorited, toggleFavorite } = useFavorites();
-  const { user } = useAuth();
+  const { user, isBroker, isRealtor, isOfficeAdmin, isSystemAdmin } = useAuth();
+  const canViewSupportingDocuments = isRealtor || isBroker || isOfficeAdmin || isSystemAdmin;
   const sessionUserId = (user as { id?: string } | undefined)?.id;
+  const queryClient = useQueryClient();
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [brokerActionError, setBrokerActionError] = useState<string | null>(null);
   const { data: listing, isFetched } = useQuery({
     queryKey: ['listing', id],
     queryFn: async () => {
@@ -93,6 +98,53 @@ export default function ListingDetail() {
   });
   const isDraftPreview = listing?.status === 'DRAFT';
   const canEditDraft = isDraftPreview && !!sessionUserId && listing?.userId === sessionUserId;
+  const showBrokerPendingActions = isBroker && listing?.status === 'PENDING';
+
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      if (typeof id !== 'string') throw new Error('Invalid listing');
+      const res = await fetch(API.BROKER_APPROVE_LISTING, {
+        method: 'POST',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ id, status: BROKER_LISTING_DECISION.APPROVED }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Approval failed');
+      return data;
+    },
+    onSuccess: () => {
+      setBrokerActionError(null);
+      setRejectOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['listing', id] });
+      queryClient.invalidateQueries({ queryKey: ['broker-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['broker-approved'] });
+    },
+    onError: (e: Error) => setBrokerActionError(e.message),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      if (typeof id !== 'string') throw new Error('Invalid listing');
+      const res = await fetch(API.BROKER_APPROVE_LISTING, {
+        method: 'POST',
+        headers: { 'Content-Type': CONTENT_TYPE.JSON },
+        credentials: 'include',
+        body: JSON.stringify({ id, status: BROKER_LISTING_DECISION.REJECTED, rejectionReason: reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Rejection failed');
+      return data;
+    },
+    onSuccess: () => {
+      setBrokerActionError(null);
+      setRejectOpen(false);
+      setRejectionReason('');
+      queryClient.invalidateQueries({ queryKey: ['listing', id] });
+      queryClient.invalidateQueries({ queryKey: ['broker-pending'] });
+    },
+    onError: (e: Error) => setBrokerActionError(e.message),
+  });
   useEffect(() => {
     if (typeof window === 'undefined' || typeof id !== 'string' || !id.trim()) return;
     let viewed: string[] = [];
@@ -236,6 +288,86 @@ export default function ListingDetail() {
             ) : null}
           </div>
         )}
+        {showBrokerPendingActions && (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-slate-900">
+            <p className="text-sm font-semibold text-slate-800 mb-1">{UI.BROKER_PENDING_LISTING_BANNER_TITLE}</p>
+            <p className="text-sm text-slate-600 mb-4">{UI.BROKER_PENDING_LISTING_BANNER_HELP}</p>
+            {brokerActionError && (
+              <p className="text-sm text-red-600 mb-3" role="alert">
+                {brokerActionError}
+              </p>
+            )}
+            {!rejectOpen ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="btn-primary bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60"
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  onClick={() => approveMutation.mutate()}
+                >
+                  {approveMutation.isPending ? UI.LOADING : 'Approve'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary border-red-300 text-red-700 hover:border-red-500 hover:text-red-800 disabled:opacity-60"
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                  onClick={() => {
+                    setBrokerActionError(null);
+                    setRejectOpen(true);
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            ) : (
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const trimmed = rejectionReason.trim();
+                  if (!trimmed) {
+                    setBrokerActionError('Rejection reason is required.');
+                    return;
+                  }
+                  rejectMutation.mutate(trimmed);
+                }}
+              >
+                <label className="label" htmlFor="broker-reject-reason">
+                  Rejection reason
+                </label>
+                <textarea
+                  id="broker-reject-reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="input-field min-h-[100px] w-full"
+                  placeholder="Explain why this listing is being rejected"
+                  aria-invalid={!!brokerActionError && !rejectionReason.trim()}
+                />
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    className="btn-primary bg-red-600 hover:bg-red-700 disabled:opacity-60"
+                    disabled={rejectMutation.isPending || approveMutation.isPending}
+                  >
+                    {rejectMutation.isPending ? UI.LOADING : 'Submit rejection'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={rejectMutation.isPending}
+                    onClick={() => {
+                      setRejectOpen(false);
+                      setRejectionReason('');
+                      setBrokerActionError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
         <div className="py-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 flex items-center gap-2">
@@ -348,6 +480,33 @@ export default function ListingDetail() {
             <AgentProfileCard agentId={listing.userId} />
           </div>
         </div>
+
+        {canViewSupportingDocuments &&
+          Array.isArray(listing.supportingDocuments) &&
+          listing.supportingDocuments.length > 0 && (
+          <div className="bg-white rounded-lg shadow-card border border-slate-200 p-6 mb-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-3">{UI.LISTING_SUPPORTING_DOCS_SECTION}</h2>
+            <ul className="space-y-2">
+              {(listing.supportingDocuments as { url?: string; fileName?: string }[]).map((doc, index) => {
+                const href = typeof doc.url === 'string' ? doc.url : '';
+                const label = typeof doc.fileName === 'string' && doc.fileName.trim() ? doc.fileName : `Document ${index + 1}`;
+                if (!href) return null;
+                return (
+                  <li key={`${href}-${index}`}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent-600 font-medium hover:text-accent-700 hover:underline"
+                    >
+                      {label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-card border border-slate-200 overflow-hidden mb-6">
           <div className="p-4 border-b border-slate-200">

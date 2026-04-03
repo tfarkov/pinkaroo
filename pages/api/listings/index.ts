@@ -12,6 +12,7 @@ import {
   requireAuth,
   requireMethod,
   requireRole,
+  roleMayAccessListingSupportingDocuments,
   sendError,
 } from '../../../lib/apiHelpers';
 import { geocodeAddress } from '../../../lib/geocode';
@@ -22,17 +23,66 @@ import os from 'os';
 import { unlink } from 'fs/promises';
 
 const prisma = new PrismaClient();
-const upload = multer({
+
+const ALLOWED_DOCUMENT_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+]);
+
+type SupportingDocumentPayload = { url: string; fileName: string; mimeType: string };
+
+function parseStoredSupportingDocuments(raw: unknown): SupportingDocumentPayload[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SupportingDocumentPayload[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.url !== 'string' || !o.url.trim()) continue;
+    out.push({
+      url: o.url.trim().slice(0, 4000),
+      fileName: typeof o.fileName === 'string' && o.fileName.trim() ? o.fileName.trim().slice(0, 240) : 'document',
+      mimeType: typeof o.mimeType === 'string' && o.mimeType.trim() ? o.mimeType.trim().slice(0, 128) : 'application/octet-stream',
+    });
+  }
+  return out;
+}
+
+function mergeSupportingDocuments(existing: unknown, uploads: SupportingDocumentPayload[]): SupportingDocumentPayload[] {
+  const prev = parseStoredSupportingDocuments(existing);
+  if (uploads.length > 0) return [...prev, ...uploads];
+  return prev;
+}
+
+const uploadListingMedia = multer({
   dest: os.tmpdir(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
+  limits: { fileSize: 15 * 1024 * 1024, files: 26 },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      cb(new Error('Only image uploads are allowed'));
+    if (file.fieldname === 'images') {
+      if (!file.mimetype.startsWith('image/')) {
+        cb(new Error('Only image files are allowed for photos'));
+        return;
+      }
+      cb(null, true);
       return;
     }
-    cb(null, true);
+    if (file.fieldname === 'documents') {
+      if (!ALLOWED_DOCUMENT_MIMES.has(file.mimetype)) {
+        cb(new Error('Unsupported document type (use PDF, Word, Excel, or plain text)'));
+        return;
+      }
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Unexpected file field'));
   },
-});
+}).fields([
+  { name: 'images', maxCount: 10 },
+  { name: 'documents', maxCount: 15 },
+]);
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
@@ -52,6 +102,7 @@ const LISTING_MUTABLE_FIELDS = new Set([
   'latitude',
   'longitude',
   'images',
+  'supportingDocuments',
   'streetAddress',
   'unitNumber',
   'yearBuilt',
@@ -115,29 +166,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sendError(res, 503, 'Image upload service unavailable');
       return;
     }
-    await new Promise<void>((resolve, reject) => upload.array('images')(req as any, res as any, (err) => {
-      if (err) reject(err);
-      else resolve();
-    }));
-    const files = (req as { files?: Express.Multer.File[] }).files ?? [];
+    await new Promise<void>((resolve, reject) =>
+      uploadListingMedia(req as any, res as any, (err: Error | undefined) => (err ? reject(err) : resolve()))
+    );
+    const fileGroups = (req as { files?: Record<string, Express.Multer.File[]> }).files ?? {};
+    const imageFiles = fileGroups.images ?? [];
+    const documentFiles = fileGroups.documents ?? [];
+    const allTempFiles = [...imageFiles, ...documentFiles];
     const rawBody = (req as { body?: Record<string, unknown> }).body ?? {};
     const uploadedImages: string[] = [];
+    const uploadedDocuments: SupportingDocumentPayload[] = [];
     try {
-      for (const file of files as Express.Multer.File[]) {
+      for (const file of imageFiles) {
         const result = await cloudinary.uploader.upload(file.path, {
           transformation: [{ width: 800, quality: 80, format: 'auto' }],
           secure: true,
         });
         uploadedImages.push(result.secure_url);
       }
+      for (const file of documentFiles) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          resource_type: 'raw',
+          folder: 'pinkaroo/listing-documents',
+          use_filename: true,
+          unique_filename: true,
+        });
+        uploadedDocuments.push({
+          url: result.secure_url,
+          fileName: (file.originalname || 'document').slice(0, 240),
+          mimeType: file.mimetype,
+        });
+      }
     } finally {
-      await Promise.all((files as Express.Multer.File[]).map(async (file) => {
-        try {
-          await unlink(file.path);
-        } catch {
-          // best-effort temp cleanup
-        }
-      }));
+      await Promise.all(
+        allTempFiles.map(async (file) => {
+          try {
+            await unlink(file.path);
+          } catch {
+            // best-effort temp cleanup
+          }
+        })
+      );
     }
 
     const draftIdRaw = rawBody.draftId != null ? String(rawBody.draftId).trim() : '';
@@ -151,6 +220,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (uploadedImages.length > 0) return [...prev, ...uploadedImages];
       return prev;
     };
+    const mergeDraftSupportingDocs = (existingDocs: unknown): SupportingDocumentPayload[] =>
+      mergeSupportingDocuments(existingDocs, uploadedDocuments);
 
     if (draftIdRaw && isSafeId(draftIdRaw)) {
       const existingDraft = await prisma.listing.findFirst({
@@ -162,6 +233,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const province = ((rawBody.province as string) ?? 'ONTARIO') as Province;
       const images = mergeDraftImages(existingDraft.images);
+      const supportingDocuments = mergeDraftSupportingDocs(existingDraft.supportingDocuments);
 
       if (submitForApproval) {
         const title = parseString(rawBody.title, { maxLength: 160 });
@@ -196,6 +268,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           latitude,
           longitude,
           images,
+          supportingDocuments,
           status: nextStatus,
           streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
           yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
@@ -257,6 +330,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         latitude,
         longitude,
         images,
+        supportingDocuments,
         status: 'DRAFT' as ListingStatus,
         streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
         yearBuilt: parseFiniteInt(rawBody.yearBuilt, { min: 1800, max: 2100 }) ?? undefined,
@@ -320,6 +394,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         latitude,
         longitude,
         images: draftImages,
+        supportingDocuments: uploadedDocuments,
         userId: session.user.id,
         status: 'DRAFT' as ListingStatus,
         streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
@@ -380,6 +455,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       latitude,
       longitude,
       images: uploadedImages.length ? uploadedImages : (Array.isArray(rawBody.images) ? rawBody.images.filter((v): v is string => typeof v === 'string') : []),
+      supportingDocuments: uploadedDocuments,
       userId: session.user.id,
       status,
       streetAddress: rawBody.streetAddress != null ? String(rawBody.streetAddress).trim() || null : undefined,
@@ -434,6 +510,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const keys = Object.keys(updateData);
     if (keys.length === 0) {
       sendError(res, 400, 'No fields provided');
+      return;
+    }
+    if (keys.includes('supportingDocuments') && !roleMayAccessListingSupportingDocuments(userRole)) {
+      sendError(res, 403, API_MESSAGES.FORBIDDEN);
       return;
     }
     for (const key of keys) {
@@ -539,6 +619,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return;
       }
       sanitized.images = updateData.images;
+    }
+    if (updateData.supportingDocuments !== undefined) {
+      if (!Array.isArray(updateData.supportingDocuments)) {
+        sendError(res, 422, 'Invalid supportingDocuments');
+        return;
+      }
+      for (const doc of updateData.supportingDocuments) {
+        if (!doc || typeof doc !== 'object') {
+          sendError(res, 422, 'Invalid supportingDocuments');
+          return;
+        }
+        const d = doc as Record<string, unknown>;
+        if (typeof d.url !== 'string' || !d.url.trim()) {
+          sendError(res, 422, 'Invalid supportingDocuments');
+          return;
+        }
+      }
+      sanitized.supportingDocuments = updateData.supportingDocuments;
     }
     if (updateData.streetAddress !== undefined) {
       sanitized.streetAddress = updateData.streetAddress == null ? null : String(updateData.streetAddress).trim() || null;
@@ -661,6 +759,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   } catch (err) {
     console.error('[api/listings]', err);
-    if (!res.headersSent) sendError(res, 500);
+    if (!res.headersSent) {
+      const msg = err instanceof Error ? err.message : '';
+      if (
+        /unsupported document type|only image files are allowed|unexpected file field/i.test(msg)
+      ) {
+        sendError(res, 400, msg);
+        return;
+      }
+      sendError(res, 500);
+    }
   }
 }

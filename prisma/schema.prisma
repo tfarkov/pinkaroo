@@ -116,6 +116,7 @@ model Listing {
   latitude           Float?
   longitude          Float?
   images             Json?   // array of image URLs
+  supportingDocuments Json?  // [{ url, fileName, mimeType }] — disclosures, floor plans, etc.
   mlsId              String?  @unique
   status             ListingStatus @default(ACTIVE)
   approvedBy         String?

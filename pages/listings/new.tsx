@@ -6,8 +6,8 @@ import ListingForm from '../../components/ListingForm';
 
 export default function NewListingPage() {
   const router = useRouter();
-  const { isRealtor, isBroker, isAdmin, status } = useAuth();
-  const canAddListing = isRealtor || isBroker || isAdmin;
+  const { isRealtor, isBroker, isOfficeAdmin, isSystemAdmin, status } = useAuth();
+  const canAddListing = isRealtor || isBroker || isOfficeAdmin || isSystemAdmin;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
